@@ -47,6 +47,34 @@ a{color:inherit}
 .navbtn:hover,.navbtn[aria-current="page"]{background:var(--ink);color:var(--bg)}
 @media (max-width:520px){.brand{font-size:1rem;gap:5px;white-space:nowrap}.brand svg{width:20px;height:20px}.navbtn{padding:6px 9px;font-size:.78rem}.navr{gap:5px}.seg button{padding:6px 7px;min-width:30px;font-size:.78rem}.top{gap:8px}}
 .soon{color:var(--soft);max-width:52ch;margin:18px 0 0}
+
+.pintro{color:var(--soft);max-width:60ch;margin:0}
+.rgbstage{position:relative;height:clamp(520px,86vh,960px);background:#000;overflow:hidden;isolation:isolate;border-radius:2px;margin-top:26px;user-select:none;-webkit-user-select:none}
+.rgbstage:focus-visible{outline-offset:4px}
+.lyr{position:absolute;display:block;max-width:none;mix-blend-mode:screen;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none}
+.lyr.grab{cursor:grabbing}
+.lyr.off{display:none}
+.rgbstage.anim .lyr{transition:left .4s ease,top .4s ease}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.chip{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.chip button{font:inherit;color:var(--ink);background:transparent;border:0;cursor:pointer}
+.chip .sel{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center;text-align:left;padding:8px 14px 8px 12px}
+.chip .sel i{width:14px;height:14px;border-radius:50%;grid-row:1/3}
+.chip .sel b{font-weight:600;line-height:1.2}
+.chip .sel .off{font:500 .78rem/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--soft);white-space:pre}
+.chip .sel[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chip .sel[aria-pressed="true"] .off{color:inherit;opacity:.8}
+.chip .eye{padding:0 14px;border-left:1px solid var(--line);font-weight:600;font-size:.85rem;min-width:56px;color:var(--soft)}
+.chip .eye[aria-pressed="true"]{color:var(--ink)}
+.pbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:14px}
+button.navbtn{background:transparent;cursor:pointer}
+.snap{display:inline-flex;align-items:center;gap:8px;font-weight:500;cursor:pointer}
+.snap input{width:18px;height:18px;accent-color:var(--accent)}
+.pstat{margin:16px 0 0;color:var(--soft);min-height:1.6em}
+.pstat.ok{color:var(--accent);font-weight:600}
+.phow{margin-top:40px;padding-top:24px;border-top:1px solid var(--line);max-width:64ch}
+.phow h2{font:italic 500 1.7rem/1.1 var(--f-display);margin:0 0 10px}
+.phow p{color:var(--soft);margin:0 0 12px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
 .seg button{font:600 .9rem var(--f-body);padding:7px 14px;min-width:44px;border:0;background:transparent;color:var(--soft);cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
@@ -255,7 +283,25 @@ a.stage:hover .open{filter:brightness(.92)}
   }];
 
   var FR = { 1: "⅛", 2: "¼", 3: "⅜", 4: "½", 5: "⅝", 6: "¾", 7: "⅞" };
-  var S = { lang: "de", view: "home", rid: "", cat: "all", mult: 1, cook: false, ing: {}, done: {} };
+
+  var PJ = {
+    title: { de: "RGB-Trennung", en: "RGB split" },
+    intro: { de: "Ein Foto besteht aus drei Lichtkanälen: Rot, Grün und Blau. Hier liegen sie als drei Ebenen übereinander. Zieh sie auseinander und wieder zusammen.", en: "A photo is made of three channels of light: red, green and blue. Here they sit on top of each other as three layers. Pull them apart and back together." },
+    name: { r: { de: "Rot", en: "Red" }, g: { de: "Grün", en: "Green" }, b: { de: "Blau", en: "Blue" } },
+    alt: { r: { de: "Rotkanal des Fotos", en: "Red channel of the photo" }, g: { de: "Grünkanal des Fotos", en: "Green channel of the photo" }, b: { de: "Blaukanal des Fotos", en: "Blue channel of the photo" } },
+    on: { de: "An", en: "On" }, off: { de: "Aus", en: "Off" },
+    reset: { de: "Zurücksetzen", en: "Reset" }, spread: { de: "Verteilen", en: "Spread" },
+    snap: { de: "Einrasten", en: "Snap to origin" },
+    start: { de: "Zieh eine Ebene mit Maus oder Finger weg.", en: "Drag a layer away with mouse or finger." },
+    hint: { de: "Bring alle drei Ebenen wieder in Deckung, dann ist das Bild komplett.", en: "Bring all three layers back into line to complete the picture." },
+    ok: { de: "Deckungsgleich: das Originalbild ist wieder da.", en: "Perfectly aligned: the original picture is back." },
+    howH: { de: "So funktioniert’s", en: "How it works" },
+    how1: { de: "Jede Ebene enthält nur einen Farbkanal des Fotos. Alle drei sind pixelgenau aus demselben Bild herausgerechnet. Übereinander addieren sich die Lichter wieder: Liegen alle drei deckungsgleich, siehst du das Original. Schon wenige Pixel Versatz erzeugen Farbsäume.", en: "Each layer holds just one colour channel of the photo. All three are cut pixel-exactly from the same image. Stacked, the lights add up again: when all three line up, you see the original. A few pixels of offset already create colour fringes." },
+    how2: { de: "Bedienung: Ebene mit Maus oder Finger ziehen. Die Tasten 1, 2, 3 wählen eine Ebene, die Pfeiltasten verschieben sie um 1 Pixel (mit Umschalt um 10). „An/Aus“ blendet eine Ebene aus. „Einrasten“ zieht eine Ebene in ihre Ausgangsposition, sobald sie nah genug ist. „Verteilen“ wirft die Ebenen auseinander, „Zurücksetzen“ stellt alles wieder her.", en: "Controls: drag a layer with mouse or finger. Keys 1, 2, 3 pick a layer, arrow keys move it by 1 pixel (10 with Shift). “On/Off” hides a layer. “Snap to origin” pulls a layer to its starting position when it is close enough. “Spread” throws the layers apart, “Reset” restores everything." }
+  };
+
+  var S = { lang: "de", view: "home", rid: "", cat: "all", mult: 1, cook: false, ing: {}, done: {},
+    pj: { x: { r: 0, g: 0, b: 0 }, y: { r: 0, g: 0, b: 0 }, on: { r: true, g: true, b: true }, active: "r", snap: true, touched: false, z: ["r", "g", "b"] } };
   var app = document.getElementById("app");
   var wake = null;
 
@@ -341,13 +387,130 @@ a.stage:hover .open{filter:brightness(.92)}
       PRIV.items.map(function (it) { return '<div class="pitem"><h2>' + it.h[S.lang] + "</h2><p>" + it.p[S.lang] + "</p></div>"; }).join("");
   }
 
+  var CH = [
+    { k: "r", img: "rgb-rot.png", c: "#E5484D" },
+    { k: "g", img: "rgb-gruen.png", c: "#30A46C" },
+    { k: "b", img: "rgb-blau.png", c: "#3E63DD" }
+  ];
+  var PW = 1000, PH = 1500, pjScale = 1, pjOrigin = { ox: 0, oy: 0 }, drag = null, animT = 0;
+
   function projectHTML() {
-    return '<a class="back" href="#">' + U("back") + '</a><h1 class="ptitle">' + U("project") + '</h1><p class="soon">' + U("projectSoon") + "</p>";
+    var P = S.pj, L = S.lang;
+    var lay = P.z.map(function (k, i) {
+      var c = CH.filter(function (x) { return x.k === k; })[0];
+      return '<img class="lyr' + (P.on[k] ? "" : " off") + '" data-ch="' + k + '" src="' + c.img + '" alt="' + PJ.alt[k][L] + '" draggable="false" style="z-index:' + (i + 1) + '">';
+    }).join("");
+    var chips = CH.map(function (c) {
+      return '<div class="chip"><button type="button" class="sel" data-sel="' + c.k + '" aria-pressed="' + (P.active === c.k) + '"><i style="background:' + c.c + '"></i><b>' + PJ.name[c.k][L] + '</b><span class="off" id="o-' + c.k + '"></span></button>' +
+        '<button type="button" class="eye" data-vis="' + c.k + '" aria-pressed="' + P.on[c.k] + '">' + (P.on[c.k] ? PJ.on[L] : PJ.off[L]) + "</button></div>";
+    }).join("");
+    return '<a class="back" href="#">' + U("back") + '</a><h1 class="ptitle">' + PJ.title[L] + '</h1><p class="pintro">' + PJ.intro[L] + "</p>" +
+      '<div class="rgbstage" id="rgbstage" tabindex="0">' + lay + "</div>" +
+      '<div class="chips">' + chips + "</div>" +
+      '<div class="pbar"><button type="button" class="navbtn" data-pjreset>' + PJ.reset[L] + '</button><button type="button" class="navbtn" data-pjspread>' + PJ.spread[L] + "</button>" +
+      '<label class="snap"><input type="checkbox" data-snap' + (P.snap ? " checked" : "") + "> " + PJ.snap[L] + "</label></div>" +
+      '<p class="pstat" id="pjstat" aria-live="polite"></p>' +
+      '<section class="phow"><h2>' + PJ.howH[L] + "</h2><p>" + PJ.how1[L] + "</p><p>" + PJ.how2[L] + "</p></section>";
+  }
+
+  function sg(n) { return (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(n); }
+
+  function updateUI() {
+    var P = S.pj, al = true;
+    CH.forEach(function (c) {
+      var x = P.x[c.k], y = P.y[c.k];
+      var el = document.getElementById("o-" + c.k);
+      if (el) el.textContent = "x " + sg(Math.round(x)) + "  y " + sg(Math.round(y));
+      if (!P.on[c.k] || Math.abs(x) >= 0.5 || Math.abs(y) >= 0.5) al = false;
+    });
+    var s = document.getElementById("pjstat");
+    if (s) {
+      s.textContent = al ? (P.touched ? PJ.ok[S.lang] : PJ.start[S.lang]) : PJ.hint[S.lang];
+      s.classList.toggle("ok", al && P.touched);
+    }
+  }
+
+  function layout() {
+    var st = document.getElementById("rgbstage");
+    if (!st) return;
+    var sw = st.clientWidth, sh = st.clientHeight, m = 12;
+    pjScale = Math.min((sw - 2 * m) / PW, (sh - 2 * m) / PH, 1);
+    var dw = PW * pjScale, dh = PH * pjScale;
+    pjOrigin = { ox: (sw - dw) / 2, oy: (sh - dh) / 2 };
+    Array.prototype.forEach.call(st.querySelectorAll(".lyr"), function (im) {
+      var k = im.getAttribute("data-ch");
+      im.style.width = dw + "px";
+      im.style.height = dh + "px";
+      im.style.left = (pjOrigin.ox + S.pj.x[k] * pjScale) + "px";
+      im.style.top = (pjOrigin.oy + S.pj.y[k] * pjScale) + "px";
+    });
+    updateUI();
+  }
+
+  function animate() {
+    var st = document.getElementById("rgbstage");
+    if (!st) return;
+    st.classList.add("anim");
+    clearTimeout(animT);
+    animT = setTimeout(function () { st.classList.remove("anim"); }, 450);
+  }
+
+  function selectLayer(k) {
+    var P = S.pj;
+    P.active = k;
+    P.z = P.z.filter(function (x) { return x !== k; }).concat(k);
+    P.z.forEach(function (key, i) {
+      var im = document.querySelector('.lyr[data-ch="' + key + '"]');
+      if (im) im.style.zIndex = i + 1;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".sel"), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-sel") === k));
+    });
+  }
+
+  function clampPos(k, nx, ny) {
+    var st = document.getElementById("rgbstage");
+    var sw = st.clientWidth, sh = st.clientHeight, dw = PW * pjScale, dh = PH * pjScale;
+    var l = Math.min(Math.max(pjOrigin.ox + nx * pjScale, -dw * 0.8), sw - dw * 0.2);
+    var tp = Math.min(Math.max(pjOrigin.oy + ny * pjScale, -dh * 0.8), sh - dh * 0.2);
+    return { x: (l - pjOrigin.ox) / pjScale, y: (tp - pjOrigin.oy) / pjScale };
+  }
+
+  function setPos(k, nx, ny) {
+    var p = clampPos(k, nx, ny);
+    if (S.pj.snap && Math.sqrt(p.x * p.x + p.y * p.y) * pjScale < 7) { p.x = 0; p.y = 0; }
+    S.pj.x[k] = p.x;
+    S.pj.y[k] = p.y;
+  }
+
+  function pjReset() {
+    var P = S.pj;
+    animate();
+    CH.forEach(function (c) { P.x[c.k] = 0; P.y[c.k] = 0; P.on[c.k] = true; });
+    refreshEyes();
+    layout();
+  }
+  function pjSpread() {
+    var P = S.pj;
+    P.touched = true;
+    animate();
+    var d = { r: [-170, -90], g: [150, -50], b: [10, 130] };
+    CH.forEach(function (c) { var p = clampPos(c.k, d[c.k][0], d[c.k][1]); P.x[c.k] = p.x; P.y[c.k] = p.y; });
+    layout();
+  }
+  function refreshEyes() {
+    CH.forEach(function (c) {
+      var b = document.querySelector('[data-vis="' + c.k + '"]');
+      var im = document.querySelector('.lyr[data-ch="' + c.k + '"]');
+      if (b) { b.setAttribute("aria-pressed", String(S.pj.on[c.k])); b.textContent = S.pj.on[c.k] ? PJ.on[S.lang] : PJ.off[S.lang]; }
+      if (im) im.classList.toggle("off", !S.pj.on[c.k]);
+    });
   }
 
   function render(focusId) {
     var r = S.view === "recipe" ? byId(S.rid) : null;
     app.innerHTML = S.view === "privacy" ? privacyHTML() : S.view === "project" ? projectHTML() : (r ? recipeHTML(r) : homeHTML());
+    if (S.view === "project") layout();
     var pl = document.getElementById("projlink");
     if (S.view === "project") pl.setAttribute("aria-current", "page"); else pl.removeAttribute("aria-current");
     if (focusId) {
@@ -403,7 +566,58 @@ a.stage:hover .open{filter:brightness(.92)}
     if (b) applyLang(b.getAttribute("data-lang"));
   });
 
+
+  window.addEventListener("resize", layout);
+
+  app.addEventListener("pointerdown", function (e) {
+    var im = e.target.closest && e.target.closest(".lyr");
+    if (!im || (e.button && e.button > 0)) return;
+    e.preventDefault();
+    var k = im.getAttribute("data-ch");
+    selectLayer(k);
+    S.pj.touched = true;
+    var st = document.getElementById("rgbstage");
+    st.classList.remove("anim");
+    drag = { k: k, id: e.pointerId, sx: e.clientX, sy: e.clientY, x0: S.pj.x[k], y0: S.pj.y[k], el: im };
+    try { im.setPointerCapture(e.pointerId); } catch (err) {}
+    im.classList.add("grab");
+  });
+  window.addEventListener("pointermove", function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    setPos(drag.k, drag.x0 + (e.clientX - drag.sx) / pjScale, drag.y0 + (e.clientY - drag.sy) / pjScale);
+    layout();
+  });
+  function endDrag(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag.el.classList.remove("grab");
+    drag = null;
+  }
+  window.addEventListener("pointerup", endDrag);
+  window.addEventListener("pointercancel", endDrag);
+
+  app.addEventListener("keydown", function (e) {
+    if (!e.target.closest || !e.target.closest("#rgbstage")) return;
+    var P = S.pj, step = e.shiftKey ? 10 : 1, dx = 0, dy = 0;
+    if (e.key === "1") { selectLayer("r"); return; }
+    if (e.key === "2") { selectLayer("g"); return; }
+    if (e.key === "3") { selectLayer("b"); return; }
+    if (e.key === "ArrowLeft") dx = -step; else if (e.key === "ArrowRight") dx = step;
+    else if (e.key === "ArrowUp") dy = -step; else if (e.key === "ArrowDown") dy = step;
+    else return;
+    e.preventDefault();
+    P.touched = true;
+    var k = P.active, p = clampPos(k, Math.round(P.x[k]) + dx, Math.round(P.y[k]) + dy);
+    P.x[k] = Math.round(p.x); P.y[k] = Math.round(p.y);
+    layout();
+  });
+
   app.addEventListener("click", function (e) {
+    var sel = e.target.closest("[data-sel]");
+    if (sel) { selectLayer(sel.getAttribute("data-sel")); return; }
+    var vis = e.target.closest("[data-vis]");
+    if (vis) { var vk = vis.getAttribute("data-vis"); S.pj.on[vk] = !S.pj.on[vk]; S.pj.touched = true; refreshEyes(); updateUI(); return; }
+    if (e.target.closest("[data-pjreset]")) { pjReset(); return; }
+    if (e.target.closest("[data-pjspread]")) { pjSpread(); return; }
     var p = e.target.closest("[data-cat]");
     if (p) { S.cat = p.getAttribute("data-cat"); render("c-" + S.cat); return; }
     var m = e.target.closest("[data-mult]");
@@ -420,6 +634,7 @@ a.stage:hover .open{filter:brightness(.92)}
   });
 
   app.addEventListener("change", function (e) {
+    if (e.target.closest("[data-snap]")) { S.pj.snap = e.target.checked; return; }
     var cb = e.target.closest("[data-ing]");
     if (!cb) return;
     S.ing[cb.getAttribute("data-ing")] = cb.checked;
