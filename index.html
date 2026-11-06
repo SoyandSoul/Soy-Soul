@@ -38,14 +38,15 @@ a{color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 
 .page{max-width:1280px;margin:0 auto;padding-block:20px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px;font:italic 600 1.5rem/1 var(--f-display);text-decoration:none}
 .brand svg{width:32px;height:32px;flex:none;color:var(--accent)}
 
-.navr{display:flex;align-items:center;gap:10px}
+.navl{display:flex;align-items:center;gap:8px}
+.brand{margin-right:auto}
 .navbtn{font:600 .9rem var(--f-body);padding:7px 16px;border:1px solid var(--ink);border-radius:999px;text-decoration:none;color:var(--ink);white-space:nowrap}
-.navbtn:hover,.navbtn[aria-current="page"]{background:var(--ink);color:var(--bg)}
-@media (max-width:520px){.brand{font-size:1rem;gap:5px;white-space:nowrap}.brand svg{width:20px;height:20px}.navbtn{padding:6px 9px;font-size:.78rem}.navr{gap:5px}.seg button{padding:6px 7px;min-width:30px;font-size:.78rem}.top{gap:8px}}
+.navbtn:hover,.navbtn[aria-current="page"],.navbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+@media (max-width:640px){.navl{order:3;width:100%}.navbtn{padding:6px 14px;font-size:.85rem}}
 .soon{color:var(--soft);max-width:52ch;margin:18px 0 0}
 
 .pintro{color:var(--soft);max-width:60ch;margin:0}
@@ -72,6 +73,12 @@ button.navbtn{background:transparent;cursor:pointer}
 .snap input{width:18px;height:18px;accent-color:var(--accent)}
 .pstat{margin:16px 0 0;color:var(--soft);min-height:1.6em}
 .pstat.ok{color:var(--accent);font-weight:600}
+.rgbstage.depth{touch-action:none;cursor:crosshair}
+.rgbstage.depth .lyr{pointer-events:none;cursor:default}
+.lyr.nb{mix-blend-mode:normal}
+.mrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:18px}
+.strength{display:inline-flex;align-items:center;gap:10px;font-weight:500}
+.strength input{width:150px;accent-color:var(--accent)}
 .phow{margin-top:40px;padding-top:24px;border-top:1px solid var(--line);max-width:64ch}
 .phow h2{font:italic 500 1.7rem/1.1 var(--f-display);margin:0 0 10px}
 .phow p{color:var(--soft);margin:0 0 12px}
@@ -169,12 +176,13 @@ a.stage:hover .open{filter:brightness(.92)}
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16c4-6 10-8 15-6 2 1 4 3 5 6-1 3-3 5-5 6-5 2-11 0-15-6z"/><path d="M23 16l6-5v10z"/><circle cx="9" cy="14.5" r=".8" fill="currentColor" stroke="none"/></svg>
       <span id="brandtxt">Soy and Soul</span>
     </a>
-    <div class="navr">
-      <a class="navbtn" id="projlink" href="#fotoprojekt">Fotoprojekt</a>
-      <div class="seg" role="group" aria-label="Sprache / Language">
-        <button type="button" id="l-de" data-lang="de" aria-pressed="true">DE</button>
-        <button type="button" id="l-en" data-lang="en" aria-pressed="false">EN</button>
-      </div>
+    <nav class="navl" aria-label="Fotoprojekte">
+      <a class="navbtn" id="projlink" href="#fotoprojekt">Fotoprojekt 1</a>
+      <a class="navbtn" id="projlink2" href="#fotoprojekt2">Fotoprojekt 2</a>
+    </nav>
+    <div class="seg" role="group" aria-label="Sprache / Language">
+      <button type="button" id="l-de" data-lang="de" aria-pressed="true">DE</button>
+      <button type="button" id="l-en" data-lang="en" aria-pressed="false">EN</button>
     </div>
   </header>
   <main id="app"></main>
@@ -187,8 +195,8 @@ a.stage:hover .open{filter:brightness(.92)}
 
   var T = {
     brand: { de: "Soy and Soul", en: "Soy and Soul" },
-    project: { de: "Fotoprojekt", en: "Photo project" },
-    projectSoon: { de: "Hier entsteht das interaktive Fotoprojekt. Bald mehr.", en: "The interactive photo project is taking shape here. More soon." },
+    project: { de: "Fotoprojekt 1", en: "Photo project 1" },
+    project2: { de: "Fotoprojekt 2", en: "Photo project 2" },
     heroTitle: { de: "Soy and Soul", en: "Soy and Soul" },
     heroSub: { de: "Rezepte zum Nachkochen, mit Fotos, Zutatenliste und Schritten zum Abhaken.", en: "Recipes to cook along, with photos, an ingredient list and steps you can check off." },
     cats: { de: "Kategorien", en: "Categories" },
@@ -300,8 +308,45 @@ a.stage:hover .open{filter:brightness(.92)}
     how2: { de: "Bedienung: Ebene mit Maus oder Finger ziehen. Die Tasten 1, 2, 3 wählen eine Ebene, die Pfeiltasten verschieben sie um 1 Pixel (mit Umschalt um 10). „An/Aus“ blendet eine Ebene aus. „Einrasten“ zieht eine Ebene in ihre Ausgangsposition, sobald sie nah genug ist. „Verteilen“ wirft die Ebenen auseinander, „Zurücksetzen“ stellt alles wieder her.", en: "Controls: drag a layer with mouse or finger. Keys 1, 2, 3 pick a layer, arrow keys move it by 1 pixel (10 with Shift). “On/Off” hides a layer. “Snap to origin” pulls a layer to its starting position when it is close enough. “Spread” throws the layers apart, “Reset” restores everything." }
   };
 
+
+  var PJ2 = {
+    title: { de: "Tiefenebenen", en: "Depth layers" },
+    intro: { de: "Dasselbe Foto, diesmal nach Tiefe getrennt: Vordergrund (BMX), Mittelgrund (Auto) und Hintergrund (Boden). Zieh die Ebenen auseinander, oder wechsle auf „Tiefe“ und sieh, ob ein 3D-Eindruck entsteht.", en: "The same photo, this time split by depth: foreground (BMX), midground (van) and background (ground). Pull the layers apart, or switch to “Depth” and see whether a 3D impression appears." },
+    name: { v: { de: "Vordergrund · BMX", en: "Foreground · BMX" }, m: { de: "Mittelgrund · Auto", en: "Midground · van" }, h: { de: "Hintergrund · Boden", en: "Background · ground" } },
+    alt: { v: { de: "Freigestelltes BMX", en: "Cut-out BMX" }, m: { de: "Freigestelltes Polizeiauto", en: "Cut-out police van" }, h: { de: "Boden ohne BMX und Auto", en: "Ground without BMX and van" } },
+    start: { de: "Zieh eine Ebene weg, oder wechsle auf „Tiefe“.", en: "Drag a layer away, or switch to “Depth”." },
+    hint: { de: "Bring alle drei Ebenen wieder in Deckung, dann ist das Foto komplett.", en: "Bring all three layers back into line to complete the photo." },
+    ok: { de: "Deckungsgleich: das Foto ist wieder komplett.", en: "Perfectly aligned: the photo is complete again." },
+    depthHint: { de: "Bewege Maus oder Finger über das Bild: Die Ebenen verschieben sich je nach Tiefe.", en: "Move mouse or finger over the picture: the layers shift according to their depth." },
+    modeDrag: { de: "Ziehen", en: "Drag" }, modeDepth: { de: "Tiefe (3D)", en: "Depth (3D)" },
+    strength: { de: "Stärke", en: "Strength" }, auto: { de: "Auto-Schwenk", en: "Auto sweep" },
+    howH: { de: "So funktioniert’s", en: "How it works" },
+    how1: { de: "Das Foto ist in drei Ebenen zerlegt: das BMX, das Polizeiauto und der Boden. BMX und Auto sind freigestellt, der Boden darunter ist an diesen Stellen grob aufgefüllt. In der Ausgangsstellung setzen sich die Ebenen wieder zum Foto zusammen. Im Modus „Tiefe“ verschieben sich die Ebenen unterschiedlich weit, wenn du Maus oder Finger bewegst: das BMX am meisten, das Auto weniger, der Boden bleibt als Bezugsfläche stehen. Dieser Parallax-Effekt erzeugt den räumlichen Eindruck.", en: "The photo is cut into three layers: the BMX, the police van and the ground. BMX and van are cut out, and the ground beneath them is roughly filled in. In the starting position the layers add up to the photo again. In “Depth” mode the layers shift by different amounts as you move mouse or finger: the BMX the most, the van less, the ground stays put as the reference plane. This parallax effect creates the sense of space." },
+    how2: { de: "Grenzen: Das ist keine echte 3D-Szene, sondern ein Foto aus drei Papierschichten. Bei starker Verschiebung sieht man die Ränder und die aufgefüllten Stellen. „Stärke“ regelt, wie weit sich die Ebenen bewegen, „Auto-Schwenk“ lässt sie von selbst kreisen. Im Modus „Ziehen“ bedienst du die Ebenen wie bei Fotoprojekt 1.", en: "Limits: this is not a true 3D scene, but a photo made of three paper layers. With strong movement you see the edges and the filled-in areas. “Strength” sets how far the layers move, “Auto sweep” makes them circle on their own. In “Drag” mode you handle the layers as in photo project 1." }
+  };
+
+  var PROJ = {
+    p1: { hash: "fotoprojekt", W: 1000, H: 1500, blend: true, reorder: true, depth: false, txt: PJ,
+      layers: [{ k: "r", img: "rgb-rot.png", c: "#E5484D", f: 0 }, { k: "g", img: "rgb-gruen.png", c: "#30A46C", f: 0 }, { k: "b", img: "rgb-blau.png", c: "#3E63DD", f: 0 }],
+      spread: { r: [-170, -90], g: [150, -50], b: [10, 130] }, keys: { "1": "r", "2": "g", "3": "b" } },
+    p2: { hash: "fotoprojekt2", W: 1000, H: 1500, blend: false, reorder: false, depth: true, txt: PJ2,
+      layers: [{ k: "h", img: "tiefe-boden.webp", c: "#8E918A", f: 0 }, { k: "m", img: "tiefe-auto.webp", c: "#3E63DD", f: 0.5 }, { k: "v", img: "tiefe-bmx.webp", c: "#C2703D", f: 1 }],
+      spread: { v: [150, 100], m: [-150, -70], h: [-10, 60] }, keys: { "1": "v", "2": "m", "3": "h" } }
+  };
+  function newPJ(p) {
+    var s = { x: {}, y: {}, on: {}, active: p.layers[p.layers.length - 1].k, snap: true, touched: false, z: p.layers.map(function (l) { return l.k; }),
+      mode: "drag", strength: 55, auto: false, vx: 0, vy: 0, tx: 0, ty: 0 };
+    p.layers.forEach(function (l) { s.x[l.k] = 0; s.y[l.k] = 0; s.on[l.k] = true; });
+    return s;
+  }
+
   var S = { lang: "de", view: "home", rid: "", cat: "all", mult: 1, cook: false, ing: {}, done: {},
-    pj: { x: { r: 0, g: 0, b: 0 }, y: { r: 0, g: 0, b: 0 }, on: { r: true, g: true, b: true }, active: "r", snap: true, touched: false, z: ["r", "g", "b"] } };
+    pid: "p1", pjs: {} };
+  S.pjs.p1 = newPJ(PROJ.p1);
+  S.pjs.p2 = newPJ(PROJ.p2);
+  function PR() { return PROJ[S.pid]; }
+  function ST() { return S.pjs[S.pid]; }
+  function lyrOf(p, k) { return p.layers.filter(function (x) { return x.k === k; })[0]; }
   var app = document.getElementById("app");
   var wake = null;
 
@@ -387,37 +432,38 @@ a.stage:hover .open{filter:brightness(.92)}
       PRIV.items.map(function (it) { return '<div class="pitem"><h2>' + it.h[S.lang] + "</h2><p>" + it.p[S.lang] + "</p></div>"; }).join("");
   }
 
-  var CH = [
-    { k: "r", img: "rgb-rot.png", c: "#E5484D" },
-    { k: "g", img: "rgb-gruen.png", c: "#30A46C" },
-    { k: "b", img: "rgb-blau.png", c: "#3E63DD" }
-  ];
-  var PW = 1000, PH = 1500, pjScale = 1, pjOrigin = { ox: 0, oy: 0 }, drag = null, animT = 0;
+  var pjScale = 1, pjOrigin = { ox: 0, oy: 0 }, drag = null, animT = 0, pjRaf = 0;
 
   function projectHTML() {
-    var P = S.pj, L = S.lang;
+    var p = PR(), P = ST(), L = S.lang, tx = p.txt, dm = p.depth && P.mode === "depth";
     var lay = P.z.map(function (k, i) {
-      var c = CH.filter(function (x) { return x.k === k; })[0];
-      return '<img class="lyr' + (P.on[k] ? "" : " off") + '" data-ch="' + k + '" src="' + c.img + '" alt="' + PJ.alt[k][L] + '" draggable="false" style="z-index:' + (i + 1) + '">';
+      var c = lyrOf(p, k);
+      return '<img class="lyr' + (P.on[k] ? "" : " off") + (p.blend ? "" : " nb") + '" data-ch="' + k + '" src="' + c.img + '" alt="' + tx.alt[k][L] + '" draggable="false" style="z-index:' + (i + 1) + '">';
     }).join("");
-    var chips = CH.map(function (c) {
-      return '<div class="chip"><button type="button" class="sel" data-sel="' + c.k + '" aria-pressed="' + (P.active === c.k) + '"><i style="background:' + c.c + '"></i><b>' + PJ.name[c.k][L] + '</b><span class="off" id="o-' + c.k + '"></span></button>' +
+    var chips = p.layers.slice().reverse().map(function (c) {
+      return '<div class="chip"><button type="button" class="sel" data-sel="' + c.k + '" aria-pressed="' + (P.active === c.k) + '"><i style="background:' + c.c + '"></i><b>' + tx.name[c.k][L] + '</b><span class="off" id="o-' + c.k + '"></span></button>' +
         '<button type="button" class="eye" data-vis="' + c.k + '" aria-pressed="' + P.on[c.k] + '">' + (P.on[c.k] ? PJ.on[L] : PJ.off[L]) + "</button></div>";
     }).join("");
-    return '<a class="back" href="#">' + U("back") + '</a><h1 class="ptitle">' + PJ.title[L] + '</h1><p class="pintro">' + PJ.intro[L] + "</p>" +
-      '<div class="rgbstage" id="rgbstage" tabindex="0">' + lay + "</div>" +
+    var modes = "";
+    if (p.depth) {
+      modes = '<div class="mrow"><div class="seg" role="group" aria-label="Modus"><button type="button" data-mode="drag" aria-pressed="' + (!dm) + '">' + tx.modeDrag[L] + '</button><button type="button" data-mode="depth" aria-pressed="' + dm + '">' + tx.modeDepth[L] + "</button></div>" +
+        (dm ? '<label class="strength">' + tx.strength[L] + ' <input type="range" min="10" max="100" step="1" value="' + P.strength + '" data-strength></label>' +
+          '<button type="button" class="navbtn" data-auto aria-pressed="' + P.auto + '">' + tx.auto[L] + "</button>" : "") + "</div>";
+    }
+    return '<a class="back" href="#">' + U("back") + '</a><h1 class="ptitle">' + tx.title[L] + '</h1><p class="pintro">' + tx.intro[L] + "</p>" + modes +
+      '<div class="rgbstage' + (dm ? " depth" : "") + '" id="rgbstage" tabindex="0">' + lay + "</div>" +
       '<div class="chips">' + chips + "</div>" +
       '<div class="pbar"><button type="button" class="navbtn" data-pjreset>' + PJ.reset[L] + '</button><button type="button" class="navbtn" data-pjspread>' + PJ.spread[L] + "</button>" +
       '<label class="snap"><input type="checkbox" data-snap' + (P.snap ? " checked" : "") + "> " + PJ.snap[L] + "</label></div>" +
       '<p class="pstat" id="pjstat" aria-live="polite"></p>' +
-      '<section class="phow"><h2>' + PJ.howH[L] + "</h2><p>" + PJ.how1[L] + "</p><p>" + PJ.how2[L] + "</p></section>";
+      '<section class="phow"><h2>' + tx.howH[L] + "</h2><p>" + tx.how1[L] + "</p><p>" + tx.how2[L] + "</p></section>";
   }
 
   function sg(n) { return (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(n); }
 
   function updateUI() {
-    var P = S.pj, al = true;
-    CH.forEach(function (c) {
+    var p = PR(), P = ST(), al = true, dm = p.depth && P.mode === "depth";
+    p.layers.forEach(function (c) {
       var x = P.x[c.k], y = P.y[c.k];
       var el = document.getElementById("o-" + c.k);
       if (el) el.textContent = "x " + sg(Math.round(x)) + "  y " + sg(Math.round(y));
@@ -425,26 +471,71 @@ a.stage:hover .open{filter:brightness(.92)}
     });
     var s = document.getElementById("pjstat");
     if (s) {
-      s.textContent = al ? (P.touched ? PJ.ok[S.lang] : PJ.start[S.lang]) : PJ.hint[S.lang];
-      s.classList.toggle("ok", al && P.touched);
+      var tx = p.txt;
+      s.textContent = dm ? tx.depthHint[S.lang] : (al ? (P.touched ? tx.ok[S.lang] : tx.start[S.lang]) : tx.hint[S.lang]);
+      s.classList.toggle("ok", !dm && al && P.touched);
     }
   }
 
   function layout() {
     var st = document.getElementById("rgbstage");
-    if (!st) return;
+    if (!st || S.view !== "project") return;
+    var p = PR(), P = ST(), dm = p.depth && P.mode === "depth";
     var sw = st.clientWidth, sh = st.clientHeight, m = 12;
-    pjScale = Math.min((sw - 2 * m) / PW, (sh - 2 * m) / PH, 1);
-    var dw = PW * pjScale, dh = PH * pjScale;
+    pjScale = Math.min((sw - 2 * m) / p.W, (sh - 2 * m) / p.H, 1);
+    var dw = p.W * pjScale, dh = p.H * pjScale, amp = P.strength / 100 * 80;
     pjOrigin = { ox: (sw - dw) / 2, oy: (sh - dh) / 2 };
     Array.prototype.forEach.call(st.querySelectorAll(".lyr"), function (im) {
-      var k = im.getAttribute("data-ch");
+      var k = im.getAttribute("data-ch"), f = dm ? lyrOf(p, k).f : 0;
+      var ex = dm ? -P.vx * amp * f : 0, ey = dm ? -P.vy * amp * f * 0.8 : 0;
       im.style.width = dw + "px";
       im.style.height = dh + "px";
-      im.style.left = (pjOrigin.ox + S.pj.x[k] * pjScale) + "px";
-      im.style.top = (pjOrigin.oy + S.pj.y[k] * pjScale) + "px";
+      im.style.left = (pjOrigin.ox + (P.x[k] + ex) * pjScale) + "px";
+      im.style.top = (pjOrigin.oy + (P.y[k] + ey) * pjScale) + "px";
+      if (dm) {
+        var il = pjOrigin.ox + (P.x[k] + ex) * pjScale, it = pjOrigin.oy + (P.y[k] + ey) * pjScale;
+        im.style.clipPath = "inset(" + Math.max(0, pjOrigin.oy - it) + "px " + Math.max(0, il - pjOrigin.ox) + "px " + Math.max(0, it - pjOrigin.oy) + "px " + Math.max(0, pjOrigin.ox - il) + "px)";
+      } else {
+        im.style.clipPath = "";
+      }
     });
     updateUI();
+  }
+
+  function tick() {
+    pjRaf = 0;
+    if (S.view !== "project" || !PR().depth) return;
+    var P = ST();
+    if (P.mode !== "depth") return;
+    if (P.auto) {
+      var t = performance.now() / 1000;
+      P.tx = Math.sin(t * 0.9);
+      P.ty = Math.cos(t * 0.7) * 0.6;
+    }
+    P.vx += (P.tx - P.vx) * 0.12;
+    P.vy += (P.ty - P.vy) * 0.12;
+    layout();
+    if (P.auto || Math.abs(P.tx - P.vx) > 0.002 || Math.abs(P.ty - P.vy) > 0.002) pjRaf = requestAnimationFrame(tick);
+  }
+  function startTick() { if (!pjRaf) pjRaf = requestAnimationFrame(tick); }
+
+  function bindStage() {
+    var st = document.getElementById("rgbstage");
+    if (!st) return;
+    st.onpointermove = function (e) {
+      var p = PR(), P = ST();
+      if (!p.depth || P.mode !== "depth" || P.auto) return;
+      var r = st.getBoundingClientRect();
+      P.tx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2));
+      P.ty = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - 0.5) * 2));
+      P.touched = true;
+      startTick();
+    };
+    st.onpointerleave = function (e) {
+      var p = PR(), P = ST();
+      if (!p.depth || P.mode !== "depth" || P.auto || e.pointerType !== "mouse") return;
+      P.tx = 0; P.ty = 0; startTick();
+    };
   }
 
   function animate() {
@@ -456,63 +547,72 @@ a.stage:hover .open{filter:brightness(.92)}
   }
 
   function selectLayer(k) {
-    var P = S.pj;
+    var p = PR(), P = ST();
     P.active = k;
-    P.z = P.z.filter(function (x) { return x !== k; }).concat(k);
-    P.z.forEach(function (key, i) {
-      var im = document.querySelector('.lyr[data-ch="' + key + '"]');
-      if (im) im.style.zIndex = i + 1;
-    });
+    if (p.reorder) {
+      P.z = P.z.filter(function (x) { return x !== k; }).concat(k);
+      P.z.forEach(function (key, i) {
+        var im = document.querySelector('.lyr[data-ch="' + key + '"]');
+        if (im) im.style.zIndex = i + 1;
+      });
+    }
     Array.prototype.forEach.call(document.querySelectorAll(".sel"), function (b) {
       b.setAttribute("aria-pressed", String(b.getAttribute("data-sel") === k));
     });
   }
 
   function clampPos(k, nx, ny) {
-    var st = document.getElementById("rgbstage");
-    var sw = st.clientWidth, sh = st.clientHeight, dw = PW * pjScale, dh = PH * pjScale;
+    var st = document.getElementById("rgbstage"), p = PR();
+    var sw = st.clientWidth, sh = st.clientHeight, dw = p.W * pjScale, dh = p.H * pjScale;
     var l = Math.min(Math.max(pjOrigin.ox + nx * pjScale, -dw * 0.8), sw - dw * 0.2);
     var tp = Math.min(Math.max(pjOrigin.oy + ny * pjScale, -dh * 0.8), sh - dh * 0.2);
     return { x: (l - pjOrigin.ox) / pjScale, y: (tp - pjOrigin.oy) / pjScale };
   }
 
   function setPos(k, nx, ny) {
-    var p = clampPos(k, nx, ny);
-    if (S.pj.snap && Math.sqrt(p.x * p.x + p.y * p.y) * pjScale < 7) { p.x = 0; p.y = 0; }
-    S.pj.x[k] = p.x;
-    S.pj.y[k] = p.y;
+    var P = ST(), p = clampPos(k, nx, ny);
+    if (P.snap && Math.sqrt(p.x * p.x + p.y * p.y) * pjScale < 7) { p.x = 0; p.y = 0; }
+    P.x[k] = p.x;
+    P.y[k] = p.y;
   }
 
   function pjReset() {
-    var P = S.pj;
+    var p = PR(), P = ST();
     animate();
-    CH.forEach(function (c) { P.x[c.k] = 0; P.y[c.k] = 0; P.on[c.k] = true; });
+    p.layers.forEach(function (c) { P.x[c.k] = 0; P.y[c.k] = 0; P.on[c.k] = true; });
+    P.vx = P.vy = P.tx = P.ty = 0;
+    P.auto = false;
     refreshEyes();
+    var ab = document.querySelector("[data-auto]");
+    if (ab) ab.setAttribute("aria-pressed", "false");
     layout();
   }
   function pjSpread() {
-    var P = S.pj;
+    var p = PR(), P = ST();
+    if (p.depth && P.mode === "depth") { P.mode = "drag"; P.auto = false; P.vx = P.vy = P.tx = P.ty = 0; render(); }
     P.touched = true;
     animate();
-    var d = { r: [-170, -90], g: [150, -50], b: [10, 130] };
-    CH.forEach(function (c) { var p = clampPos(c.k, d[c.k][0], d[c.k][1]); P.x[c.k] = p.x; P.y[c.k] = p.y; });
+    p.layers.forEach(function (c) { var d = p.spread[c.k], q = clampPos(c.k, d[0], d[1]); P.x[c.k] = q.x; P.y[c.k] = q.y; });
     layout();
   }
   function refreshEyes() {
-    CH.forEach(function (c) {
+    var p = PR(), P = ST();
+    p.layers.forEach(function (c) {
       var b = document.querySelector('[data-vis="' + c.k + '"]');
       var im = document.querySelector('.lyr[data-ch="' + c.k + '"]');
-      if (b) { b.setAttribute("aria-pressed", String(S.pj.on[c.k])); b.textContent = S.pj.on[c.k] ? PJ.on[S.lang] : PJ.off[S.lang]; }
-      if (im) im.classList.toggle("off", !S.pj.on[c.k]);
+      if (b) { b.setAttribute("aria-pressed", String(P.on[c.k])); b.textContent = P.on[c.k] ? PJ.on[S.lang] : PJ.off[S.lang]; }
+      if (im) im.classList.toggle("off", !P.on[c.k]);
     });
   }
 
   function render(focusId) {
     var r = S.view === "recipe" ? byId(S.rid) : null;
     app.innerHTML = S.view === "privacy" ? privacyHTML() : S.view === "project" ? projectHTML() : (r ? recipeHTML(r) : homeHTML());
-    if (S.view === "project") layout();
-    var pl = document.getElementById("projlink");
-    if (S.view === "project") pl.setAttribute("aria-current", "page"); else pl.removeAttribute("aria-current");
+    if (S.view === "project") { layout(); bindStage(); if (PR().depth && ST().mode === "depth") startTick(); }
+    [["projlink", "p1"], ["projlink2", "p2"]].forEach(function (pair) {
+      var pl = document.getElementById(pair[0]);
+      if (S.view === "project" && S.pid === pair[1]) pl.setAttribute("aria-current", "page"); else pl.removeAttribute("aria-current");
+    });
     if (focusId) {
       var el = document.getElementById(focusId);
       if (el) el.focus();
@@ -544,6 +644,7 @@ a.stage:hover .open{filter:brightness(.92)}
     document.getElementById("brandtxt").textContent = U("brand");
     document.getElementById("plink").textContent = U("privacy");
     document.getElementById("projlink").textContent = U("project");
+    document.getElementById("projlink2").textContent = U("project2");
     try { localStorage.setItem("lang", l); } catch (e) {}
     render();
   }
@@ -551,7 +652,8 @@ a.stage:hover .open{filter:brightness(.92)}
   function setView() {
     var id = location.hash.replace("#", "");
     if (id === "datenschutz") { S.view = "privacy"; S.rid = ""; }
-    else if (id === "fotoprojekt") { S.view = "project"; S.rid = ""; }
+    else if (id === "fotoprojekt") { S.view = "project"; S.pid = "p1"; S.rid = ""; }
+    else if (id === "fotoprojekt2") { S.view = "project"; S.pid = "p2"; S.rid = ""; }
     else if (id && byId(id)) { S.view = "recipe"; S.rid = id; }
     else { S.view = "home"; S.rid = ""; }
   }
@@ -571,14 +673,16 @@ a.stage:hover .open{filter:brightness(.92)}
 
   app.addEventListener("pointerdown", function (e) {
     var im = e.target.closest && e.target.closest(".lyr");
-    if (!im || (e.button && e.button > 0)) return;
+    if (!im || S.view !== "project" || (e.button && e.button > 0)) return;
+    var p = PR(), P = ST();
+    if (p.depth && P.mode === "depth") return;
     e.preventDefault();
     var k = im.getAttribute("data-ch");
     selectLayer(k);
-    S.pj.touched = true;
+    P.touched = true;
     var st = document.getElementById("rgbstage");
     st.classList.remove("anim");
-    drag = { k: k, id: e.pointerId, sx: e.clientX, sy: e.clientY, x0: S.pj.x[k], y0: S.pj.y[k], el: im };
+    drag = { k: k, id: e.pointerId, sx: e.clientX, sy: e.clientY, x0: P.x[k], y0: P.y[k], el: im };
     try { im.setPointerCapture(e.pointerId); } catch (err) {}
     im.classList.add("grab");
   });
@@ -597,17 +701,16 @@ a.stage:hover .open{filter:brightness(.92)}
 
   app.addEventListener("keydown", function (e) {
     if (!e.target.closest || !e.target.closest("#rgbstage")) return;
-    var P = S.pj, step = e.shiftKey ? 10 : 1, dx = 0, dy = 0;
-    if (e.key === "1") { selectLayer("r"); return; }
-    if (e.key === "2") { selectLayer("g"); return; }
-    if (e.key === "3") { selectLayer("b"); return; }
+    var p = PR(), P = ST(), step = e.shiftKey ? 10 : 1, dx = 0, dy = 0;
+    if (p.depth && P.mode === "depth") return;
+    if (p.keys[e.key]) { selectLayer(p.keys[e.key]); return; }
     if (e.key === "ArrowLeft") dx = -step; else if (e.key === "ArrowRight") dx = step;
     else if (e.key === "ArrowUp") dy = -step; else if (e.key === "ArrowDown") dy = step;
     else return;
     e.preventDefault();
     P.touched = true;
-    var k = P.active, p = clampPos(k, Math.round(P.x[k]) + dx, Math.round(P.y[k]) + dy);
-    P.x[k] = Math.round(p.x); P.y[k] = Math.round(p.y);
+    var k = P.active, q = clampPos(k, Math.round(P.x[k]) + dx, Math.round(P.y[k]) + dy);
+    P.x[k] = Math.round(q.x); P.y[k] = Math.round(q.y);
     layout();
   });
 
@@ -615,7 +718,11 @@ a.stage:hover .open{filter:brightness(.92)}
     var sel = e.target.closest("[data-sel]");
     if (sel) { selectLayer(sel.getAttribute("data-sel")); return; }
     var vis = e.target.closest("[data-vis]");
-    if (vis) { var vk = vis.getAttribute("data-vis"); S.pj.on[vk] = !S.pj.on[vk]; S.pj.touched = true; refreshEyes(); updateUI(); return; }
+    if (vis) { var vk = vis.getAttribute("data-vis"); ST().on[vk] = !ST().on[vk]; ST().touched = true; refreshEyes(); updateUI(); return; }
+    var md = e.target.closest("[data-mode]");
+    if (md) { var P0 = ST(); P0.mode = md.getAttribute("data-mode"); P0.auto = false; P0.vx = P0.vy = P0.tx = P0.ty = 0; render(); return; }
+    var au = e.target.closest("[data-auto]");
+    if (au) { var P1 = ST(); P1.auto = !P1.auto; P1.touched = true; if (!P1.auto) { P1.tx = 0; P1.ty = 0; } au.setAttribute("aria-pressed", String(P1.auto)); startTick(); return; }
     if (e.target.closest("[data-pjreset]")) { pjReset(); return; }
     if (e.target.closest("[data-pjspread]")) { pjSpread(); return; }
     var p = e.target.closest("[data-cat]");
@@ -634,11 +741,18 @@ a.stage:hover .open{filter:brightness(.92)}
   });
 
   app.addEventListener("change", function (e) {
-    if (e.target.closest("[data-snap]")) { S.pj.snap = e.target.checked; return; }
+    if (e.target.closest("[data-snap]")) { ST().snap = e.target.checked; return; }
     var cb = e.target.closest("[data-ing]");
     if (!cb) return;
     S.ing[cb.getAttribute("data-ing")] = cb.checked;
     cb.closest(".ing").classList.toggle("is-done", cb.checked);
+  });
+
+  app.addEventListener("input", function (e) {
+    var sl = e.target.closest && e.target.closest("[data-strength]");
+    if (!sl) return;
+    ST().strength = Number(sl.value);
+    layout();
   });
 
   window.addEventListener("hashchange", route);
