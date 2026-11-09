@@ -203,8 +203,9 @@ button { background: none; border: 0; cursor: pointer; }
 import { Map as MLMap, Marker, NavigationControl, GeolocateControl, AttributionControl } from "./lib/maplibre-gl.mjs";
 
 /* ================= Einstellungen ================= */
-const STYLE = { light: "https://tiles.openfreemap.org/styles/positron", dark: "https://tiles.openfreemap.org/styles/dark" };
-const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+const STYLE = "https://tiles.openfreemap.org/styles/liberty";   // farbige OSM-Karte: Parks grün, Wasser blau, Gebäude in 3D
+const TILE_FOOD = ["restaurant", "fast_food", "cafe", "bar", "beer", "ice_cream", "bakery"];
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const MIN_ZOOM_SPOTS = 14.3;      // ab hier werden alle Lokale im Ausschnitt geladen
 const FOOD = "restaurant|cafe|bar|pub|fast_food|ice_cream|biergarten|food_court|marketplace|bakery|pastry|confectionery|deli";
@@ -281,7 +282,7 @@ const S = { hype: null, city: null, filter: null, onlyHype: false, spots: [], se
 
 /* ================= Karte ================= */
 const map = new MLMap({
-  container: "map", style: dark() ? STYLE.dark : STYLE.light,
+  container: "map", style: STYLE,
   center: [9.5, 50.2], zoom: 4.3, attributionControl: false, maxPitch: 60
 });
 window.__map = map;
@@ -295,23 +296,46 @@ let layerEvents = false;
 function addSpotLayers() {
   if (map.getSource("spots")) return;
   map.addSource("spots", { type: "geojson", data: fc(S.spots) });
-  map.addLayer({ id: "spots-halo", type: "circle", source: "spots", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 7, 18, 13], "circle-color": "#ffffff", "circle-opacity": dark() ? .15 : .9 } });
+  // Lokale direkt aus den Kartenkacheln: erscheinen sofort, ohne auf Overpass zu warten
+  const vec = Object.keys(map.getStyle().sources).find(k => map.getStyle().sources[k].type === "vector");
+  if (vec) {
+    const isFood = ["match", ["get", "class"], TILE_FOOD, true, false];
+    // Essens-Symbole der Grundkarte ausblenden, damit nichts doppelt erscheint
+    for (const l of map.getStyle().layers) if (l["source-layer"] === "poi" && /^poi_z/.test(l.id)) map.setFilter(l.id, ["all", l.filter || true, ["!", isFood]]);
+    map.addLayer({ id: "tilefood", type: "circle", source: vec, "source-layer": "poi", minzoom: 14, filter: isFood, paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 4, 18, 8.5],
+      "circle-color": ["match", ["get", "class"], "cafe", "#a2672f", ["bar", "beer"], "#8b5cf6", ["ice_cream", "bakery"], "#ec4899", "fast_food", "#f59e0b", "#22b06b"],
+      "circle-stroke-width": 1.5, "circle-stroke-color": "#ffffff" } });
+    map.addLayer({ id: "tilefood-label", type: "symbol", source: vec, "source-layer": "poi", minzoom: 16.2, filter: isFood, layout: {
+      "text-field": ["coalesce", ["get", "name:" + L], ["get", "name"]], "text-size": 11.5, "text-offset": [0, 1.15], "text-anchor": "top", "text-max-width": 9,
+      "text-font": ["Noto Sans Regular"], "text-optional": true },
+      paint: { "text-color": "#3f3f46", "text-halo-color": "#ffffff", "text-halo-width": 1.4 } });
+  }
+  map.addLayer({ id: "spots-halo", type: "circle", source: "spots", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 7, 18, 13], "circle-color": "#ffffff", "circle-opacity": .9 } });
   map.addLayer({ id: "spots", type: "circle", source: "spots", paint: {
     "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 4.5, 18, 9],
     "circle-color": ["match", ["get", "kind"], "cafe", "#a2672f", "bar", "#8b5cf6", "sweet", "#ec4899", "fast", "#f59e0b", "#22b06b"],
-    "circle-stroke-width": 1.5, "circle-stroke-color": dark() ? "#18181b" : "#ffffff" } });
+    "circle-stroke-width": 1.5, "circle-stroke-color": "#ffffff" } });
   map.addLayer({ id: "spots-label", type: "symbol", source: "spots", minzoom: 16.2, layout: {
     "text-field": ["get", "name"], "text-size": 11.5, "text-offset": [0, 1.15], "text-anchor": "top", "text-max-width": 9,
     "text-font": ["Noto Sans Regular"], "text-optional": true },
-    paint: { "text-color": dark() ? "#e4e4e7" : "#3f3f46", "text-halo-color": dark() ? "#18181b" : "#ffffff", "text-halo-width": 1.4 } });
+    paint: { "text-color": "#3f3f46", "text-halo-color": "#ffffff", "text-halo-width": 1.4 } });
   if (layerEvents) { applyFilter(); return; }
   layerEvents = true;
   map.on("click", "spots", e => { const f = e.features[0]; const p = S.spots.find(x => x.id === f.properties.id); if (p) openDetail(p); });
   map.on("mouseenter", "spots", () => map.getCanvas().style.cursor = "pointer");
   map.on("mouseleave", "spots", () => map.getCanvas().style.cursor = "");
+  map.on("click", "tilefood", e => {
+    if (map.queryRenderedFeatures(e.point, { layers: ["spots"] }).length) return;
+    const f = e.features[0], pr = f.properties, [lon, lat] = f.geometry.coordinates;
+    const k = { cafe: "cafe", bar: "bar", beer: "bar", ice_cream: "eis", bakery: "baeckerei", fast_food: "streetfood" }[pr.class] || "restaurant";
+    openDetail({ id: "t-" + lon + lat, name: pr["name:" + L] || pr.name || "?", lat, lon, tags: [k], osm: {}, osmId: null, lookup: true });
+  });
+  map.on("mouseenter", "tilefood", () => map.getCanvas().style.cursor = "pointer");
+  map.on("mouseleave", "tilefood", () => map.getCanvas().style.cursor = "");
   applyFilter();
 }
-map.on("load", () => { addSpotLayers(); start(); });
+map.on("load", () => { addSpotLayers(); if (S.hype) loadSpots(); });
 map.on("style.load", () => { if (map.loaded()) addSpotLayers(); });
 map.on("zoom", () => document.body.classList.toggle("labels", map.getZoom() >= 14.6));
 map.on("moveend", () => { detectCity(); loadSpots(); });
@@ -371,15 +395,30 @@ function setCity(c) {
 
 /* ================= Hype-Orte in OpenStreetMap finden ================= */
 async function overpass(q, signal) {
-  let err;
-  for (const url of OVERPASS) {
-    try {
-      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal });
-      if (!r.ok) throw new Error(r.status);
-      return (await r.json()).elements || [];
-    } catch (e) { if (e.name === "AbortError") throw e; err = e; }
-  }
-  throw err;
+  // Gestaffelt: Server 1 sofort, Server 2 nach 1,2 s, Server 3 nach 2,4 s – die erste Antwort gewinnt, der Rest wird abgebrochen
+  const ctls = [], timers = [];
+  const stop = () => { timers.forEach(clearTimeout); ctls.forEach(c => c.abort()); };
+  if (signal) { if (signal.aborted) throw new DOMException("abort", "AbortError"); signal.addEventListener("abort", stop, { once: true }); }
+  try {
+    return await new Promise((resolve, reject) => {
+      let left = OVERPASS.length, done = false;
+      OVERPASS.forEach((url, i) => {
+        timers.push(setTimeout(async () => {
+          if (done) return;
+          const ctl = new AbortController(); ctls.push(ctl);
+          try {
+            const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: ctl.signal });
+            if (!r.ok) throw new Error(r.status);
+            const j = await r.json();
+            if (!done) { done = true; resolve(j.elements || []); }
+          } catch (e) {
+            if (signal && signal.aborted) { done = true; reject(new DOMException("abort", "AbortError")); return; }
+            if (--left === 0 && !done) reject(e);
+          }
+        }, i * 1200));
+      });
+    });
+  } finally { stop(); }
 }
 function namePattern(n) {
   return n.normalize("NFC").split(/[^\p{L}\p{N}]+/u).filter(Boolean)
@@ -403,18 +442,26 @@ async function resolveCity(c) {
   try { const raw = JSON.parse(localStorage.getItem(cacheKey(c)) || "null"); if (raw && Date.now() - raw.at < 6 * 864e5) res = raw.res; } catch (e) {}
   if (!res) {
     res = {};
+    // Orte mit gespeicherten Koordinaten erscheinen sofort
+    for (const p of list) if (p.lat != null && p.lon != null) res[p.name] = { lat: p.lat, lon: p.lon, tags: {}, osm: p.osm || null };
+    if (Object.keys(res).length) { S.cityRes[c.id] = res; placeHype(c, list, res); }
     status(t("loadingHype"));
     renderList(list, res, true);
     const b = c.bbox, bb = b[1] + "," + b[0] + "," + b[3] + "," + b[2];
-    const re = list.map(p => namePattern(p.name)).join("|");
-    try {
+    const todo = list.filter(p => !res[p.name]);
+    const re = todo.map(p => namePattern(p.name)).join("|");
+    if (todo.length) try {
       const els = await overpass('[out:json][timeout:40];nwr[~"^(amenity|shop)$"~"^(' + FOOD + ')$"]["name"~"(' + re + ')",i](' + bb + ');out center tags;');
-      for (const p of list) {
+      for (const p of todo) {
         let best = null, bs = 0;
         for (const el of els) { const s = score(p, el); if (s > bs) { bs = s; best = el; } }
         if (best && bs >= 52) res[p.name] = pack(best);
       }
     } catch (e) { /* weiter mit Nominatim */ }
+    // Gefundenes sofort zeigen und merken, Nominatim läuft danach im Hintergrund weiter
+    if (S.city === c) { S.cityRes[c.id] = res; placeHype(c, list, res); }
+    try { localStorage.setItem(cacheKey(c), JSON.stringify({ at: Date.now(), res })); } catch (e) {}
+    status(null);
     // Was nicht gefunden wurde: Adresse über Nominatim suchen (max. 1 Anfrage pro Sekunde)
     for (const p of list) {
       if (res[p.name] || S.city !== c) continue;
@@ -428,7 +475,7 @@ async function resolveCity(c) {
       if (S.city === c) { S.cityRes[c.id] = res; placeHype(c, list, res); }
     }
     try { localStorage.setItem(cacheKey(c), JSON.stringify({ at: Date.now(), res })); } catch (e) {}
-    status(null);
+    return;
   }
   if (S.city !== c) return;
   S.cityRes[c.id] = res;
@@ -477,7 +524,7 @@ async function loadSpots() {
   if (spotCtl) spotCtl.abort(); spotCtl = new AbortController();
   status(t("loadingSpots"));
   try {
-    const els = await overpass('[out:json][timeout:25];nwr[~"^(amenity|shop)$"~"^(restaurant|cafe|bar|pub|fast_food|ice_cream|biergarten|bakery|pastry)$"]["name"](' + key + ');out center tags 700;', spotCtl.signal);
+    const els = await overpass('[out:json][timeout:20];nwr[~"^(amenity|shop)$"~"^(restaurant|cafe|bar|pub|fast_food|ice_cream|biergarten|bakery|pastry)$"]["name"](' + key + ');out center tags qt 500;', spotCtl.signal);
     const list = els.map(el => spotObj(el)).filter(x => x.lat != null);
     spotCache.set(key, list); setSpots(list); status(null);
   } catch (e) { if (e.name !== "AbortError") { status(t("errSpots"), 3500); spotKey = ""; } }
@@ -531,6 +578,8 @@ function applyFilter() {
   ["spots", "spots-halo", "spots-label"].forEach(id => map.setLayoutProperty(id, "visibility", vis));
   const f = S.filter ? ["in", "|" + S.filter + "|", ["get", "tg"]] : null;
   ["spots", "spots-halo", "spots-label"].forEach(id => map.setFilter(id, f));
+  // Kachel-Punkte kennen keine Küche: bei aktivem Filter oder „Nur Hype“ ausblenden
+  ["tilefood", "tilefood-label"].forEach(id => { if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", S.onlyHype || S.filter ? "none" : "visible"); });
 }
 
 /* ================= Liste ================= */
@@ -596,6 +645,16 @@ async function openDetail(x) {
     map.easeTo({ center: [x.lon, x.lat], zoom: Math.max(map.getZoom(), 15.2), offset: off, duration: 900 });
   }
   drawDetail(x);
+  // Punkt aus den Kartenkacheln: Details (Küche, Öffnungszeiten) per Name in der Nähe nachladen
+  if (x.lookup && !x._full) {
+    x._full = true;
+    try {
+      const nm = x.name.replace(/\\/g, "").replace(/"/g, '\\"');
+      const els = await overpass('[out:json][timeout:10];nwr(around:45,' + x.lat + ',' + x.lon + ')["name"="' + nm + '"];out center tags 1;');
+      if (els[0]) { const y = spotObj(els[0]); x.osm = y.osm; x.tags = y.tags; x.osmId = y.osmId; if (S.sel === x) drawDetail(x); }
+    } catch (e) {}
+    return;
+  }
   // Fehlen Details (z. B. Treffer über Nominatim), aus OSM nachladen
   if (x.osmId && !x.osm.opening_hours && !x._full) {
     x._full = true;
@@ -741,9 +800,9 @@ document.querySelector(".tog").addEventListener("click", e => { const b = e.targ
 
 /* Mobil: Liste per Tipp auf den Griff ein- und ausklappen */
 $("grab").onclick = () => $("side").classList.toggle("min");
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!document.documentElement.getAttribute("data-theme")) map.setStyle(dark() ? STYLE.dark : STYLE.light); });
 map.on("styledata", () => { if (map.isStyleLoaded() && !map.getSource("spots")) addSpotLayers(); });
 lang();
+start();   // Hype-Liste sofort laden, nicht erst nach der Karte
 </script>
 </body>
 </html>
