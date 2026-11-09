@@ -185,6 +185,8 @@ footer .priv b { color: var(--ink2); }
 @keyframes draw { 0% { stroke-dashoffset: 600; } 45%, 75% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -600; } }
 .a-pan { animation: pan 5s ease-in-out infinite alternate; }
 @keyframes pan { from { transform: translateX(-70px); } to { transform: translateX(70px); } }
+.a-trim { animation: trim 4s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: left; }
+@keyframes trim { from { transform: scaleX(.55); } to { transform: scaleX(1.25); } }
 .a-drift { animation: drift 5s ease-in-out infinite alternate; transform-box: fill-box; }
 @keyframes drift { from { transform: translate(var(--x1, -12px), var(--y1, 0)); } to { transform: translate(var(--x2, 12px), var(--y2, 0)); } }
 .a-fly { animation: fly 7s linear infinite; }
@@ -298,7 +300,7 @@ footer .priv b { color: var(--ink2); }
       sub: { de: "Aufbau & Strategie", en: "Build & strategy" } },
     { id: "tools", a: "tools", n: "02", name: { de: "Tools", en: "Tools" },
       h: { de: 'Werkzeuge, <em>die einfach funktionieren.</em>', en: 'Tools <em>that just work.</em>' },
-      p: { de: "Kleine Helfer, die im Browser rechnen. Nichts wird hochgeladen. Die ersten Tools sind in Arbeit.", en: "Small helpers that run in your browser. Nothing is uploaded. The first tools are in the works." },
+      p: { de: "Kleine Helfer, die direkt im Browser rechnen. Nichts wird hochgeladen.", en: "Small helpers that run right in your browser. Nothing is uploaded." },
       sub: { de: "Foto, Video, Zeichnen", en: "Photo, video, drawing" } },
     { id: "lifestyle", a: "life", n: "03", name: { de: "Lifestyle", en: "Lifestyle" },
       h: { de: 'Was das Leben <em>schöner macht.</em>', en: 'What makes life <em>a little better.</em>' },
@@ -319,9 +321,11 @@ footer .priv b { color: var(--ink2); }
         d: { de: "Schnelle Runden für zwischendurch, mit Highscore.", en: "Quick rounds in between, with a high score." } }
     ],
     tools: [
-      { size: "wide", name: { de: "Bild & Farbe", en: "Image & colour" }, art: "sliders",
+      { id: "hochkant", href: "tools/hochkant/", size: "big", ver: "v0.1", name: { de: "Hochkant", en: "Hochkant" }, art: "reframe",
+        d: { de: "Querformat-Video ins Hochformat bringen: Ausschnitt verschieben, auf Wunsch mit unscharfem Hintergrund, kürzen und als MP4 für Reels, TikTok oder Shorts herunterladen.", en: "Turn landscape video into vertical: move the frame, add a blurred background if you like, trim it and download an MP4 for Reels, TikTok or Shorts." } },
+      { name: { de: "Bild & Farbe", en: "Image & colour" }, art: "sliders",
         d: { de: "Kleine Werkzeuge für Fotos und Farben, alles direkt im Browser.", en: "Small tools for photos and colours, all right in your browser." } },
-      { size: "wide", name: { de: "Rechner & Helfer", en: "Calculators & helpers" }, art: "calc",
+      { name: { de: "Rechner & Helfer", en: "Calculators & helpers" }, art: "calc",
         d: { de: "Praktische Rechner für Dinge, die man öfter braucht.", en: "Handy calculators for things you need now and then." } }
     ],
     lifestyle: [
@@ -360,6 +364,11 @@ footer .priv b { color: var(--ink2); }
         return '<rect x="92" y="' + (y - 3) + '" width="116" height="6" rx="3" fill="' + INK + '" opacity=".15"/>' +
           '<circle class="a-drift" style="--x1:' + [-30, 20, -10][i] + 'px;--x2:' + [30, -25, 35][i] + 'px;animation-delay:' + (i * -.9) + 's" cx="150" cy="' + y + '" r="9" fill="' + C + '" opacity="' + [1, .7, .45][i] + '"/>';
       }).join("") + '</svg>',
+    reframe:
+      '<svg viewBox="0 0 400 240"><rect x="30" y="50" width="340" height="150" rx="14" fill="' + INK + '" opacity=".85"/>' +
+      '<circle cx="100" cy="98" r="18" fill="' + C + '" opacity=".6"/><path d="M30 200 L130 122 L190 172 L270 104 L370 186 V200 H30 Z" fill="' + CARD + '" opacity=".3"/>' +
+      '<g class="a-pan"><rect x="166" y="28" width="68" height="194" rx="12" fill="' + C + '" opacity=".2"/><rect x="166" y="28" width="68" height="194" rx="12" fill="none" stroke="' + C + '" stroke-width="5"/></g>' +
+      '<g transform="translate(70 214)"><rect width="260" height="10" rx="5" fill="' + INK + '" opacity=".15"/><rect class="a-trim" x="60" width="120" height="10" rx="5" fill="' + C + '"/></g></svg>',
     calc: (function () {
       var s = '<svg viewBox="0 0 300 180"><rect x="100" y="22" width="100" height="140" rx="18" fill="' + CARD + '"/><rect x="114" y="36" width="72" height="28" rx="7" fill="' + C + '" opacity=".2"/>' +
         '<rect class="a-blink" x="172" y="43" width="4" height="14" rx="2" fill="' + C + '"/>';
@@ -413,6 +422,7 @@ footer .priv b { color: var(--ink2); }
     { de: "<b>Verantwortlich.</b> " + VERANTWORTLICH, en: "<b>Responsible.</b> " + VERANTWORTLICH },
     { de: "<b>Hosting.</b> Die Seite liegt bei GitHub Pages (GitHub Inc., USA). Beim Aufruf verarbeitet der Anbieter technisch notwendige Daten wie IP-Adresse und Zeitpunkt in Server-Logs.", en: "<b>Hosting.</b> The site is hosted on GitHub Pages (GitHub Inc., USA). When you open it, the provider processes technically necessary data such as IP address and time in server logs." },
     { de: "<b>Schrift.</b> Es wird die Systemschrift deines Geräts verwendet, es werden keine Schriften von Google oder anderen Diensten geladen.", en: "<b>Font.</b> Your device's system font is used; no fonts are loaded from Google or other services." },
+    { de: "<b>Videos in Hochkant.</b> Videos, die du in Hochkant öffnest, werden nur in deinem Browser abgespielt, zugeschnitten und neu kodiert. Sie werden nicht hochgeladen. Alle dafür nötigen Programmteile liegen auf diesem Server.", en: "<b>Videos in Hochkant.</b> Videos you open in Hochkant are played, cropped and re-encoded only in your browser. They are never uploaded. All program parts needed for this are hosted on this server." },
     { de: "<b>Einstellungen.</b> Deine Wahl von Sprache und Hell/Dunkel wird nur lokal in deinem Browser gespeichert.", en: "<b>Settings.</b> Your choice of language and light/dark mode is stored only locally in your browser." }
   ];
 
@@ -426,7 +436,9 @@ footer .priv b { color: var(--ink2); }
     var go = it.id ? '<span class="go">' + t(T.open) + ARROW + '</span>' : "";
     var inner = '<div class="art" aria-hidden="true">' + ART[it.art] + '</div><div class="txt">' + top + '<p>' + esc(t(it.d)) + '</p>' + go + '</div>';
     var st = ' style="--d:' + (i * .07).toFixed(2) + 's"';
-    return '<div class="' + cls + '"' + st + '>' + inner + '</div>';
+    return it.href
+      ? '<a class="' + cls + '"' + st + ' href="' + it.href + '">' + inner + '</a>'
+      : '<div class="' + cls + '"' + st + '>' + inner + '</div>';
   }
 
   function render() {
