@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Foodradar · Soy &amp; Soul</title>
+<meta name="description" content="Die angesagtesten Restaurants, Cafés und Bars deiner Stadt auf einer Karte – mit Kategorien, Öffnungszeiten und den Videos, aus denen der Hype kommt.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg transform='translate(20 20)'%3E%3Cellipse rx='9.5' ry='6' transform='rotate(-45) translate(0 -8.5)' fill='%23ff6a3d'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(45) translate(0 -8.5)' fill='%232f7bff'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(135) translate(0 -8.5)' fill='%2334c27a'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(225) translate(0 -8.5)' fill='%238b5cf6'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="lib/maplibre-gl.css">
+<style>
+:root {
+  --bg: #fbfbfd; --bg2: #f2f2f6; --card: #ffffff; --ink: #1d1d1f; --ink2: #5e5e66; --ink3: #8a8a93;
+  --line: rgba(0,0,0,.08); --glass: rgba(255,255,255,.78); --shadow: 0 2px 6px rgba(0,0,0,.06), 0 18px 40px -14px rgba(0,0,0,.22);
+  --c: #22b06b; --hot: #ff4d2e; --hot2: #ff9a1f; --games: #ff6a3d; --tools: #2f7bff; --life: #22b06b; --org: #8b5cf6;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --pw: 380px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0b0b0d; --bg2: #232328; --card: #18181b; --ink: #f5f5f7; --ink2: #a8a8b0; --ink3: #77777f; --line: rgba(255,255,255,.1); --glass: rgba(24,24,27,.8); --shadow: 0 2px 6px rgba(0,0,0,.4), 0 18px 40px -14px rgba(0,0,0,.7); }
+}
+:root[data-theme="dark"] { --bg: #0b0b0d; --bg2: #232328; --card: #18181b; --ink: #f5f5f7; --ink2: #a8a8b0; --ink3: #77777f; --line: rgba(255,255,255,.1); --glass: rgba(24,24,27,.8); --shadow: 0 2px 6px rgba(0,0,0,.4), 0 18px 40px -14px rgba(0,0,0,.7); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
+a { color: inherit; text-decoration: none; }
+button, input { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; }
+[hidden] { display: none !important; }
+#map { position: fixed; inset: 0; }
+.glass { background: var(--glass); backdrop-filter: saturate(180%) blur(22px); -webkit-backdrop-filter: saturate(180%) blur(22px); border: 1px solid var(--line); box-shadow: var(--shadow); }
+
+/* ---------- Seitenleiste ---------- */
+.side { position: fixed; z-index: 5; top: 14px; left: 14px; bottom: 14px; width: var(--pw); border-radius: 26px; display: flex; flex-direction: column; overflow: hidden; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+.top { padding: 14px 14px 10px; display: grid; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 9px; }
+.brand a.logo { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 15px; letter-spacing: -.02em; color: var(--ink2); }
+.brand a.logo svg { width: 22px; height: 22px; transition: transform .7s cubic-bezier(.34,1.56,.64,1); }
+.brand a.logo:hover svg { transform: rotate(90deg); }
+.brand .sep { color: var(--ink3); }
+.brand h1 { font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.brand h1 i { font-style: normal; background: linear-gradient(120deg, var(--hot), var(--hot2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tog { display: flex; gap: 2px; background: var(--bg2); border-radius: 99px; padding: 3px; margin-left: auto; }
+.tog button { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; color: var(--ink3); }
+.tog button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.search { position: relative; }
+.search input { width: 100%; height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); padding: 0 44px 0 42px; font-size: 16px; outline: none; transition: box-shadow .2s, border-color .2s; }
+.search input:focus { border-color: color-mix(in srgb, var(--c) 60%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 18%, transparent); }
+.search > svg { position: absolute; left: 14px; top: 14px; width: 18px; height: 18px; color: var(--ink3); }
+.search .loc { position: absolute; right: 6px; top: 6px; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--c); }
+.search .loc:hover { background: var(--bg2); }
+.search .loc svg { width: 18px; height: 18px; }
+.sugg { position: absolute; left: 0; right: 0; top: 52px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; z-index: 3; }
+.sugg button { display: block; width: 100%; text-align: left; padding: 11px 14px; font-size: 14px; border-bottom: 1px solid var(--line); }
+.sugg button:last-child { border-bottom: 0; }
+.sugg button:hover, .sugg button:focus { background: var(--bg2); outline: none; }
+.sugg small { display: block; color: var(--ink3); font-size: 12px; margin-top: 1px; }
+.cities { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -14px; padding: 0 14px; }
+.cities::-webkit-scrollbar { display: none; }
+.cities button { flex: none; font-size: 13px; font-weight: 550; padding: 6px 12px; border-radius: 99px; background: var(--bg2); color: var(--ink2); transition: background .2s, color .2s; white-space: nowrap; }
+.cities button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -14px; padding: 2px 14px 4px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 550; padding: 6px 11px; border-radius: 99px; border: 1px solid var(--line); background: var(--card); white-space: nowrap; transition: all .2s; }
+.chip[aria-pressed="true"] { background: color-mix(in srgb, var(--c) 14%, var(--card)); border-color: color-mix(in srgb, var(--c) 55%, transparent); color: var(--ink); }
+.chip.hot[aria-pressed="true"] { background: linear-gradient(120deg, var(--hot), var(--hot2)); border-color: transparent; color: #fff; }
+.chip b { font-weight: 600; color: var(--ink3); font-size: 11px; }
+.chip[aria-pressed="true"] b { color: inherit; opacity: .75; }
+
+.list { flex: 1; overflow-y: auto; padding: 4px 10px 14px; scrollbar-width: thin; }
+.lh { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 6px 8px; }
+.lh h2 { font-size: 20px; font-weight: 700; letter-spacing: -.03em; }
+.lh span { font-size: 12px; color: var(--ink3); }
+.item { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 9px 8px; border-radius: 16px; transition: background .2s; animation: up .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: var(--d, 0s); }
+@keyframes up { from { opacity: 0; transform: translateY(12px); } }
+.item:hover, .item.on { background: color-mix(in srgb, var(--card) 70%, var(--bg2)); }
+.item .ic { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 25px; background: linear-gradient(140deg, color-mix(in srgb, var(--hot2) 22%, var(--card)), color-mix(in srgb, var(--hot) 22%, var(--card))); position: relative; overflow: hidden; }
+.item .ic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.item b { display: block; font-size: 15px; font-weight: 620; letter-spacing: -.015em; }
+.item .tg { font-size: 12px; color: var(--ink3); margin-top: 1px; }
+.item .why { font-size: 13px; color: var(--ink2); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; }
+.item.miss { opacity: .62; }
+.item.miss .ic { filter: grayscale(.6); }
+.empty { padding: 26px 10px; text-align: center; color: var(--ink2); font-size: 14px; line-height: 1.5; }
+.empty .big { font-size: 34px; display: block; margin-bottom: 8px; }
+.foot { padding: 10px 16px 14px; font-size: 11px; color: var(--ink3); border-top: 1px solid var(--line); line-height: 1.5; }
+.foot a { text-decoration: underline; text-underline-offset: 2px; }
+.status { position: fixed; z-index: 6; left: calc(var(--pw) + 28px); top: 18px; font-size: 13px; font-weight: 550; padding: 8px 14px; border-radius: 99px; display: flex; align-items: center; gap: 8px; transition: opacity .3s; }
+.status i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--c); border-top-color: transparent; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.zoomhint { position: fixed; z-index: 4; left: calc(50% + var(--pw) / 2); bottom: 30px; transform: translateX(-50%); font-size: 13px; font-weight: 550; padding: 9px 16px; border-radius: 99px; white-space: nowrap; }
+
+/* ---------- Detailkarte ---------- */
+.detail { position: fixed; z-index: 7; top: 14px; right: 14px; width: 380px; max-height: calc(100% - 28px); border-radius: 26px; overflow: hidden; display: flex; flex-direction: column; animation: din .45s cubic-bezier(.2,.8,.2,1); background: var(--card); }
+@keyframes din { from { opacity: 0; transform: translateX(30px) scale(.98); } }
+.hero { position: relative; height: 210px; flex: none; display: grid; place-items: center; overflow: hidden; }
+.hero .ph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 72px; }
+.hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero .x { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; display: grid; place-items: center; backdrop-filter: blur(8px); z-index: 2; }
+.hero .x svg { width: 14px; height: 14px; }
+.hero .badge { position: absolute; left: 14px; bottom: 14px; z-index: 2; display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; color: #fff; padding: 5px 11px; border-radius: 99px; background: linear-gradient(120deg, var(--hot), var(--hot2)); box-shadow: 0 6px 18px -6px var(--hot); }
+.hero .cred { position: absolute; right: 10px; bottom: 8px; z-index: 2; font-size: 10px; color: rgba(255,255,255,.85); text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.dbody { padding: 18px 20px 22px; overflow-y: auto; display: grid; gap: 16px; }
+.dbody h2 { font-size: 26px; font-weight: 700; letter-spacing: -.035em; line-height: 1.1; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tags span { font-size: 12px; font-weight: 600; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); padding: 3px 9px; border-radius: 99px; }
+.why2 { font-size: 15px; line-height: 1.5; color: var(--ink); padding: 13px 15px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--hot2) 10%, var(--card)), color-mix(in srgb, var(--hot) 8%, var(--card))); }
+.why2 b { display: block; font-size: 12px; font-weight: 700; color: var(--hot); margin-bottom: 3px; letter-spacing: .02em; text-transform: uppercase; }
+.sec h3 { font-size: 12px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.open { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 650; }
+.open i { width: 8px; height: 8px; border-radius: 50%; }
+.open.y { color: #1f9d55; } .open.y i { background: #1f9d55; box-shadow: 0 0 0 4px rgba(31,157,85,.18); }
+.open.n { color: #d9363e; } .open.n i { background: #d9363e; }
+.hours { margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.hours .today { color: var(--ink); font-weight: 650; }
+.raw { font-size: 13px; color: var(--ink2); margin-top: 6px; }
+.addr { font-size: 14px; color: var(--ink2); }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; padding: 10px 15px; border-radius: 99px; background: var(--bg2); transition: transform .15s, background .2s; }
+.btn:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--c) 14%, var(--bg2)); }
+.btn.pri { background: var(--ink); color: var(--bg); }
+.btn svg { width: 15px; height: 15px; }
+.srcs { display: grid; gap: 6px; }
+.src { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 9px 11px; border-radius: 14px; border: 1px solid var(--line); font-size: 13px; transition: background .2s; }
+.src:hover { background: var(--bg2); }
+.src .pf { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 800; }
+.src .pf.tiktok { background: #111; } .src .pf.youtube { background: #ff0033; } .src .pf.instagram { background: linear-gradient(45deg, #f9ce34, #ee2a7b, #6228d7); } .src .pf.article { background: var(--ink2); }
+.src span { line-height: 1.3; }
+.src small { display: block; color: var(--ink3); font-size: 11px; }
+.src svg { width: 14px; height: 14px; color: var(--ink3); }
+.note { font-size: 11px; color: var(--ink3); line-height: 1.5; }
+
+/* ---------- Hype-Marker ---------- */
+.hm { cursor: pointer; }
+.hm .pin { position: relative; display: flex; align-items: center; gap: 0; height: 38px; padding: 0 9px; border-radius: 99px; background: linear-gradient(130deg, var(--hot), var(--hot2)); color: #fff; font-weight: 650; font-size: 13px; box-shadow: 0 8px 22px -8px rgba(255,77,46,.9), 0 0 0 2.5px #fff; transition: transform .3s cubic-bezier(.34,1.56,.64,1), gap .3s; white-space: nowrap; }
+.hm .pin .em { font-size: 19px; line-height: 1; }
+.hm .pin .nm { max-width: 0; overflow: hidden; transition: max-width .4s cubic-bezier(.2,.8,.2,1), margin .3s; }
+.hm::after { content: ""; position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; background: var(--hot); opacity: 0; animation: ring 2.6s ease-out infinite; animation-delay: var(--d, 0s); z-index: -1; pointer-events: none; }
+@keyframes ring { 0% { transform: scale(.8); opacity: .55; } 100% { transform: scale(2.4); opacity: 0; } }
+.labels .hm .pin .nm, .hm:hover .pin .nm, .hm.on .pin .nm { max-width: 180px; margin-left: 6px; }
+.hm:hover .pin, .hm.on .pin { transform: scale(1.12); }
+.hm.on { z-index: 3; }
+.hm.dim { opacity: .18; pointer-events: none; }
+.hm.pop .pin { animation: pop .55s cubic-bezier(.34,1.56,.64,1) both; animation-delay: var(--d, 0s); }
+@keyframes pop { from { transform: scale(0); opacity: 0; } }
+
+.cm { cursor: pointer; display: grid; place-items: center; min-width: 54px; height: 54px; padding: 0 12px; border-radius: 99px; background: linear-gradient(130deg, var(--hot), var(--hot2)); color: #fff; font-weight: 700; font-size: 13px; box-shadow: 0 10px 26px -8px rgba(255,77,46,.8), 0 0 0 3px #fff; transition: transform .3s cubic-bezier(.34,1.56,.64,1); line-height: 1.1; text-align: center; }
+.cm small { display: block; font-size: 11px; font-weight: 600; opacity: .9; }
+.cm:hover { transform: scale(1.08); }
+
+.maplibregl-ctrl-group { border-radius: 14px !important; overflow: hidden; box-shadow: var(--shadow) !important; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+
+/* ---------- Mobil ---------- */
+@media (max-width: 760px) {
+  :root { --pw: 0px; }
+  .side { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 46vh; border-radius: 24px 24px 0 0; border-bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .side.min { height: 170px; }
+  .grab { display: block !important; width: 40px; height: 5px; border-radius: 3px; background: var(--ink3); opacity: .45; margin: 8px auto -4px; }
+  .status { left: 50%; transform: translateX(-50%); top: 12px; }
+  .zoomhint { left: 50%; bottom: auto; top: 56px; }
+  .detail { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 82vh; border-radius: 24px 24px 0 0; animation-name: dup; }
+  @keyframes dup { from { transform: translateY(40px); opacity: 0; } }
+  .hero { height: 170px; }
+  .maplibregl-ctrl-top-right { top: 0; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="map" aria-label="Karte"></div>
+
+<aside class="side glass" id="side">
+  <span class="grab" hidden id="grab"></span>
+  <div class="top">
+    <div class="brand">
+      <a class="logo" href="../../#lifestyle" aria-label="Soy &amp; Soul">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><g transform="translate(20 20)" opacity=".9">
+          <ellipse rx="9.5" ry="6" transform="rotate(-45) translate(0 -8.5)" fill="var(--games)"/><ellipse rx="9.5" ry="6" transform="rotate(45) translate(0 -8.5)" fill="var(--tools)"/>
+          <ellipse rx="9.5" ry="6" transform="rotate(135) translate(0 -8.5)" fill="var(--life)"/><ellipse rx="9.5" ry="6" transform="rotate(225) translate(0 -8.5)" fill="var(--org)"/></g></svg>
+      </a>
+      <span class="sep">/</span>
+      <h1>Food<i>radar</i></h1>
+      <div class="tog" role="group" aria-label="Sprache"><button data-lang="de" aria-pressed="true">DE</button><button data-lang="en" aria-pressed="false">EN</button></div>
+    </div>
+    <form class="search" id="sform" autocomplete="off">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><path d="m14 14 4 4"/></svg>
+      <input id="q" type="search" enterkeyhint="search">
+      <button type="button" class="loc" id="locate" aria-label="Standort"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3"/><circle cx="10" cy="10" r="6.5"/></svg></button>
+      <div class="sugg" id="sugg" hidden></div>
+    </form>
+    <div class="cities" id="cities"></div>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="list" id="list"></div>
+  <div class="foot" id="foot"></div>
+</aside>
+
+<div class="status glass" id="status" hidden><i></i><span id="statusT"></span></div>
+<div class="zoomhint glass" id="zoomhint" hidden></div>
+<article class="detail glass" id="detail" hidden></article>
+
+<script type="module">
+import { Map as MLMap, Marker, NavigationControl, GeolocateControl, AttributionControl } from "./lib/maplibre-gl.mjs";
+
+/* ================= Einstellungen ================= */
+const STYLE = { light: "https://tiles.openfreemap.org/styles/positron", dark: "https://tiles.openfreemap.org/styles/dark" };
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+const MIN_ZOOM_SPOTS = 14.3;      // ab hier werden alle Lokale im Ausschnitt geladen
+const FOOD = "restaurant|cafe|bar|pub|fast_food|ice_cream|biergarten|food_court|marketplace|bakery|pastry|confectionery|deli";
+
+/* ================= Texte ================= */
+const T = {
+  search: { de: "Stadt oder Ort suchen", en: "Search a city or place" },
+  hot: { de: "Angesagt", en: "Trending" }, all: { de: "Alle", en: "All" },
+  hotIn: { de: "Angesagt in {c}", en: "Trending in {c}" },
+  spots: { de: "{n} Hype-Spots", en: "{n} hype spots" },
+  pick: { de: "Wähle eine Stadt", en: "Pick a city" },
+  pickP: { de: "Für diese Städte gibt es eine recherchierte Hype-Liste. Überall sonst siehst du beim Hineinzoomen alle Restaurants, Cafés und Bars.", en: "These cities have a researched hype list. Everywhere else, zoom in to see all restaurants, cafés and bars." },
+  noHype: { de: "Für diese Gegend gibt es noch keine Hype-Liste. Zoom hinein, um alle Lokale mit Kategorien und Öffnungszeiten zu sehen.", en: "There's no hype list for this area yet. Zoom in to see every place with categories and opening hours." },
+  nearby: { de: "In der Nähe", en: "Nearby" },
+  nearbyN: { de: "{n} Lokale im Ausschnitt", en: "{n} places in view" },
+  zoomIn: { de: "Hineinzoomen, um alle Lokale zu sehen", en: "Zoom in to see every place" },
+  loadingHype: { de: "Hype-Spots werden gesucht …", en: "Finding hype spots …" },
+  loadingSpots: { de: "Lokale werden geladen …", en: "Loading places …" },
+  errSpots: { de: "Lokale konnten gerade nicht geladen werden", en: "Places couldn't be loaded right now" },
+  notFound: { de: "Nicht auf der Karte gefunden", en: "Not found on the map" },
+  nothing: { de: "Nichts gefunden", en: "Nothing found" },
+  whyH: { de: "Darum ist es angesagt", en: "Why it's trending" },
+  hours: { de: "Öffnungszeiten", en: "Opening hours" },
+  openNow: { de: "Jetzt geöffnet", en: "Open now" }, closedNow: { de: "Jetzt geschlossen", en: "Closed now" },
+  until: { de: " · bis {t}", en: " · until {t}" }, opens: { de: " · öffnet {d} {t}", en: " · opens {d} {t}" },
+  closed: { de: "geschlossen", en: "closed" }, noHours: { de: "Keine Öffnungszeiten hinterlegt", en: "No opening hours listed" },
+  srcH: { de: "Quellen des Hypes", en: "Where the hype comes from" },
+  linksH: { de: "Mehr", en: "More" },
+  route: { de: "Route", en: "Directions" }, photos: { de: "Fotos & Bewertungen", en: "Photos & reviews" }, web: { de: "Website", en: "Website" },
+  hypeBadge: { de: "🔥 Angesagt", en: "🔥 Trending" },
+  photo: { de: "Foto", en: "Photo" },
+  checkNote: { de: "Öffnungszeiten aus OpenStreetMap, können veraltet sein.", en: "Opening hours from OpenStreetMap, may be out of date." },
+  foot: { de: "Hype-Liste recherchiert, Stand {d} · Karte © OpenStreetMap-Mitwirkende, OpenFreeMap · <a href=\"../../#lifestyle\">Soy & Soul</a>", en: "Hype list researched, as of {d} · Map © OpenStreetMap contributors, OpenFreeMap · <a href=\"../../#lifestyle\">Soy & Soul</a>" },
+  days: { de: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"], en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+  today: { de: "heute", en: "today" }, tomorrow: { de: "morgen", en: "tomorrow" },
+  typ: { tiktok: "TikTok", youtube: "YouTube", instagram: "Instagram", article: { de: "Artikel", en: "Article" } }
+};
+// Kategorien: Schlüssel -> Emoji und Name
+const TAGS = {
+  burger: ["🍔", "Burger", "Burger"], chicken: ["🍗", "Chicken", "Chicken"], kebab: ["🥙", "Kebab", "Kebab"], pizza: ["🍕", "Pizza", "Pizza"],
+  japanisch: ["🍣", "Japanisch", "Japanese"], chinesisch: ["🥟", "Chinesisch", "Chinese"], koreanisch: ["🥢", "Koreanisch", "Korean"], thai: ["🌶️", "Thai", "Thai"],
+  vietnamesisch: ["🍜", "Vietnamesisch", "Vietnamese"], indisch: ["🍛", "Indisch", "Indian"], mexikanisch: ["🌮", "Mexikanisch", "Mexican"],
+  italienisch: ["🍝", "Italienisch", "Italian"], franzoesisch: ["🥖", "Französisch", "French"], spanisch: ["🥘", "Spanisch", "Spanish"], tapas: ["🫒", "Tapas", "Tapas"],
+  griechisch: ["🫒", "Griechisch", "Greek"], tuerkisch: ["🧿", "Türkisch", "Turkish"], arabisch: ["🧆", "Arabisch", "Middle Eastern"], amerikanisch: ["🌭", "Amerikanisch", "American"],
+  deutsch: ["🥨", "Deutsch", "German"], oesterreichisch: ["🥨", "Österreichisch", "Austrian"], balkan: ["🍖", "Balkan", "Balkan"], hausmannskost: ["🍲", "Hausmannskost", "Comfort food"],
+  nudeln: ["🍜", "Nudeln", "Noodles"], bagel: ["🥯", "Bagel", "Bagel"], sandwich: ["🥪", "Sandwich", "Sandwich"], falafel: ["🧆", "Falafel", "Falafel"], pommes: ["🍟", "Pommes", "Fries"],
+  fisch: ["🐟", "Fisch", "Seafood"], bowl: ["🥗", "Bowls", "Bowls"], vegan: ["🌱", "Vegan", "Vegan"], streetfood: ["🌯", "Streetfood", "Street food"],
+  baeckerei: ["🥐", "Bäckerei", "Bakery"], suess: ["🍰", "Süß", "Sweet"], eis: ["🍨", "Eis", "Ice cream"], cafe: ["☕", "Café", "Café"], brunch: ["🍳", "Brunch", "Brunch"],
+  bar: ["🍸", "Bar", "Bar"], cocktails: ["🍹", "Cocktails", "Cocktails"], wein: ["🍷", "Wein", "Wine"], bier: ["🍺", "Bier", "Beer"],
+  finedining: ["✨", "Fine Dining", "Fine dining"], markt: ["🛍️", "Markt", "Market"], restaurant: ["🍽️", "Restaurant", "Restaurant"]
+};
+// OSM-Küchen -> Kategorien
+const CUISINE = {
+  burger: "burger", pizza: "pizza", sushi: "japanisch", japanese: "japanisch", ramen: "japanisch", udon: "japanisch", chinese: "chinesisch", dumpling: "chinesisch", dim_sum: "chinesisch",
+  korean: "koreanisch", thai: "thai", vietnamese: "vietnamesisch", pho: "vietnamesisch", indian: "indisch", curry: "indisch", mexican: "mexikanisch", tacos: "mexikanisch", burrito: "mexikanisch",
+  italian: "italienisch", pasta: "italienisch", french: "franzoesisch", crepe: "franzoesisch", spanish: "spanisch", tapas: "tapas", greek: "griechisch", turkish: "tuerkisch",
+  lebanese: "arabisch", arab: "arabisch", syrian: "arabisch", persian: "arabisch", american: "amerikanisch", hot_dog: "amerikanisch", german: "deutsch", regional: "deutsch",
+  austrian: "oesterreichisch", balkan: "balkan", kebab: "kebab", doner: "kebab", chicken: "chicken", fried_chicken: "chicken", noodle: "nudeln", bagel: "bagel",
+  sandwich: "sandwich", falafel: "falafel", fries: "pommes", seafood: "fisch", fish: "fisch", fish_and_chips: "fisch", salad: "bowl", bowl: "bowl", poke: "bowl",
+  breakfast: "brunch", brunch: "brunch", cake: "suess", donut: "suess", dessert: "suess", ice_cream: "eis", coffee_shop: "cafe", wine: "wein", beer: "bier"
+};
+let L = "de";
+try { const s = localStorage.getItem("ss-lang"); L = s === "en" || s === "de" ? s : ((navigator.language || "de").slice(0, 2) === "de" ? "de" : "en"); const th = localStorage.getItem("ss-theme"); if (th === "light" || th === "dark") document.documentElement.setAttribute("data-theme", th); } catch (e) {}
+const t = (k, v) => { let s = T[k][L] ?? T[k]; if (v) for (const x in v) s = s.replace("{" + x + "}", v[x]); return s; };
+const tagName = k => TAGS[k] ? TAGS[k][L === "de" ? 1 : 2] : k;
+const tagEm = k => TAGS[k] ? TAGS[k][0] : "🍽️";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/ß/g, "ss").replace(/[^a-z0-9]/g, "");
+const dark = () => { const a = document.documentElement.getAttribute("data-theme"); return a ? a === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
+
+/* ================= Zustand ================= */
+const S = { hype: null, city: null, filter: null, onlyHype: false, spots: [], sel: null, cityRes: {}, markers: [], cityMarkers: [] };
+
+/* ================= Karte ================= */
+const map = new MLMap({
+  container: "map", style: dark() ? STYLE.dark : STYLE.light,
+  center: [9.5, 50.2], zoom: 4.3, attributionControl: false, maxPitch: 60
+});
+window.__map = map;
+map.addControl(new AttributionControl({ compact: true }), "bottom-right");
+map.addControl(new NavigationControl({ showCompass: true, visualizePitch: true }), "top-right");
+const geo = new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false, showUserLocation: true });
+map.addControl(geo, "top-right");
+$("locate").onclick = () => geo.trigger();
+
+let layerEvents = false;
+function addSpotLayers() {
+  if (map.getSource("spots")) return;
+  map.addSource("spots", { type: "geojson", data: fc(S.spots) });
+  map.addLayer({ id: "spots-halo", type: "circle", source: "spots", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 7, 18, 13], "circle-color": "#ffffff", "circle-opacity": dark() ? .15 : .9 } });
+  map.addLayer({ id: "spots", type: "circle", source: "spots", paint: {
+    "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 4.5, 18, 9],
+    "circle-color": ["match", ["get", "kind"], "cafe", "#a2672f", "bar", "#8b5cf6", "sweet", "#ec4899", "fast", "#f59e0b", "#22b06b"],
+    "circle-stroke-width": 1.5, "circle-stroke-color": dark() ? "#18181b" : "#ffffff" } });
+  map.addLayer({ id: "spots-label", type: "symbol", source: "spots", minzoom: 16.2, layout: {
+    "text-field": ["get", "name"], "text-size": 11.5, "text-offset": [0, 1.15], "text-anchor": "top", "text-max-width": 9,
+    "text-font": ["Noto Sans Regular"], "text-optional": true },
+    paint: { "text-color": dark() ? "#e4e4e7" : "#3f3f46", "text-halo-color": dark() ? "#18181b" : "#ffffff", "text-halo-width": 1.4 } });
+  if (layerEvents) { applyFilter(); return; }
+  layerEvents = true;
+  map.on("click", "spots", e => { const f = e.features[0]; const p = S.spots.find(x => x.id === f.properties.id); if (p) openDetail(p); });
+  map.on("mouseenter", "spots", () => map.getCanvas().style.cursor = "pointer");
+  map.on("mouseleave", "spots", () => map.getCanvas().style.cursor = "");
+  applyFilter();
+}
+map.on("load", () => { addSpotLayers(); start(); });
+map.on("style.load", () => { if (map.loaded()) addSpotLayers(); });
+map.on("zoom", () => document.body.classList.toggle("labels", map.getZoom() >= 14.6));
+map.on("moveend", () => { detectCity(); loadSpots(); });
+
+/* ================= Hype-Liste laden ================= */
+async function start() {
+  try { S.hype = await (await fetch("data/hype.json", { cache: "no-cache" })).json(); }
+  catch (e) { S.hype = { cities: [], places: [], updated: "" }; }
+  renderCities(); renderFoot(); cityBubbles();
+  const p = new URLSearchParams(location.search).get("stadt") || new URLSearchParams(location.search).get("city");
+  let last = null; try { last = localStorage.getItem("fr-city"); } catch (e) {}
+  const c = S.hype.cities.find(c => c.id === p) || (p ? null : S.hype.cities.find(c => c.id === last));
+  if (c) goCity(c, true); else renderList();
+}
+function renderCities() {
+  $("cities").innerHTML = S.hype.cities.map(c => '<button data-c="' + c.id + '" aria-pressed="' + (S.city && S.city.id === c.id) + '">' + esc(c.name[L]) + '</button>').join("");
+}
+$("cities").addEventListener("click", e => { const b = e.target.closest("[data-c]"); if (b) goCity(S.hype.cities.find(c => c.id === b.dataset.c)); });
+function renderFoot() { $("foot").innerHTML = t("foot", { d: fmtDate(S.hype.updated) }); }
+function fmtDate(d) { if (!d) return "–"; const x = new Date(d + "T12:00:00"); return x.toLocaleDateString(L === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "long", year: "numeric" }); }
+
+// Übersicht: Stadt-Blasen auf der Europakarte
+function cityBubbles() {
+  S.cityMarkers.forEach(m => m.remove()); S.cityMarkers = [];
+  for (const c of S.hype.cities) {
+    const n = S.hype.places.filter(p => p.city === c.id).length;
+    const el = document.createElement("button"); el.className = "cm"; el.innerHTML = esc(c.name[L]) + "<small>🔥 " + n + "</small>";
+    el.onclick = ev => { ev.stopPropagation(); goCity(c); };
+    S.cityMarkers.push(new Marker({ element: el }).setLngLat(c.center).addTo(map));
+  }
+  toggleBubbles();
+}
+function toggleBubbles() { const show = map.getZoom() < 9.5; S.cityMarkers.forEach(m => m.getElement().style.display = show ? "" : "none"); }
+map.on("zoomend", toggleBubbles);
+
+function goCity(c, instant) {
+  if (!c) return;
+  closeDetail();
+  map.fitBounds([[c.bbox[0], c.bbox[1]], [c.bbox[2], c.bbox[3]]], { padding: pad(), duration: instant ? 0 : 1600, maxZoom: 12.4, essential: true });
+  setCity(c);
+}
+function pad() { const m = innerWidth <= 760; return m ? { top: 40, bottom: innerHeight * .46 + 10, left: 20, right: 20 } : { top: 40, bottom: 40, left: 380 + 40, right: 60 }; }
+function detectCity() {
+  if (!S.hype) return;
+  const ctr = map.getCenter(), z = map.getZoom();
+  const c = z >= 9.5 ? S.hype.cities.find(c => ctr.lng >= c.bbox[0] && ctr.lng <= c.bbox[2] && ctr.lat >= c.bbox[1] && ctr.lat <= c.bbox[3]) : null;
+  if ((c && c.id) !== (S.city && S.city.id)) setCity(c || null);
+}
+function setCity(c) {
+  if ((c && c.id) === (S.city && S.city.id) && S.markers.length) return;
+  S.city = c; S.filter = null;
+  try { if (c) localStorage.setItem("fr-city", c.id); } catch (e) {}
+  if (c) history.replaceState(null, "", "?stadt=" + c.id); else history.replaceState(null, "", location.pathname);
+  renderCities(); clearHypeMarkers();
+  if (c) resolveCity(c); else { renderChips(); renderList(); }
+}
+
+/* ================= Hype-Orte in OpenStreetMap finden ================= */
+async function overpass(q, signal) {
+  let err;
+  for (const url of OVERPASS) {
+    try {
+      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal });
+      if (!r.ok) throw new Error(r.status);
+      return (await r.json()).elements || [];
+    } catch (e) { if (e.name === "AbortError") throw e; err = e; }
+  }
+  throw err;
+}
+function namePattern(n) {
+  return n.normalize("NFC").split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+    .map(w => w.replace(/[^A-Za-z0-9]/g, ".").replace(/[.+*?^$()[\]{}|\\]/g, m => m === "." ? "." : "\\" + m)).join(".*");
+}
+function score(p, el) {
+  const a = norm(p.name), b = norm(el.tags && el.tags.name);
+  if (!b) return 0;
+  let s = a === b ? 100 : (b.startsWith(a) || a.startsWith(b)) ? 72 : (b.includes(a) || a.includes(b)) ? 52 : 0;
+  if (!s) return 0;
+  const street = norm((p.addr || "").replace(/\d.*$/, "")), osmSt = norm(el.tags["addr:street"]);
+  if (street && osmSt && (osmSt.includes(street) || street.includes(osmSt))) s += 30;
+  const hn = ((p.addr || "").match(/\d+\s*[a-z]?/i) || [""])[0].replace(/\s/g, "").toLowerCase();
+  if (hn && el.tags["addr:housenumber"] && el.tags["addr:housenumber"].toLowerCase().replace(/\s/g, "") === hn) s += 10;
+  return s;
+}
+const cacheKey = c => "fr-res-" + c.id + "-" + S.hype.updated;
+async function resolveCity(c) {
+  const list = S.hype.places.filter(p => p.city === c.id);
+  let res = null;
+  try { const raw = JSON.parse(localStorage.getItem(cacheKey(c)) || "null"); if (raw && Date.now() - raw.at < 6 * 864e5) res = raw.res; } catch (e) {}
+  if (!res) {
+    res = {};
+    status(t("loadingHype"));
+    renderList(list, res, true);
+    const b = c.bbox, bb = b[1] + "," + b[0] + "," + b[3] + "," + b[2];
+    const re = list.map(p => namePattern(p.name)).join("|");
+    try {
+      const els = await overpass('[out:json][timeout:40];nwr[~"^(amenity|shop)$"~"^(' + FOOD + ')$"]["name"~"(' + re + ')",i](' + bb + ');out center tags;');
+      for (const p of list) {
+        let best = null, bs = 0;
+        for (const el of els) { const s = score(p, el); if (s > bs) { bs = s; best = el; } }
+        if (best && bs >= 52) res[p.name] = pack(best);
+      }
+    } catch (e) { /* weiter mit Nominatim */ }
+    // Was nicht gefunden wurde: Adresse über Nominatim suchen (max. 1 Anfrage pro Sekunde)
+    for (const p of list) {
+      if (res[p.name] || S.city !== c) continue;
+      await new Promise(r => setTimeout(r, 1100));
+      try {
+        const q = [p.name, p.addr].filter(Boolean).join(", ") + ", " + c.name.de;
+        const u = NOMINATIM + "?format=jsonv2&limit=1&extratags=1&bounded=1&viewbox=" + c.bbox.join(",") + "&q=" + encodeURIComponent(q) + "&accept-language=" + L;
+        const j = await (await fetch(u)).json();
+        if (j[0]) res[p.name] = { lat: +j[0].lat, lon: +j[0].lon, tags: Object.assign({ name: j[0].name }, j[0].extratags || {}), osm: j[0].osm_type && j[0].osm_type[0] + j[0].osm_id };
+      } catch (e) {}
+      if (S.city === c) { S.cityRes[c.id] = res; placeHype(c, list, res); }
+    }
+    try { localStorage.setItem(cacheKey(c), JSON.stringify({ at: Date.now(), res })); } catch (e) {}
+    status(null);
+  }
+  if (S.city !== c) return;
+  S.cityRes[c.id] = res;
+  placeHype(c, list, res);
+}
+function pack(el) {
+  return { lat: el.lat ?? el.center?.lat, lon: el.lon ?? el.center?.lon, tags: el.tags || {}, osm: el.type[0] + el.id };
+}
+
+/* ================= Hype-Marker ================= */
+function clearHypeMarkers() { S.markers.forEach(m => m.marker.remove()); S.markers = []; }
+function placeHype(c, list, res) {
+  clearHypeMarkers();
+  list.forEach((p, i) => {
+    const r = res[p.name]; if (!r || r.lat == null) return;
+    p._r = r;
+    const el = document.createElement("div"); el.className = "hm pop"; el.style.setProperty("--d", (i * .05) + "s");
+    el.innerHTML = '<div class="pin"><span class="em">' + tagEm(p.tags[0]) + '</span><span class="nm">' + esc(p.name) + '</span></div>';
+    el.addEventListener("click", ev => { ev.stopPropagation(); openDetail(hypeObj(p)); });
+    const marker = new Marker({ element: el, anchor: "center" }).setLngLat([r.lon, r.lat]).addTo(map);
+    S.markers.push({ p, marker, el });
+  });
+  renderChips(); renderList(); applyFilter();
+}
+function hypeObj(p) {
+  const r = p._r || {};
+  return { id: "h-" + p.city + "-" + p.name, hype: p, name: p.name, lat: r.lat, lon: r.lon, tags: p.tags, osm: r.tags || {}, osmId: r.osm, addr: p.addr };
+}
+
+/* ================= Alle Lokale im Ausschnitt ================= */
+let spotCtl = null, spotKey = "";
+const spotCache = new Map();
+async function loadSpots() {
+  const z = map.getZoom();
+  $("zoomhint").hidden = !(S.city && z < MIN_ZOOM_SPOTS && z >= 11) || S.onlyHype;
+  $("zoomhint").textContent = t("zoomIn");
+  if (z < MIN_ZOOM_SPOTS || S.onlyHype) {
+    if (z < MIN_ZOOM_SPOTS && S.spots.length) { spotKey = ""; setSpots([]); }
+    return;
+  }
+  const b = map.getBounds(), r = v => Math.round(v * 200) / 200;
+  const s = r(b.getSouth() - .002), w = r(b.getWest() - .002), n = r(b.getNorth() + .002), e = r(b.getEast() + .002);
+  const key = [s, w, n, e].join(",");
+  if (key === spotKey) return; spotKey = key;
+  if (spotCache.has(key)) { setSpots(spotCache.get(key)); return; }
+  if (spotCtl) spotCtl.abort(); spotCtl = new AbortController();
+  status(t("loadingSpots"));
+  try {
+    const els = await overpass('[out:json][timeout:25];nwr[~"^(amenity|shop)$"~"^(restaurant|cafe|bar|pub|fast_food|ice_cream|biergarten|bakery|pastry)$"]["name"](' + key + ');out center tags 700;', spotCtl.signal);
+    const list = els.map(el => spotObj(el)).filter(x => x.lat != null);
+    spotCache.set(key, list); setSpots(list); status(null);
+  } catch (e) { if (e.name !== "AbortError") { status(t("errSpots"), 3500); spotKey = ""; } }
+}
+function spotObj(el) {
+  const tg = el.tags || {}, set = new Set();
+  (tg.cuisine || "").split(/[;,]/).map(x => x.trim().toLowerCase()).forEach(x => { if (CUISINE[x]) set.add(CUISINE[x]); });
+  const a = tg.amenity || tg.shop;
+  if (a === "cafe") set.add("cafe");
+  if (a === "bar" || a === "pub" || a === "biergarten") set.add("bar");
+  if (a === "bakery" || a === "pastry") set.add("baeckerei");
+  if (a === "ice_cream") set.add("eis");
+  if (/^(only|yes)$/.test(tg["diet:vegan"] || "")) set.add("vegan");
+  if (!set.size) set.add(a === "fast_food" ? "streetfood" : "restaurant");
+  const kind = a === "cafe" ? "cafe" : (a === "bar" || a === "pub" || a === "biergarten") ? "bar" : (a === "ice_cream" || a === "bakery" || a === "pastry") ? "sweet" : a === "fast_food" ? "fast" : "food";
+  return { id: el.type[0] + el.id, name: tg.name, lat: el.lat ?? el.center?.lat, lon: el.lon ?? el.center?.lon, tags: [...set], osm: tg, osmId: el.type[0] + el.id, kind };
+}
+function setSpots(list) {
+  // Hype-Orte nicht doppelt zeigen
+  const hy = new Set(S.markers.map(m => m.p._r && m.p._r.osm));
+  S.spots = list.filter(x => !hy.has(x.osmId));
+  if (map.getSource("spots")) map.getSource("spots").setData(fc(S.spots));
+  renderChips(); renderList(); applyFilter();
+}
+function fc(list) { return { type: "FeatureCollection", features: list.map(x => ({ type: "Feature", geometry: { type: "Point", coordinates: [x.lon, x.lat] }, properties: { id: x.id, name: x.name, kind: x.kind, tg: "|" + x.tags.join("|") + "|" } })) }; }
+
+/* ================= Filter ================= */
+function renderChips() {
+  const count = {};
+  const hy = S.markers.map(m => m.p);
+  hy.forEach(p => p.tags.forEach(k => count[k] = (count[k] || 0) + 1));
+  if (!S.onlyHype) S.spots.forEach(x => x.tags.forEach(k => count[k] = (count[k] || 0) + 1));
+  const keys = Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, 18);
+  if (S.filter && !keys.includes(S.filter)) keys.unshift(S.filter);
+  let h = '<button class="chip hot" data-f="hot" aria-pressed="' + S.onlyHype + '">🔥 ' + t("hot") + '</button>';
+  h += '<button class="chip" data-f="" aria-pressed="' + !S.filter + '">' + t("all") + '</button>';
+  h += keys.map(k => '<button class="chip" data-f="' + k + '" aria-pressed="' + (S.filter === k) + '">' + tagEm(k) + ' #' + esc(tagName(k)) + ' <b>' + (count[k] || 0) + '</b></button>').join("");
+  $("chips").innerHTML = h;
+}
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-f]"); if (!b) return;
+  const f = b.dataset.f;
+  if (f === "hot") { S.onlyHype = !S.onlyHype; if (!S.onlyHype) { spotKey = ""; loadSpots(); } }
+  else S.filter = f || null;
+  renderChips(); renderList(); applyFilter();
+});
+function applyFilter() {
+  S.markers.forEach(m => m.el.classList.toggle("dim", !!S.filter && !m.p.tags.includes(S.filter)));
+  if (!map.getLayer("spots")) return;
+  const vis = S.onlyHype ? "none" : "visible";
+  ["spots", "spots-halo", "spots-label"].forEach(id => map.setLayoutProperty(id, "visibility", vis));
+  const f = S.filter ? ["in", "|" + S.filter + "|", ["get", "tg"]] : null;
+  ["spots", "spots-halo", "spots-label"].forEach(id => map.setFilter(id, f));
+}
+
+/* ================= Liste ================= */
+function renderList(listArg, resArg, loading) {
+  const box = $("list");
+  if (!S.city) {
+    const near = S.spots.length && map.getZoom() >= MIN_ZOOM_SPOTS ? spotsHTML() : "";
+    box.innerHTML = (S.hype && S.hype.cities.length && map.getZoom() < 9.5
+      ? '<div class="empty"><span class="big">🗺️</span><b>' + t("pick") + '</b><br>' + t("pickP") + '</div>'
+      : '<div class="empty"><span class="big">🍽️</span>' + t("noHype") + '</div>') + near;
+    return;
+  }
+  const res = resArg || S.cityRes[S.city.id] || {};
+  const list = (listArg || S.hype.places.filter(p => p.city === S.city.id)).filter(p => !S.filter || p.tags.includes(S.filter));
+  const found = list.filter(p => res[p.name]), miss = list.filter(p => !res[p.name]);
+  let h = '<div class="lh"><h2>' + t("hotIn", { c: esc(S.city.name[L]) }) + '</h2><span>' + t("spots", { n: list.length }) + '</span></div>';
+  if (!list.length) h += '<div class="empty">' + t("nothing") + '</div>';
+  h += found.map((p, i) => item(p, i, false)).join("");
+  if (miss.length && !loading) h += '<div class="lh"><span>' + t("notFound") + '</span></div>' + miss.map((p, i) => item(p, i, true)).join("");
+  else if (loading) h += miss.map((p, i) => item(p, i, false)).join("");
+  h += spotsHTML();
+  box.innerHTML = h;
+}
+function item(p, i, miss) {
+  const r = p._r, img = r && imgOf(r.tags);
+  return '<button class="item' + (miss ? " miss" : "") + (S.sel && S.sel.hype === p ? " on" : "") + '" data-h="' + esc(p.name) + '" style="--d:' + Math.min(i * .035, .5) + 's">' +
+    '<span class="ic">' + tagEm(p.tags[0]) + (img ? '<img loading="lazy" alt="" src="' + esc(img.thumb) + '" onerror="this.remove()">' : "") + '</span>' +
+    '<span><b>' + esc(p.name) + '</b><span class="tg">' + p.tags.map(k => "#" + esc(tagName(k))).join(" ") + '</span><span class="why">' + esc(p.why[L]) + '</span></span></button>';
+}
+function spotsHTML() {
+  if (S.onlyHype || map.getZoom() < MIN_ZOOM_SPOTS || !S.spots.length) return "";
+  const c = map.getCenter();
+  const list = S.spots.filter(x => !S.filter || x.tags.includes(S.filter))
+    .map(x => [x, (x.lat - c.lat) ** 2 + ((x.lon - c.lng) * Math.cos(c.lat * Math.PI / 180)) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 40).map(a => a[0]);
+  if (!list.length) return "";
+  return '<div class="lh"><h2>' + t("nearby") + '</h2><span>' + t("nearbyN", { n: S.spots.length }) + '</span></div>' +
+    list.map((x, i) => '<button class="item" data-s="' + x.id + '" style="--d:' + Math.min(i * .02, .4) + 's"><span class="ic" style="background:var(--bg2)">' + tagEm(x.tags[0]) + '</span><span><b>' + esc(x.name) + '</b><span class="tg">' + x.tags.map(k => "#" + esc(tagName(k))).join(" ") + '</span></span></button>').join("");
+}
+$("list").addEventListener("click", e => {
+  const b = e.target.closest(".item"); if (!b) return;
+  if (b.dataset.h != null) {
+    const p = S.hype.places.find(p => p.city === S.city.id && p.name === b.dataset.h);
+    if (p && p._r) { openDetail(hypeObj(p)); } else if (p) openDetail({ id: "h-" + p.name, hype: p, name: p.name, tags: p.tags, osm: {}, addr: p.addr });
+  } else if (b.dataset.s) { const x = S.spots.find(x => x.id === b.dataset.s); if (x) openDetail(x); }
+});
+map.on("moveend", () => { if (S.city || S.spots.length) renderListSoft(); });
+let softT; function renderListSoft() { clearTimeout(softT); softT = setTimeout(() => { if (!S.city) renderList(); else if (!S.onlyHype) { const top = $("list").scrollTop; renderList(); $("list").scrollTop = top; } }, 250); }
+
+/* ================= Detail ================= */
+function imgOf(tg) {
+  if (!tg) return null;
+  let f = tg.wikimedia_commons || "";
+  if (!f && /commons\.wikimedia\.org\/wiki\/(File:[^?#]+)/.test(tg.image || "")) f = decodeURIComponent(RegExp.$1);
+  if (f.startsWith("File:")) { const n = encodeURIComponent(f.slice(5).replace(/ /g, "_")); return { src: "https://commons.wikimedia.org/wiki/Special:FilePath/" + n + "?width=900", thumb: "https://commons.wikimedia.org/wiki/Special:FilePath/" + n + "?width=160", cred: "Wikimedia Commons" }; }
+  if (/^https:\/\/upload\.wikimedia\.org\//.test(tg.image || "")) return { src: tg.image, thumb: tg.image, cred: "Wikimedia Commons" };
+  return null;
+}
+async function openDetail(x) {
+  S.sel = x;
+  S.markers.forEach(m => m.el.classList.toggle("on", !!x.hype && m.p === x.hype));
+  if (x.lat != null) {
+    const off = innerWidth <= 760 ? [0, -innerHeight * .22] : [0, 0];
+    map.easeTo({ center: [x.lon, x.lat], zoom: Math.max(map.getZoom(), 15.2), offset: off, duration: 900 });
+  }
+  drawDetail(x);
+  // Fehlen Details (z. B. Treffer über Nominatim), aus OSM nachladen
+  if (x.osmId && !x.osm.opening_hours && !x._full) {
+    x._full = true;
+    try {
+      const type = { n: "node", w: "way", r: "relation" }[x.osmId[0]], id = x.osmId.slice(1);
+      const els = await overpass("[out:json][timeout:15];" + type + "(" + id + ");out tags;");
+      if (els[0] && els[0].tags) { x.osm = Object.assign({}, els[0].tags, x.osm); if (S.sel === x) drawDetail(x); }
+    } catch (e) {}
+  }
+  renderListSoft();
+}
+function drawDetail(x) {
+  const tg = x.osm || {}, h = x.hype, img = imgOf(tg);
+  const name = h ? h.name : x.name;
+  const street = [tg["addr:street"], tg["addr:housenumber"]].filter(Boolean).join(" ");
+  const addr = street ? street + (tg["addr:city"] ? ", " + (tg["addr:postcode"] ? tg["addr:postcode"] + " " : "") + tg["addr:city"] : "") : (x.addr || "");
+  const site = tg.website || tg["contact:website"] || "";
+  const insta = tg["contact:instagram"] || "";
+  const instaUrl = insta ? (/^https?:/.test(insta) ? insta : "https://www.instagram.com/" + insta.replace(/^@/, "") + "/") : "";
+  const cityN = S.city ? S.city.name.de : "";
+  const gq = encodeURIComponent(name + " " + (addr || cityN));
+  const gmaps = "https://www.google.com/maps/search/?api=1&query=" + gq;
+  const route = x.lat != null ? "https://www.google.com/maps/dir/?api=1&destination=" + x.lat + "," + x.lon : gmaps;
+  const oh = tg.opening_hours ? hoursHTML(tg.opening_hours) : '<div class="raw">' + t("noHours") + '</div>';
+  const grad = "linear-gradient(140deg, color-mix(in srgb, var(--hot2) 35%, var(--card)), color-mix(in srgb, var(--hot) 30%, var(--card)))";
+  const gradN = "linear-gradient(140deg, color-mix(in srgb, var(--c) 22%, var(--card)), var(--bg2))";
+  const icon = { tiktok: "♪", youtube: "▶", instagram: "◎", article: "Aa" };
+  $("detail").innerHTML =
+    '<div class="hero" style="background:' + (h ? grad : gradN) + '"><div class="ph">' + tagEm(x.tags[0]) + '</div>' +
+    (img ? '<img alt="" src="' + esc(img.src) + '" onerror="this.nextElementSibling&&this.nextElementSibling.remove();this.remove()"><span class="cred">' + t("photo") + ': ' + img.cred + '</span>' : "") +
+    (h ? '<span class="badge">' + t("hypeBadge") + '</span>' : "") +
+    '<button class="x" id="dx" aria-label="Schließen"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>' +
+    '<div class="dbody"><div><h2>' + esc(name) + '</h2><div class="tags">' + x.tags.map(k => '<span>' + tagEm(k) + ' #' + esc(tagName(k)) + '</span>').join("") + '</div></div>' +
+    (h ? '<div class="why2"><b>' + t("whyH") + '</b>' + esc(h.why[L]) + '</div>' : "") +
+    '<div class="sec"><h3>' + t("hours") + '</h3>' + oh + '</div>' +
+    (addr ? '<div class="addr">📍 ' + esc(addr) + '</div>' : "") +
+    '<div class="acts"><a class="btn pri" target="_blank" rel="noopener" href="' + esc(route) + '">' + t("route") + '</a>' +
+    '<a class="btn" target="_blank" rel="noopener" href="' + esc(gmaps) + '">' + t("photos") + '</a>' +
+    (site ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(site) + '">' + t("web") + '</a>' : "") +
+    (instaUrl ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(instaUrl) + '">Instagram</a>' : "") + '</div>' +
+    (h && h.src && h.src.length ? '<div class="sec"><h3>' + t("srcH") + '</h3><div class="srcs">' + h.src.map(s =>
+      '<a class="src" target="_blank" rel="noopener" href="' + esc(s.u) + '"><span class="pf ' + s.t + '">' + icon[s.t] + '</span><span>' + esc(s.l) + '<small>' + (typeof T.typ[s.t] === "string" ? T.typ[s.t] : T.typ[s.t][L]) + '</small></span><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 2h7v7M12 2 4 10"/></svg></a>').join("") + '</div></div>' : "") +
+    '<div class="note">' + (tg.opening_hours ? t("checkNote") + " " : "") + '© OpenStreetMap</div></div>';
+  $("detail").hidden = false;
+  $("dx").onclick = closeDetail;
+}
+function closeDetail() { $("detail").hidden = true; S.sel = null; S.markers.forEach(m => m.el.classList.remove("on")); }
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetail(); });
+map.on("click", e => { if (!map.queryRenderedFeatures(e.point, { layers: map.getLayer("spots") ? ["spots"] : [] }).length) closeDetail(); });
+
+/* ================= Öffnungszeiten (häufige OSM-Formate) ================= */
+const DN = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+function parseOH(s) {
+  s = s.trim();
+  if (s === "24/7") return Array.from({ length: 7 }, () => [[0, 1440]]);
+  const week = Array.from({ length: 7 }, () => null);
+  for (let rule of s.split(";")) {
+    rule = rule.trim(); if (!rule) continue;
+    if (/^PH\b|^SH\b/.test(rule)) continue;
+    const m = rule.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?\s*,?\s*)+)?(?:,?\s*PH\s*)?\s*(.*)$/);
+    if (!m) return null;
+    let days = [];
+    if (m[1]) for (const part of m[1].split(",").map(x => x.trim()).filter(Boolean)) {
+      const [a, b] = part.split("-").map(d => DN.indexOf(d));
+      if (a < 0) return null;
+      if (b == null || isNaN(b)) days.push(a); else { for (let d = a; ; d = (d + 1) % 7) { days.push(d); if (d === b) break; } }
+    } else days = [0, 1, 2, 3, 4, 5, 6];
+    const rest = m[2].trim();
+    if (/^(off|closed)$/i.test(rest)) { days.forEach(d => week[d] = []); continue; }
+    const spans = [];
+    for (const tr of rest.split(",").map(x => x.trim()).filter(Boolean)) {
+      const mm = tr.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\+?$/); if (!mm) return null;
+      const a = +mm[1] * 60 + +mm[2]; let b = +mm[3] * 60 + +mm[4]; if (b <= a) b += 1440;
+      spans.push([a, b]);
+    }
+    if (!spans.length) return null;
+    days.forEach(d => week[d] = spans);
+  }
+  return week.some(x => x) ? week.map(x => x || []) : null;
+}
+function hhmm(m) { m %= 1440; return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); }
+function hoursHTML(raw) {
+  const w = parseOH(raw);
+  if (!w) return '<div class="raw">' + esc(raw) + '</div>';
+  const now = new Date(), wd = (now.getDay() + 6) % 7, mins = now.getHours() * 60 + now.getMinutes();
+  let open = false, until = null;
+  for (const [a, b] of w[wd]) if (mins >= a && mins < b) { open = true; until = b; }
+  const prev = (wd + 6) % 7;
+  for (const [a, b] of w[prev]) if (b > 1440 && mins < b - 1440) { open = true; until = b - 1440; }
+  let line;
+  if (open) line = '<span class="open y"><i></i>' + t("openNow") + t("until", { t: hhmm(until) }) + '</span>';
+  else {
+    let nx = null;
+    for (let k = 0; k < 7 && !nx; k++) { const d = (wd + k) % 7; for (const [a] of w[d]) if (k > 0 || a > mins) { nx = [k, a]; break; } }
+    const dl = nx ? (nx[0] === 0 ? t("today") : nx[0] === 1 ? t("tomorrow") : T.days[L][(wd + nx[0]) % 7]) : "";
+    line = '<span class="open n"><i></i>' + t("closedNow") + (nx ? t("opens", { d: dl, t: hhmm(nx[1]) }) : "") + '</span>';
+  }
+  const rows = w.map((sp, d) => '<span class="' + (d === wd ? "today" : "") + '">' + T.days[L][d] + '</span><span class="' + (d === wd ? "today" : "") + '">' + (sp.length ? sp.map(([a, b]) => hhmm(a) + "–" + hhmm(b)).join(", ") : t("closed")) + '</span>').join("");
+  return line + '<div class="hours">' + rows + '</div>';
+}
+window.__oh = hoursHTML;
+
+/* ================= Suche ================= */
+let sTimer, sCtl;
+$("q").addEventListener("input", () => { clearTimeout(sTimer); const v = $("q").value.trim(); if (v.length < 3) { $("sugg").hidden = true; return; } sTimer = setTimeout(() => search(v, false), 650); });
+$("sform").addEventListener("submit", e => { e.preventDefault(); clearTimeout(sTimer); const v = $("q").value.trim(); if (v) search(v, true); });
+async function search(v, go) {
+  // Erst die Hype-Städte prüfen, das spart Anfragen
+  const hc = S.hype && S.hype.cities.find(c => norm(c.name.de) === norm(v) || norm(c.name.en) === norm(v));
+  if (hc && go) { $("sugg").hidden = true; $("q").blur(); goCity(hc); return; }
+  if (sCtl) sCtl.abort(); sCtl = new AbortController();
+  try {
+    const u = NOMINATIM + "?format=jsonv2&limit=6&addressdetails=0&accept-language=" + L + "&q=" + encodeURIComponent(v);
+    const j = await (await fetch(u, { signal: sCtl.signal })).json();
+    if (go && j[0]) { pickResult(j[0]); return; }
+    if (document.activeElement !== $("q")) return;
+    $("sugg").innerHTML = j.length ? j.map((r, i) => '<button type="button" data-i="' + i + '">' + esc(r.name || r.display_name.split(",")[0]) + '<small>' + esc(r.display_name) + '</small></button>').join("") : '<button type="button" disabled>' + t("nothing") + '</button>';
+    $("sugg").hidden = false;
+    $("sugg").onclick = e => { const b = e.target.closest("[data-i]"); if (b) pickResult(j[+b.dataset.i]); };
+  } catch (e) {}
+}
+function pickResult(r) {
+  $("sugg").hidden = true; $("q").blur(); closeDetail();
+  const bb = r.boundingbox.map(Number); // [S, N, W, E]
+  const small = (bb[1] - bb[0]) < .01;
+  if (small) map.flyTo({ center: [+r.lon, +r.lat], zoom: 16.5, padding: pad(), duration: 1600 });
+  else map.fitBounds([[bb[2], bb[0]], [bb[3], bb[1]]], { padding: pad(), maxZoom: 13, duration: 1600 });
+}
+document.addEventListener("click", e => { if (!e.target.closest("#sform")) $("sugg").hidden = true; });
+
+/* ================= Statuszeile ================= */
+let stT; function status(msg, ms) { clearTimeout(stT); if (!msg) { $("status").hidden = true; return; } $("statusT").textContent = msg; $("status").hidden = false; if (ms) stT = setTimeout(() => $("status").hidden = true, ms); }
+
+/* ================= Sprache ================= */
+function lang() {
+  document.documentElement.lang = L;
+  $("q").placeholder = t("search");
+  document.querySelectorAll(".tog button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === L)));
+  if (S.hype) { renderCities(); renderFoot(); renderChips(); renderList(); cityBubbles(); }
+  if (S.sel) drawDetail(S.sel);
+}
+document.querySelector(".tog").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (!b) return; L = b.dataset.lang; try { localStorage.setItem("ss-lang", L); } catch (er) {} lang(); });
+
+/* Mobil: Liste per Tipp auf den Griff ein- und ausklappen */
+$("grab").onclick = () => $("side").classList.toggle("min");
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!document.documentElement.getAttribute("data-theme")) map.setStyle(dark() ? STYLE.dark : STYLE.light); });
+map.on("styledata", () => { if (map.isStyleLoaded() && !map.getSource("spots")) addSpotLayers(); });
+lang();
+</script>
+</body>
+</html>

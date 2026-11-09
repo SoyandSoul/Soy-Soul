@@ -285,7 +285,7 @@ footer .priv b { color: var(--ink2); }
     ctaS: { de: "Zu den Tools", en: "See the tools" },
     open: { de: "Öffnen", en: "Open" },
     soon: { de: "In Planung", en: "Planned" },
-    band: { de: 'Alles läuft lokal. <span>Kein Upload, kein Tracking, keine Werbung. Einfach öffnen und loslegen.</span>', en: 'Everything runs locally. <span>No uploads, no tracking, no ads. Just open it and go.</span>' },
+    band: { de: 'Alles läuft im Browser. <span>Kein Upload deiner Dateien, kein Tracking, keine Werbung. Einfach öffnen und loslegen.</span>', en: 'Everything runs in your browser. <span>No uploads of your files, no tracking, no ads. Just open it and go.</span>' },
     stCookies: { de: "Cookies", en: "Cookies" },
     stAreas: { de: "Bereiche", en: "Areas" },
     stCost: { de: "Kosten", en: "Cost" },
@@ -304,7 +304,7 @@ footer .priv b { color: var(--ink2); }
       sub: { de: "Foto, Video, Zeichnen", en: "Photo, video, drawing" } },
     { id: "lifestyle", a: "life", n: "03", name: { de: "Lifestyle", en: "Lifestyle" },
       h: { de: 'Was das Leben <em>schöner macht.</em>', en: 'What makes life <em>a little better.</em>' },
-      p: { de: "Rezepte, Bilder und Wege nach draußen. Dieser Bereich wächst gerade.", en: "Recipes, pictures and ways outside. This area is growing right now." },
+      p: { de: "Essen gehen, Rezepte und Bilder. Dieser Bereich wächst gerade.", en: "Eating out, recipes and pictures. This area is growing right now." },
       sub: { de: "Küche, Foto, Draußen", en: "Food, photo, outdoors" } },
     { id: "organisation", a: "org", n: "04", name: { de: "Organisation", en: "Organisation" },
       h: { de: 'Ordnung, <em>ohne Aufwand.</em>', en: 'Order, <em>without the effort.</em>' },
@@ -329,9 +329,11 @@ footer .priv b { color: var(--ink2); }
         d: { de: "Praktische Rechner für Dinge, die man öfter braucht.", en: "Handy calculators for things you need now and then." } }
     ],
     lifestyle: [
-      { size: "wide", name: { de: "Küche", en: "Kitchen" }, art: "bowl",
+      { id: "foodradar", href: "lifestyle/foodradar/", size: "big", ver: "v0.1", name: { de: "Foodradar", en: "Foodradar" }, art: "radar",
+        d: { de: "Die angesagtesten Restaurants, Cafés und Bars deiner Stadt auf einer Karte – mit Kategorien wie #Japanisch, Öffnungszeiten und den Videos, aus denen der Hype kommt. Schwerpunkt Deutschland und Europa.", en: "The most talked-about restaurants, cafés and bars in your city on one map – with categories like #Japanese, opening hours and the videos the hype comes from. Focus on Germany and Europe." } },
+      { name: { de: "Küche", en: "Kitchen" }, art: "bowl",
         d: { de: "Rezepte mit großen Bildern, Schritt für Schritt und zweisprachig.", en: "Recipes with big pictures, step by step and in two languages." } },
-      { size: "wide", name: { de: "Fotografie", en: "Photography" }, art: "camera",
+      { name: { de: "Fotografie", en: "Photography" }, art: "camera",
         d: { de: "Eine Galerie für eigene Bilder, ruhig und ohne Ablenkung.", en: "A gallery for my own pictures, calm and free of distraction." } }
     ],
     organisation: [
@@ -375,6 +377,14 @@ footer .priv b { color: var(--ink2); }
       for (var i = 0; i < 9; i++) s += '<rect class="' + (i === 4 ? "a-pulse" : "") + '" x="' + (114 + (i % 3) * 26) + '" y="' + (76 + Math.floor(i / 3) * 26) + '" width="20" height="20" rx="6" fill="' + (i === 8 ? C : INK) + '" opacity="' + (i === 8 ? 1 : .15) + '"/>';
       return s + '</svg>';
     })(),
+    radar:
+      '<svg viewBox="0 0 400 240"><rect x="30" y="18" width="340" height="204" rx="18" fill="' + CARD + '"/>' +
+      '<g stroke="' + C + '" stroke-width="3" fill="none" opacity=".25"><path d="M30 150 C120 120 180 190 370 120"/><path d="M140 18 C150 90 120 160 160 222"/><path d="M30 80 H370"/></g>' +
+      '<g class="a-drift" style="--x1:-6px;--x2:6px;--y1:-4px;--y2:4px"><circle cx="200" cy="120" r="70" fill="' + C + '" opacity=".1"/><circle cx="200" cy="120" r="44" fill="' + C + '" opacity=".14"/></g>' +
+      [[200, 112, 1, 0], [118, 74, .8, .4], [292, 160, .8, .8], [270, 64, .7, 1.2], [128, 176, .7, 1.6]].map(function (m) {
+        return '<g class="a-pulse" style="--d:' + m[3] + 's"><circle cx="' + m[0] + '" cy="' + m[1] + '" r="' + (16 * m[2]) + '" fill="#ff5a2e"/><circle cx="' + m[0] + '" cy="' + m[1] + '" r="' + (16 * m[2]) + '" fill="none" stroke="#fff" stroke-width="3"/></g>';
+      }).join("") +
+      '<path d="M196 104 q4 -10 10 -6 q-2 6 2 10 a8 8 0 1 1 -12 -4z" fill="#fff"/></svg>',
     bowl:
       '<svg viewBox="0 0 300 180"><g fill="none" stroke="' + C + '" stroke-width="4" stroke-linecap="round" opacity=".6">' +
       '<path class="a-drift" style="--x1:0px;--x2:0px;--y1:4px;--y2:-6px" d="M120 60 q-8 -14 0 -26 q8 -12 0 -24"/>' +
@@ -422,6 +432,7 @@ footer .priv b { color: var(--ink2); }
     { de: "<b>Verantwortlich.</b> " + VERANTWORTLICH, en: "<b>Responsible.</b> " + VERANTWORTLICH },
     { de: "<b>Hosting.</b> Die Seite liegt bei GitHub Pages (GitHub Inc., USA). Beim Aufruf verarbeitet der Anbieter technisch notwendige Daten wie IP-Adresse und Zeitpunkt in Server-Logs.", en: "<b>Hosting.</b> The site is hosted on GitHub Pages (GitHub Inc., USA). When you open it, the provider processes technically necessary data such as IP address and time in server logs." },
     { de: "<b>Schrift.</b> Es wird die Systemschrift deines Geräts verwendet, es werden keine Schriften von Google oder anderen Diensten geladen.", en: "<b>Font.</b> Your device's system font is used; no fonts are loaded from Google or other services." },
+    { de: "<b>Karte in Foodradar.</b> Foodradar lädt Kartenbilder von OpenFreeMap, Lokale und Öffnungszeiten von der Overpass-API und Suchergebnisse von Nominatim (beides OpenStreetMap), Fotos gegebenenfalls von Wikimedia Commons. Dabei sehen diese Dienste wie bei jedem Webaufruf deine IP-Adresse und den angezeigten Kartenausschnitt bzw. deinen Suchbegriff. Die Standortfunktion nutzt dein Browser nur, wenn du sie antippst und erlaubst; dein Standort wird nicht übertragen. Die zuletzt gewählte Stadt und gefundene Orte merkt sich die Seite nur lokal in deinem Browser.", en: "<b>Map in Foodradar.</b> Foodradar loads map images from OpenFreeMap, places and opening hours from the Overpass API and search results from Nominatim (both OpenStreetMap), and photos from Wikimedia Commons where available. As with any web request, these services see your IP address and the map area shown or your search term. The location feature is only used by your browser if you tap it and allow it; your location is not sent anywhere. The last chosen city and found places are remembered only locally in your browser." },
     { de: "<b>Videos in Hochkant.</b> Videos, die du in Hochkant öffnest, werden nur in deinem Browser abgespielt, zugeschnitten und neu kodiert. Sie werden nicht hochgeladen. Alle dafür nötigen Programmteile liegen auf diesem Server.", en: "<b>Videos in Hochkant.</b> Videos you open in Hochkant are played, cropped and re-encoded only in your browser. They are never uploaded. All program parts needed for this are hosted on this server." },
     { de: "<b>Einstellungen.</b> Deine Wahl von Sprache und Hell/Dunkel wird nur lokal in deinem Browser gespeichert.", en: "<b>Settings.</b> Your choice of language and light/dark mode is stored only locally in your browser." }
   ];
