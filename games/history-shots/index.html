@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>History Shots · Soy &amp; Soul</title>
+<meta name="description" content="Rate, wann und wo historische Fotos aufgenommen wurden. Fünf Bilder, Jahr und Ort, am Ende ein Score.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg transform='translate(20 20)'%3E%3Cellipse rx='9.5' ry='6' transform='rotate(-45) translate(0 -8.5)' fill='%23ff6a3d'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(45) translate(0 -8.5)' fill='%232f7bff'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(135) translate(0 -8.5)' fill='%2334c27a'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(225) translate(0 -8.5)' fill='%238b5cf6'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="lib/maplibre-gl.css">
+<link rel="preconnect" href="https://upload.wikimedia.org">
+<link rel="preconnect" href="https://tiles.openfreemap.org">
+<style>
+:root {
+  --bg: #fbfbfd; --bg2: #f2f2f6; --card: #fff; --ink: #1d1d1f; --ink2: #5e5e66; --ink3: #8a8a93;
+  --line: rgba(0,0,0,.08); --shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -12px rgba(0,0,0,.14);
+  --c: #ff6a3d; --c2: #ffb03d; --ok: #22b06b; --games: #ff6a3d; --tools: #2f7bff; --life: #22b06b; --org: #8b5cf6;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0b0b0d; --bg2: #1e1e22; --card: #161619; --ink: #f5f5f7; --ink2: #a8a8b0; --ink3: #77777f; --line: rgba(255,255,255,.1); --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px -16px rgba(0,0,0,.6); } }
+:root[data-theme="dark"] { --bg: #0b0b0d; --bg2: #1e1e22; --card: #161619; --ink: #f5f5f7; --ink2: #a8a8b0; --ink3: #77777f; --line: rgba(255,255,255,.1); --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px -16px rgba(0,0,0,.6); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body { min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; }
+[hidden] { display: none !important; }
+.wrap { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+@media (max-width: 600px) { .wrap { padding: 0 14px; } }
+
+/* Kopfzeile */
+.nav { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: saturate(180%) blur(18px); -webkit-backdrop-filter: saturate(180%) blur(18px); border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; gap: 14px; height: 56px; }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 16px; letter-spacing: -.02em; color: var(--ink2); }
+.logo svg { width: 24px; height: 24px; transition: transform .7s cubic-bezier(.34,1.56,.64,1); }
+.logo:hover svg { transform: rotate(90deg); }
+.nav h1 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.nav h1::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--c), var(--c2)); }
+.sep { color: var(--ink3); }
+.tog { display: flex; gap: 2px; background: var(--bg2); border-radius: 99px; padding: 3px; margin-left: auto; }
+.tog button { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; color: var(--ink3); }
+.tog button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.prog { display: flex; gap: 5px; align-items: center; }
+.prog i { width: 22px; height: 5px; border-radius: 3px; background: var(--bg2); transition: background .3s; }
+.prog i.done { background: var(--ok); } .prog i.cur { background: var(--c); }
+.score { font-weight: 650; font-variant-numeric: tabular-nums; font-size: 14px; }
+
+/* Start */
+.hero { padding: 54px 0 22px; }
+.hero h2 { font-size: clamp(36px, 6vw, 60px); font-weight: 700; letter-spacing: -.045em; line-height: 1.02; }
+.hero h2 span { background: linear-gradient(120deg, var(--c), var(--c2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero p { color: var(--ink2); font-size: 17px; max-width: 560px; margin-top: 12px; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0 22px; }
+.mode { text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); transition: transform .3s cubic-bezier(.2,.8,.2,1), border-color .2s; display: grid; gap: 8px; align-content: start; }
+.mode:hover { transform: translateY(-3px); }
+.mode[aria-pressed="true"] { border-color: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent), var(--shadow); }
+.mode .em { font-size: 28px; line-height: 1; }
+.mode b { font-size: 18px; font-weight: 650; letter-spacing: -.02em; }
+.mode small { font-size: 13px; color: var(--ink2); line-height: 1.4; }
+.themes { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 14px; font-weight: 550; padding: 8px 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--card); transition: all .2s; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip small { color: var(--ink3); font-weight: 500; margin-left: 4px; }
+.chip[aria-pressed="true"] small { color: inherit; opacity: .7; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 600; padding: 13px 24px; border-radius: 99px; background: var(--ink); color: var(--bg); transition: transform .2s, box-shadow .2s, opacity .2s; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -10px rgba(0,0,0,.4); }
+.btn:disabled { opacity: .4; pointer-events: none; }
+.btn.pri { background: linear-gradient(120deg, var(--c), var(--c2)); color: #fff; }
+.btn.ghost { background: var(--bg2); color: var(--ink); }
+.btn.sm { font-size: 14px; padding: 9px 16px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.sec { margin: 30px 0; }
+.sec h3 { font-size: 13px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 20px; font-weight: 700; letter-spacing: .08em; padding: 10px 14px; border-radius: 12px; background: var(--bg2); display: inline-block; }
+.inp { height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg2); padding: 0 14px; font-size: 15px; outline: none; min-width: 0; }
+.inp:focus { border-color: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+.hs { display: grid; gap: 4px; }
+.hs div { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; font-size: 14px; }
+.hs div:nth-child(odd) { background: var(--bg2); }
+.hs div.me { outline: 2px solid var(--c); }
+.hs b { font-variant-numeric: tabular-nums; }
+.hs small { color: var(--ink3); display: block; font-size: 12px; }
+.hs .rk { color: var(--ink3); font-weight: 600; }
+.tabs { display: flex; gap: 4px; background: var(--bg2); padding: 3px; border-radius: 10px; margin-bottom: 10px; }
+.tabs button { flex: 1; font-size: 12px; font-weight: 600; padding: 6px; border-radius: 8px; color: var(--ink3); }
+.tabs button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.muted { font-size: 13px; color: var(--ink3); }
+footer { padding: 40px 0 30px; font-size: 12px; color: var(--ink3); }
+footer a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Spiel */
+.game { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; padding: 16px 0; min-height: calc(100vh - 56px); align-content: start; }
+.photo { position: relative; border-radius: 22px; overflow: hidden; background: #111; min-height: 320px; height: calc(100vh - 56px - 32px); max-height: 760px; display: grid; place-items: center; box-shadow: var(--shadow); touch-action: none; cursor: zoom-in; }
+.photo img { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; user-select: none; -webkit-user-drag: none; transition: opacity .35s; transform-origin: center; will-change: transform; }
+.photo.z { cursor: grab; } .photo.z img { max-width: none; max-height: none; }
+.photo .ld { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 14px; background: #111; transition: opacity .3s; }
+.photo .ld i { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.photo .hint { position: absolute; left: 12px; bottom: 12px; font-size: 12px; color: #fff; background: rgba(0,0,0,.45); padding: 5px 10px; border-radius: 99px; backdrop-filter: blur(6px); pointer-events: none; }
+.panel { display: grid; gap: 14px; align-content: start; }
+.card.tight { padding: 16px 18px; }
+.lbl { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 600; color: var(--ink2); margin-bottom: 8px; }
+.yr { font-size: 40px; font-weight: 700; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; text-align: center; margin: 4px 0 10px; }
+.yr.none { color: var(--ink3); font-size: 18px; font-weight: 500; letter-spacing: 0; padding: 11px 0; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--bg2), color-mix(in srgb, var(--c) 40%, var(--bg2))); outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--card); box-shadow: 0 2px 6px rgba(0,0,0,.3), 0 0 0 1px var(--line); cursor: pointer; }
+input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--card); border: 0; box-shadow: 0 2px 6px rgba(0,0,0,.3); cursor: pointer; }
+.yrs { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink3); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.ynum { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
+.ynum button { width: 36px; height: 32px; border-radius: 9px; background: var(--bg2); font-weight: 600; font-size: 13px; }
+.gmap { position: relative; height: 300px; border-radius: 16px; overflow: hidden; background: var(--bg2); transition: height .35s cubic-bezier(.2,.8,.2,1); }
+.gmap.big { height: 520px; }
+.gmap .mx { position: absolute; top: 8px; right: 8px; z-index: 2; width: 32px; height: 32px; border-radius: 9px; background: var(--card); box-shadow: var(--shadow); display: grid; place-items: center; }
+.gmap .mx svg { width: 15px; height: 15px; }
+.gmap .ph { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 2; font-size: 12px; font-weight: 550; padding: 5px 11px; border-radius: 99px; background: var(--card); box-shadow: var(--shadow); white-space: nowrap; pointer-events: none; }
+.pin { width: 26px; height: 26px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--c); box-shadow: 0 0 0 2.5px #fff, 0 6px 14px -4px rgba(0,0,0,.5); position: relative; }
+.pin::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #fff; }
+.pin.t { background: var(--ok); }
+.cta { display: grid; gap: 8px; }
+.cta .btn { width: 100%; }
+
+/* Ergebnis */
+.res { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 16px 0; }
+.rmap { height: calc(100vh - 56px - 32px); min-height: 360px; max-height: 760px; border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); }
+.pts { text-align: center; padding: 22px 18px 18px; }
+.pts .big { font-size: 56px; font-weight: 700; letter-spacing: -.05em; line-height: 1; font-variant-numeric: tabular-nums; background: linear-gradient(120deg, var(--c), var(--c2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.pts small { display: block; color: var(--ink3); font-size: 13px; margin-top: 6px; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.split div { background: var(--bg2); border-radius: 14px; padding: 12px; }
+.split b { display: block; font-size: 22px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.split span { font-size: 12px; color: var(--ink2); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--c), var(--c2)); border-radius: 3px; transition: width .9s cubic-bezier(.2,.8,.2,1); }
+.info h2 { font-size: 20px; font-weight: 650; letter-spacing: -.02em; line-height: 1.2; }
+.info p { font-size: 14px; color: var(--ink2); margin-top: 6px; }
+.info .cred { font-size: 12px; color: var(--ink3); margin-top: 10px; line-height: 1.5; }
+.info .cred a { text-decoration: underline; text-underline-offset: 2px; }
+.thumb { width: 100%; aspect-ratio: 16/10; object-fit: cover; border-radius: 14px; margin-bottom: 12px; background: #111; }
+
+/* Finale */
+.final { padding: 40px 0; max-width: 720px; margin: 0 auto; }
+.final .pts .big { font-size: clamp(64px, 12vw, 104px); }
+.rounds { display: grid; gap: 6px; margin-top: 18px; }
+.rounds div { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; padding: 8px; border-radius: 12px; background: var(--bg2); font-size: 14px; }
+.rounds img { width: 56px; height: 42px; object-fit: cover; border-radius: 8px; background: #111; }
+.rounds b { font-variant-numeric: tabular-nums; }
+.rounds small { display: block; color: var(--ink3); font-size: 12px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 550; padding: 10px 18px; border-radius: 99px; box-shadow: var(--shadow); animation: up .4s cubic-bezier(.2,.8,.2,1); }
+@keyframes up { from { opacity: 0; transform: translate(-50%, 12px); } }
+.fade { animation: fade .5s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes fade { from { opacity: 0; transform: translateY(14px); } }
+.maplibregl-ctrl-group { border-radius: 10px !important; box-shadow: var(--shadow) !important; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+
+@media (max-width: 900px) {
+  .nav .sep, .nav .logo { display: none; }
+  .nav .wrap { gap: 10px; }
+  .prog i { width: 14px; }
+  .game, .res { grid-template-columns: 1fr; }
+  .photo { height: 46vh; min-height: 240px; }
+  .rmap { height: 44vh; min-height: 280px; }
+  .modes { grid-template-columns: 1fr; }
+  .two { grid-template-columns: 1fr; }
+  .gmap { height: 240px; } .gmap.big { height: 60vh; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="../../#games" aria-label="Soy &amp; Soul">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><g transform="translate(20 20)" opacity=".9">
+        <ellipse rx="9.5" ry="6" transform="rotate(-45) translate(0 -8.5)" fill="var(--games)"/><ellipse rx="9.5" ry="6" transform="rotate(45) translate(0 -8.5)" fill="var(--tools)"/>
+        <ellipse rx="9.5" ry="6" transform="rotate(135) translate(0 -8.5)" fill="var(--life)"/><ellipse rx="9.5" ry="6" transform="rotate(225) translate(0 -8.5)" fill="var(--org)"/></g></svg>
+    </a>
+    <span class="sep">/</span>
+    <h1><a href="#" id="home">History Shots</a></h1>
+    <div class="prog" id="prog" hidden></div>
+    <span class="score" id="topScore" hidden></span>
+    <div class="tog" role="group" aria-label="Sprache"><button data-lang="de" aria-pressed="true">DE</button><button data-lang="en" aria-pressed="false">EN</button></div>
+  </div>
+</header>
+
+<main class="wrap" id="main"></main>
+<footer><div class="wrap" id="foot"></div></footer>
+<img id="pre" alt="" hidden>
+
+<script type="module">
+import { Map as MLMap, Marker, NavigationControl, AttributionControl, LngLatBounds } from "./lib/maplibre-gl.mjs";
+
+/* ================= Einstellungen ================= */
+const STYLE = "https://tiles.openfreemap.org/styles/positron";
+const ROUNDS = 5;
+const IMG = (file, w) => "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(file.replace(/^File:/, "")) + "?width=" + w;
+const PAGE = file => "https://commons.wikimedia.org/wiki/" + encodeURIComponent(file).replace(/%3A/, ":");
+// Globale Highscore-Tabelle (optional): Supabase-Projekt eintragen, Tabelle siehe README in diesem Ordner
+const SUPABASE = { url: "", key: "" };
+
+/* ================= Texte ================= */
+const T = {
+  tag: { de: 'Wann <span>und wo</span> war das?', en: 'When <span>and where</span> was this?' },
+  lead: { de: "Fünf historische Fotos. Zu jedem schätzt du das Jahr und setzt einen Pin auf die Karte. Je näher dran, desto mehr Punkte.", en: "Five historical photos. For each one, guess the year and drop a pin on the map. The closer you are, the more points you get." },
+  m1: { de: ["Klassik", "Jahr und Ort für fünf Bilder, so wie es sein soll."], en: ["Classic", "Year and place for five photos, the way it should be."] },
+  m2: { de: ["Nur Jahr", "Nur die Jahreszahl zählt. Schnell und knackig."], en: ["Year only", "Only the year counts. Quick and sharp."] },
+  m3: { de: ["Thema", "Wie Klassik, aber du wählst, worum es geht."], en: ["Theme", "Like Classic, but you pick the subject."] },
+  pickTheme: { de: "Thema wählen", en: "Pick a theme" },
+  start: { de: "Runde starten", en: "Start round" },
+  photos: { de: "{n} Fotos", en: "{n} photos" },
+  you: { de: "Dein User-Code", en: "Your user code" },
+  youP: { de: "Mit diesem Code stehst du in der Highscore-Tabelle, ohne Anmeldung. Merk ihn dir, um ihn auf einem anderen Gerät einzugeben.", en: "This code identifies you in the high score table, no sign-up needed. Keep it to use it on another device." },
+  name: { de: "Anzeigename (optional)", en: "Display name (optional)" },
+  newCode: { de: "Neuen Code erzeugen", en: "Generate new code" },
+  useCode: { de: "Code eingeben", en: "Enter a code" },
+  copy: { de: "Kopieren", en: "Copy" }, copied: { de: "Kopiert", en: "Copied" },
+  hs: { de: "Highscore", en: "High scores" },
+  hsLocal: { de: "Diese Tabelle gilt nur für diesen Browser. Eine Tabelle für alle Spieler folgt.", en: "This table is only for this browser. A table for all players is coming." },
+  hsEmpty: { de: "Noch keine Einträge. Spiel die erste Runde!", en: "No entries yet. Play the first round!" },
+  year: { de: "Jahr", en: "Year" }, where: { de: "Ort", en: "Place" },
+  noYear: { de: "Schieberegler bewegen", en: "Move the slider" },
+  noPin: { de: "Auf die Karte tippen", en: "Tap the map" },
+  guess: { de: "Tippen", en: "Guess" }, next: { de: "Nächstes Foto", en: "Next photo" }, finish: { de: "Ergebnis ansehen", en: "See result" },
+  round: { de: "Foto {i} von {n}", en: "Photo {i} of {n}" },
+  zoomHint: { de: "Scrollen oder doppelt tippen zum Zoomen", en: "Scroll or double-tap to zoom" },
+  pts: { de: "Punkte", en: "points" },
+  yrOff: { de: "{d} Jahre daneben", en: "{d} years off" }, yrHit: { de: "Volltreffer!", en: "Spot on!" }, yrOne: { de: "1 Jahr daneben", en: "1 year off" },
+  km: { de: "{d} entfernt", en: "{d} away" },
+  taken: { de: "Aufgenommen {y}", en: "Taken in {y}" },
+  cred: { de: "Foto: {a} · {l} · via Wikimedia Commons", en: "Photo: {a} · {l} · via Wikimedia Commons" },
+  final: { de: "Deine Runde", en: "Your round" }, of: { de: "von {n} Punkten", en: "of {n} points" },
+  save: { de: "In Highscore eintragen", en: "Save to high scores" }, saved: { de: "Eingetragen!", en: "Saved!" },
+  again: { de: "Nochmal spielen", en: "Play again" }, share: { de: "Ergebnis teilen", en: "Share result" },
+  shareTxt: { de: "History Shots – {m}: {s} von {n} Punkten 🎯", en: "History Shots – {m}: {s} of {n} points 🎯" },
+  loadErr: { de: "Die Fotos konnten nicht geladen werden. Bitte später nochmal versuchen.", en: "The photos couldn't be loaded. Please try again later." },
+  fewErr: { de: "Für dieses Thema gibt es noch zu wenige Fotos.", en: "There aren't enough photos for this theme yet." },
+  foot: { de: "Alle Fotos stammen aus Wikimedia Commons und werden von dort geladen; Urheber und Lizenz stehen bei jedem Bild. Karte © OpenStreetMap-Mitwirkende, OpenFreeMap. · <a href=\"../../#games\">Soy & Soul</a>", en: "All photos come from Wikimedia Commons and are loaded from there; author and licence are shown with each picture. Map © OpenStreetMap contributors, OpenFreeMap. · <a href=\"../../#games\">Soy & Soul</a>" },
+  tabs: { de: ["Klassik", "Nur Jahr", "Thema"], en: ["Classic", "Year only", "Theme"] }
+};
+const THEMES = {
+  aviation: { em: "✈️", de: "Flugzeuge & Airports", en: "Planes & airports" },
+  cars: { em: "🚗", de: "Autos", en: "Cars" },
+  pop: { em: "🎸", de: "Popkultur", en: "Pop culture" },
+  food: { em: "🍽️", de: "Essen", en: "Food" },
+  cities: { em: "🏙️", de: "Städte", en: "Cities" },
+  sport: { em: "⚽", de: "Sport", en: "Sport" },
+  rail: { em: "🚆", de: "Bahn & Verkehr", en: "Rail & transport" },
+  everyday: { em: "📷", de: "Alltag", en: "Everyday life" }
+};
+let L = "de";
+try { const s = localStorage.getItem("ss-lang"); L = s === "en" || s === "de" ? s : ((navigator.language || "de").slice(0, 2) === "de" ? "de" : "en"); const th = localStorage.getItem("ss-theme"); if (th === "light" || th === "dark") document.documentElement.setAttribute("data-theme", th); } catch (e) {}
+const t = (k, v) => { let s = T[k][L]; if (v) for (const x in v) s = s.replace("{" + x + "}", v[x]); return s; };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nf = n => Math.round(n).toLocaleString(L === "de" ? "de-DE" : "en-GB");
+const fmtKm = km => km < 1 ? (L === "de" ? "unter 1 km" : "under 1 km") : nf(km) + " km";
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+/* ================= Zustand ================= */
+const S = { photos: [], mode: "classic", theme: "cities", rounds: [], i: 0, guessYear: null, guessPin: null, total: 0, map: null, marker: null, rmap: null, hsTab: "classic", yMin: 1860, yMax: 2020 };
+const user = store.get("hs-user", null) || newUser();
+function newUser() { const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c = "HS-"; for (let i = 0; i < 6; i++) { c += A[Math.floor(Math.random() * A.length)]; if (i === 2) c += "-"; } const u = { code: c, name: "" }; store.set("hs-user", u); return u; }
+
+/* ================= Fotos laden ================= */
+async function loadPhotos() {
+  if (S.photos.length) return;
+  const d = await (await fetch("data/photos.json", { cache: "no-cache" })).json();
+  S.photos = d.photos.filter(p => p.file && p.year && p.lat != null);
+  const ys = S.photos.map(p => p.year);
+  S.yMin = Math.floor(Math.min(...ys) / 10) * 10; S.yMax = Math.ceil(Math.max(...ys) / 10) * 10;
+}
+function pickRounds() {
+  let pool = S.mode === "theme" ? S.photos.filter(p => (p.cat || []).includes(S.theme)) : S.photos;
+  const seen = new Set(store.get("hs-seen", []));
+  let fresh = pool.filter(p => !seen.has(p.id));
+  if (fresh.length < ROUNDS) { fresh = pool; store.set("hs-seen", []); }
+  const out = [], used = new Set();
+  // Mischen, dabei nach Möglichkeit verschiedene Orte und Jahrzehnte
+  const arr = fresh.slice().sort(() => Math.random() - .5);
+  for (const p of arr) {
+    if (out.length >= ROUNDS) break;
+    const k = p.place + "|" + Math.floor(p.year / 10);
+    if (used.has(k) && arr.length > ROUNDS * 3) continue;
+    used.add(k); out.push(p);
+  }
+  while (out.length < ROUNDS && arr.length > out.length) { const p = arr.find(x => !out.includes(x)); if (!p) break; out.push(p); }
+  return out;
+}
+
+/* ================= Punkte ================= */
+const MAXY = () => S.mode === "year" ? 1000 : 500, MAXL = 500;
+function ptsYear(d) { return Math.round(MAXY() * Math.exp(-Math.abs(d) / 12)); }
+function ptsLoc(km) { return Math.round(MAXL * Math.exp(-km / 1500)); }
+function dist(a, b) { const R = 6371, dLat = (b[1] - a[1]) * Math.PI / 180, dLon = (b[0] - a[0]) * Math.PI / 180; const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * Math.PI / 180) * Math.cos(b[1] * Math.PI / 180) * Math.sin(dLon / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+const maxRound = () => S.mode === "year" ? 1000 : 1000, maxTotal = () => maxRound() * ROUNDS;
+
+/* ================= Ansichten ================= */
+const main = $("main");
+function view(html) { main.innerHTML = '<div class="fade">' + html + '</div>'; window.scrollTo(0, 0); }
+function header(inGame) { $("prog").hidden = !inGame; $("topScore").hidden = !inGame; if (inGame) { $("prog").innerHTML = S.rounds.map((_, k) => '<i class="' + (k < S.i ? "done" : k === S.i ? "cur" : "") + '"></i>').join(""); $("topScore").textContent = nf(S.total); } }
+
+function showHome() {
+  header(false);
+  const counts = {}; S.photos.forEach(p => (p.cat || []).forEach(c => counts[c] = (counts[c] || 0) + 1));
+  view(
+    '<section class="hero"><h2>' + t("tag") + '</h2><p>' + t("lead") + '</p>' +
+    '<div class="modes">' + [["classic", "🗺️", "m1"], ["year", "📅", "m2"], ["theme", "🎯", "m3"]].map(([m, em, k]) =>
+      '<button class="mode" data-m="' + m + '" aria-pressed="' + (S.mode === m) + '"><span class="em">' + em + '</span><b>' + T[k][L][0] + '</b><small>' + T[k][L][1] + '</small></button>').join("") + '</div>' +
+    '<div id="themeBox"' + (S.mode === "theme" ? "" : " hidden") + '><div class="sec" style="margin:0 0 18px"><h3>' + t("pickTheme") + '</h3><div class="themes">' +
+      Object.keys(THEMES).map(k => '<button class="chip" data-th="' + k + '" aria-pressed="' + (S.theme === k) + '"' + ((counts[k] || 0) < ROUNDS ? " disabled style=\"opacity:.4\"" : "") + '>' + THEMES[k].em + ' ' + THEMES[k][L] + '<small>' + (counts[k] || 0) + '</small></button>').join("") + '</div></div></div>' +
+    '<div class="row"><button class="btn pri" id="start">' + t("start") + ' →</button><span class="muted">' + t("photos", { n: S.photos.length }) + '</span></div></section>' +
+    '<section class="sec two"><div class="card"><h3 style="font-size:13px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">' + t("you") + '</h3>' +
+      '<div class="row"><span class="code" id="codeV">' + esc(user.code) + '</span><button class="btn ghost sm" id="copyC">' + t("copy") + '</button></div>' +
+      '<p class="muted" style="margin:10px 0 12px">' + t("youP") + '</p>' +
+      '<div class="row"><input class="inp" id="nameI" maxlength="20" placeholder="' + t("name") + '" value="' + esc(user.name) + '" style="flex:1"></div>' +
+      '<div class="row" style="margin-top:10px"><button class="btn ghost sm" id="newC">' + t("newCode") + '</button><button class="btn ghost sm" id="useC">' + t("useCode") + '</button></div></div>' +
+    '<div class="card"><h3 style="font-size:13px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">' + t("hs") + '</h3>' +
+      '<div class="tabs">' + ["classic", "year", "theme"].map((m, i) => '<button data-hs="' + m + '" aria-pressed="' + (S.hsTab === m) + '">' + T.tabs[L][i] + '</button>').join("") + '</div>' +
+      '<div class="hs" id="hsList"></div><p class="muted" style="margin-top:10px" id="hsNote">' + (SUPABASE.url ? "" : t("hsLocal")) + '</p></div></section>');
+  main.querySelectorAll(".mode").forEach(b => b.onclick = () => { S.mode = b.dataset.m; main.querySelectorAll(".mode").forEach(x => x.setAttribute("aria-pressed", String(x === b))); $("themeBox").hidden = S.mode !== "theme"; });
+  main.querySelectorAll("[data-th]").forEach(b => b.onclick = () => { S.theme = b.dataset.th; main.querySelectorAll("[data-th]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+  main.querySelectorAll("[data-hs]").forEach(b => b.onclick = () => { S.hsTab = b.dataset.hs; main.querySelectorAll("[data-hs]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderHS(); });
+  $("start").onclick = startGame;
+  $("copyC").onclick = () => { navigator.clipboard?.writeText(user.code); toast(t("copied")); };
+  $("nameI").onchange = () => { user.name = $("nameI").value.trim().slice(0, 20); store.set("hs-user", user); };
+  $("newC").onclick = () => { const u = newUser(); user.code = u.code; store.set("hs-user", user); $("codeV").textContent = user.code; };
+  $("useC").onclick = () => { const c = prompt(t("useCode"), "")?.trim().toUpperCase(); if (c && /^HS-[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(c)) { user.code = c; store.set("hs-user", user); $("codeV").textContent = c; } };
+  renderHS();
+}
+
+/* ================= Highscore ================= */
+async function hsLoad(mode) {
+  if (SUPABASE.url) {
+    try { const r = await fetch(SUPABASE.url + "/rest/v1/highscores?mode=eq." + mode + "&select=code,name,score,theme,created_at&order=score.desc&limit=50", { headers: { apikey: SUPABASE.key, Authorization: "Bearer " + SUPABASE.key } }); if (r.ok) return await r.json(); } catch (e) {}
+  }
+  return store.get("hs-scores", []).filter(x => x.mode === mode).sort((a, b) => b.score - a.score).slice(0, 50);
+}
+async function hsSave(entry) {
+  const all = store.get("hs-scores", []); all.push(entry); store.set("hs-scores", all.slice(-500));
+  if (SUPABASE.url) {
+    try { await fetch(SUPABASE.url + "/rest/v1/highscores", { method: "POST", headers: { apikey: SUPABASE.key, Authorization: "Bearer " + SUPABASE.key, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(entry) }); } catch (e) {}
+  }
+}
+async function renderHS() {
+  const el = $("hsList"); if (!el) return;
+  const list = await hsLoad(S.hsTab);
+  // Pro Code nur der beste Eintrag
+  const best = {}; list.forEach(x => { if (!best[x.code] || best[x.code].score < x.score) best[x.code] = x; });
+  const rows = Object.values(best).sort((a, b) => b.score - a.score).slice(0, 10);
+  el.innerHTML = rows.length ? rows.map((x, i) => '<div class="' + (x.code === user.code ? "me" : "") + '"><span class="rk">' + (i + 1) + '</span><span>' + esc(x.name || x.code) + '<small>' + esc(x.name ? x.code : "") + (x.theme && S.hsTab === "theme" ? (x.name ? " · " : "") + (THEMES[x.theme] ? THEMES[x.theme][L] : x.theme) : "") + '</small></span><b>' + nf(x.score) + '</b></div>').join("") : '<p class="muted">' + t("hsEmpty") + '</p>';
+}
+
+/* ================= Spiel ================= */
+async function startGame() {
+  try { await loadPhotos(); } catch (e) { toast(t("loadErr")); return; }
+  S.rounds = pickRounds();
+  if (S.rounds.length < ROUNDS) { toast(t("fewErr")); return; }
+  S.i = 0; S.total = 0; S.rounds.forEach(r => { r.g = null; });
+  showRound();
+}
+function showRound() {
+  const p = S.rounds[S.i]; S.guessYear = null; S.guessPin = null;
+  header(true);
+  const mid = Math.round((S.yMin + S.yMax) / 2);
+  view('<section class="game"><div class="photo" id="ph"><div class="ld" id="ld"><i></i></div><img id="img" alt="" draggable="false" style="opacity:0"><span class="hint" id="phint">' + t("zoomHint") + '</span></div>' +
+    '<div class="panel">' +
+    '<div class="card tight"><div class="lbl"><span>' + t("year") + '</span><span class="muted">' + t("round", { i: S.i + 1, n: ROUNDS }) + '</span></div>' +
+      '<div class="yr none" id="yv">' + t("noYear") + '</div><input type="range" id="yr" min="' + S.yMin + '" max="' + S.yMax + '" value="' + mid + '" step="1"><div class="yrs"><span>' + S.yMin + '</span><span>' + mid + '</span><span>' + S.yMax + '</span></div>' +
+      '<div class="ynum"><button data-d="-10">−10</button><button data-d="-1">−1</button><button data-d="1">+1</button><button data-d="10">+10</button></div></div>' +
+    (S.mode !== "year" ? '<div class="card tight"><div class="lbl"><span>' + t("where") + '</span></div><div class="gmap" id="gm"><button class="mx" id="mx" aria-label="Größer"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 6V2h4M14 10v4h-4M2 2l5 5M14 14 9 9"/></svg></button><span class="ph" id="mph">' + t("noPin") + '</span></div></div>' : "") +
+    '<div class="cta"><button class="btn pri" id="go" disabled>' + t("guess") + '</button></div></div></section>');
+  // Bild
+  const img = $("img"); img.src = IMG(p.file, 1600);
+  img.onload = () => { img.style.opacity = 1; $("ld").style.opacity = 0; setTimeout(() => $("ld").remove(), 300); };
+  img.onerror = () => { if (!img.dataset.r) { img.dataset.r = 1; img.src = IMG(p.file, 1024); } else $("ld").innerHTML = "⚠️"; };
+  if (S.rounds[S.i + 1]) $("pre").src = IMG(S.rounds[S.i + 1].file, 1600);
+  zoomable($("ph"), img);
+  // Jahr
+  const yr = $("yr");
+  const setYear = v => { S.guessYear = Math.max(S.yMin, Math.min(S.yMax, v)); yr.value = S.guessYear; $("yv").textContent = S.guessYear; $("yv").classList.remove("none"); check(); };
+  yr.addEventListener("input", () => setYear(+yr.value));
+  main.querySelectorAll("[data-d]").forEach(b => b.onclick = () => setYear((S.guessYear ?? mid) + +b.dataset.d));
+  // Karte
+  if (S.mode !== "year") {
+    const gm = $("gm");
+    S.map = new MLMap({ container: gm, style: STYLE, center: [10, 30], zoom: .6, attributionControl: false, dragRotate: false, touchPitch: false });
+    S.map.addControl(new AttributionControl({ compact: true }), "bottom-right");
+    requestAnimationFrame(() => S.map.resize());
+    S.map.on("click", e => { S.guessPin = [e.lngLat.lng, e.lngLat.lat]; if (!S.marker) { const el = document.createElement("div"); el.className = "pin"; S.marker = new Marker({ element: el, anchor: "bottom" }).setLngLat(S.guessPin).addTo(S.map); } else S.marker.setLngLat(S.guessPin); $("mph").hidden = true; check(); });
+    $("mx").onclick = () => { gm.classList.toggle("big"); setTimeout(() => S.map.resize(), 380); };
+    S.marker = null;
+  } else S.map = null;
+  $("go").onclick = submit;
+  function check() { $("go").disabled = !(S.guessYear != null && (S.mode === "year" || S.guessPin)); }
+}
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input, textarea")) return;
+  if (e.key === "Enter") { const b = $("go") || $("nx"); if (b && !b.disabled) b.click(); }
+  else if ($("yr") && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { const d = (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 10 : 1); const yr = $("yr"); yr.value = +yr.value + d; yr.dispatchEvent(new Event("input")); e.preventDefault(); }
+});
+// Bild zoomen: Mausrad, Doppeltipp, Ziehen, Pinch
+function zoomable(box, img) {
+  let z = 1, x = 0, y = 0, drag = null, pinch = null;
+  const apply = () => { img.style.transform = z > 1 ? "translate(" + x + "px," + y + "px) scale(" + z + ")" : ""; box.classList.toggle("z", z > 1); $("phint") && ($("phint").style.opacity = z > 1 ? 0 : 1); };
+  const clamp = () => { const r = box.getBoundingClientRect(), w = img.clientWidth * z, h = img.clientHeight * z; x = Math.max(-Math.max(0, (w - r.width) / 2), Math.min(Math.max(0, (w - r.width) / 2), x)); y = Math.max(-Math.max(0, (h - r.height) / 2), Math.min(Math.max(0, (h - r.height) / 2), y)); };
+  box.addEventListener("wheel", e => { e.preventDefault(); z = Math.max(1, Math.min(5, z * (e.deltaY < 0 ? 1.15 : 1 / 1.15))); if (z === 1) { x = y = 0; } clamp(); apply(); }, { passive: false });
+  box.addEventListener("dblclick", e => { z = z > 1 ? 1 : 2.5; x = y = 0; apply(); });
+  const pts = new Map();
+  box.addEventListener("pointerdown", e => { pts.set(e.pointerId, [e.clientX, e.clientY]); box.setPointerCapture(e.pointerId); if (pts.size === 1 && z > 1) drag = [e.clientX - x, e.clientY - y]; if (pts.size === 2) { const a = [...pts.values()]; pinch = { d: Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]), z }; drag = null; } });
+  box.addEventListener("pointermove", e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, [e.clientX, e.clientY]); if (pinch && pts.size === 2) { const a = [...pts.values()]; z = Math.max(1, Math.min(5, pinch.z * Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]) / pinch.d)); clamp(); apply(); } else if (drag) { x = e.clientX - drag[0]; y = e.clientY - drag[1]; clamp(); apply(); } });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) drag = null; };
+  box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
+  let lastTap = 0; box.addEventListener("pointerup", e => { if (e.pointerType === "touch") { const n = Date.now(); if (n - lastTap < 300) { z = z > 1 ? 1 : 2.5; x = y = 0; apply(); } lastTap = n; } });
+}
+
+function submit() {
+  const p = S.rounds[S.i];
+  const dy = S.guessYear - p.year, py = ptsYear(dy);
+  let km = null, pl = 0;
+  if (S.mode !== "year") { km = dist(S.guessPin, [p.lon, p.lat]); pl = ptsLoc(km); }
+  p.g = { year: S.guessYear, pin: S.guessPin, dy, py, km, pl, pts: py + pl };
+  S.total += p.g.pts;
+  if (S.map) { S.map.remove(); S.map = null; }
+  showResult();
+}
+function showResult() {
+  const p = S.rounds[S.i], g = p.g, last = S.i === ROUNDS - 1;
+  header(true);
+  const yrTxt = g.dy === 0 ? t("yrHit") : Math.abs(g.dy) === 1 ? t("yrOne") : t("yrOff", { d: Math.abs(g.dy) });
+  view('<section class="res">' +
+    (S.mode !== "year" ? '<div class="rmap" id="rm"></div>' : '<div class="rmap" style="display:grid;place-items:center;background:#111"><img src="' + IMG(p.file, 1600) + '" alt="" style="max-width:100%;max-height:100%"></div>') +
+    '<div class="panel"><div class="card pts"><div class="big" id="cnt">0</div><small>' + t("pts") + ' · ' + t("round", { i: S.i + 1, n: ROUNDS }) + '</small>' +
+      '<div class="split"><div><b>' + nf(g.py) + '</b><span>' + t("year") + ': ' + esc(String(g.year)) + ' → ' + p.year + '<br>' + yrTxt + '</span><div class="bar"><i data-w="' + (g.py / MAXY() * 100) + '"></i></div></div>' +
+      (S.mode !== "year" ? '<div><b>' + nf(g.pl) + '</b><span>' + t("where") + '<br>' + t("km", { d: fmtKm(g.km) }) + '</span><div class="bar"><i data-w="' + (g.pl / MAXL * 100) + '"></i></div></div>' : "") + '</div></div>' +
+    '<div class="card info">' + (S.mode !== "year" ? '<img class="thumb" src="' + IMG(p.file, 800) + '" alt="">' : "") + '<h2>' + esc(p.title?.[L] || p.title?.de || p.title || p.place) + '</h2><p>📍 ' + esc(p.place) + ' · ' + t("taken", { y: p.year }) + '</p>' +
+      '<div class="cred">' + t("cred", { a: esc(p.author || "unbekannt"), l: esc(p.license || "") }) + ' · <a target="_blank" rel="noopener" href="' + PAGE(p.file) + '">' + (L === "de" ? "Bildseite" : "File page") + '</a></div></div>' +
+    '<div class="cta"><button class="btn pri" id="nx">' + (last ? t("finish") : t("next")) + ' →</button></div></div></section>');
+  countUp($("cnt"), g.pts); requestAnimationFrame(() => main.querySelectorAll(".bar i").forEach(i => i.style.width = i.dataset.w + "%"));
+  if (S.mode !== "year") {
+    const m = new MLMap({ container: $("rm"), style: STYLE, center: [p.lon, p.lat], zoom: 3, attributionControl: false, dragRotate: false });
+    m.addControl(new AttributionControl({ compact: true }), "bottom-right"); m.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    const t1 = document.createElement("div"); t1.className = "pin t"; new Marker({ element: t1, anchor: "bottom" }).setLngLat([p.lon, p.lat]).addTo(m);
+    const g1 = document.createElement("div"); g1.className = "pin"; new Marker({ element: g1, anchor: "bottom" }).setLngLat(g.pin).addTo(m);
+    requestAnimationFrame(() => m.resize());
+    m.on("load", () => {
+      m.resize();
+      m.addSource("ln", { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: [g.pin, [p.lon, p.lat]] } } });
+      m.addLayer({ id: "ln", type: "line", source: "ln", paint: { "line-color": "#ff6a3d", "line-width": 2.5, "line-dasharray": [2, 2] } });
+      const b = new LngLatBounds(g.pin, g.pin).extend([p.lon, p.lat]);
+      m.fitBounds(b, { padding: 70, maxZoom: 12, duration: 1200 });
+    });
+    S.rmap = m;
+  }
+  $("nx").onclick = () => { if (S.rmap) { S.rmap.remove(); S.rmap = null; } if (last) showFinal(); else { S.i++; showRound(); } };
+}
+function countUp(el, to) { const t0 = performance.now(); (function s(n) { const p = Math.min(1, (n - t0) / 900), e = 1 - Math.pow(1 - p, 3); el.textContent = nf(to * e); if (p < 1) requestAnimationFrame(s); })(t0); }
+
+function showFinal() {
+  header(false);
+  const seen = store.get("hs-seen", []); S.rounds.forEach(r => seen.push(r.id)); store.set("hs-seen", seen.slice(-400));
+  const modeName = S.mode === "theme" ? T.m3[L][0] + " · " + THEMES[S.theme][L] : S.mode === "year" ? T.m2[L][0] : T.m1[L][0];
+  view('<section class="final"><div class="card pts"><small style="font-size:14px;color:var(--ink2);margin:0 0 6px">' + t("final") + ' · ' + esc(modeName) + '</small><div class="big" id="cnt">0</div><small>' + t("of", { n: nf(maxTotal()) }) + '</small>' +
+    '<div class="rounds">' + S.rounds.map((p, i) => '<div><img src="' + IMG(p.file, 200) + '" alt=""><span>' + esc(p.place) + '<small>' + p.year + ' · ' + (L === "de" ? "getippt" : "guessed") + ' ' + p.g.year + (p.g.km != null ? ' · ' + fmtKm(p.g.km) : "") + '</small></span><b>' + nf(p.g.pts) + '</b></div>').join("") + '</div>' +
+    '<div class="row" style="justify-content:center;margin-top:20px"><button class="btn pri" id="sv">' + t("save") + '</button><button class="btn ghost" id="sh">' + t("share") + '</button><button class="btn ghost" id="ag">' + t("again") + '</button></div></div></section>');
+  countUp($("cnt"), S.total);
+  $("sv").onclick = async () => { $("sv").disabled = true; await hsSave({ code: user.code, name: user.name || null, score: S.total, mode: S.mode, theme: S.mode === "theme" ? S.theme : null, created_at: new Date().toISOString() }); $("sv").textContent = "✓ " + t("saved"); toast(t("saved")); };
+  $("sh").onclick = async () => { const txt = t("shareTxt", { m: modeName, s: nf(S.total), n: nf(maxTotal()) }) + "\n" + location.href.split("?")[0]; if (navigator.share) { try { await navigator.share({ text: txt }); } catch (e) {} } else { navigator.clipboard?.writeText(txt); toast(t("copied")); } };
+  $("ag").onclick = startGame;
+}
+
+/* ================= Sonstiges ================= */
+let toastT; function toast(m) { let el = document.querySelector(".toast"); if (!el) { el = document.createElement("div"); el.className = "toast"; document.body.appendChild(el); } el.textContent = m; clearTimeout(toastT); toastT = setTimeout(() => el.remove(), 2200); }
+$("home").onclick = e => { e.preventDefault(); if (S.map) { S.map.remove(); S.map = null; } if (S.rmap) { S.rmap.remove(); S.rmap = null; } showHome(); };
+document.querySelector(".tog").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (!b) return; L = b.dataset.lang; try { localStorage.setItem("ss-lang", L); } catch (er) {} document.querySelectorAll(".tog button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.lang === L))); document.documentElement.lang = L; $("foot").innerHTML = t("foot"); if (!$("yr") && !$("nx")) showHome(); });
+document.querySelectorAll(".tog button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.lang === L)));
+document.documentElement.lang = L; $("foot").innerHTML = t("foot");
+loadPhotos().then(showHome).catch(() => { showHome(); toast(t("loadErr")); });
+window.__hs = S;
+</script>
+</body>
+</html>
