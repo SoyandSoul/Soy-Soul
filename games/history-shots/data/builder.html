@@ -72,7 +72,7 @@ const BAD = /(map|karte|plan|postcard|poster|drawing|painting|gemälde|zeichnung
 
 const $ = id => document.getElementById(id);
 const log = m => { const el = $("log"); el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
-let running = false, pool = new Map(), checked = 0, cats = 0, geo = 0;
+let running = false, stopped = 0, pool = new Map(), checked = 0, cats = 0, geo = 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 $("themes").innerHTML = Object.keys(THEMES).map(k => '<label style="display:inline-flex;gap:6px;align-items:center;margin:4px 12px 4px 0"><input type="checkbox" value="' + k + '" checked>' + k + '</label>').join("");
@@ -140,7 +140,7 @@ function showSample(p) {
 }
 
 async function run() {
-  running = true; $("start").disabled = true; $("stop").disabled = false;
+  running = true; stopped = 0; $("start").disabled = true; $("stop").disabled = false;
   const max = +$("max").value || 120;
   const themes = [...document.querySelectorAll("#themes input:checked")].map(i => i.value);
   const cand = new Map();
@@ -176,6 +176,7 @@ async function run() {
     }
     log("[" + theme + "] Kandidaten: " + (cand.size - n0));
   }
+  if (stopped < 2) running = true;
   const titles = [...cand.keys()].filter(f => !pool.has(f));
   log("Metadaten prüfen für " + titles.length + " Dateien");
   for (let i = 0; i < titles.length && running; i += 50) {
@@ -209,11 +210,11 @@ async function run() {
     if (k % 3 === 0) showSample(p);
     status("Orte nachschlagen " + (k + 1) + "/" + need.length, 60 + 40 * (k / need.length));
   }
-  status(running ? "Fertig: " + pool.size + " Fotos. Jetzt herunterladen." : "Angehalten: " + pool.size + " Fotos bisher.", 100);
+  status(stopped === 0 ? "Fertig: " + pool.size + " Fotos. Jetzt herunterladen." : "Angehalten: " + pool.size + " Fotos bisher.", 100);
   running = false; $("start").disabled = false; $("stop").disabled = true; stats();
 }
 $("start").onclick = () => run().catch(e => { log("Fehler: " + e); running = false; $("start").disabled = false; $("stop").disabled = true; });
-$("stop").onclick = () => { running = false; };
+$("stop").onclick = () => { stopped++; running = false; if (stopped === 1) status("Angehalten: bereits gefundene Fotos werden noch geprüft und bekommen Orte. Nochmal „Anhalten“ bricht ganz ab."); };
 $("dl").onclick = () => {
   const photos = [...pool.values()].filter(p => p.place).sort((a, b) => a.id.localeCompare(b.id));
   const blob = new Blob([JSON.stringify({ updated: new Date().toISOString().slice(0, 10), note: "Verweise auf Wikimedia Commons, erzeugt mit builder.html", photos }, null, 0)], { type: "application/json" });
