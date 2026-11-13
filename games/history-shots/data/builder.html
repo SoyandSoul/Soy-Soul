@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>History Shots · Bilderpool-Builder</title>
+<meta name="robots" content="noindex">
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fbfbfd; color: #1d1d1f; margin: 0; padding: 24px; }
+.wrap { max-width: 760px; margin: 0 auto; }
+h1 { font-size: 26px; letter-spacing: -.03em; }
+p { color: #5e5e66; }
+.card { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 18px; padding: 18px; margin: 14px 0; box-shadow: 0 12px 32px -14px rgba(0,0,0,.12); }
+label { display: block; font-size: 13px; font-weight: 600; color: #5e5e66; margin: 10px 0 4px; }
+input, select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(0,0,0,.12); }
+button { font: inherit; font-weight: 600; padding: 11px 20px; border-radius: 99px; border: 0; background: #1d1d1f; color: #fff; cursor: pointer; margin-right: 8px; }
+button.sec { background: #f2f2f6; color: #1d1d1f; }
+button:disabled { opacity: .4; }
+.bar { height: 8px; border-radius: 4px; background: #eee; overflow: hidden; margin: 12px 0 6px; }
+.bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ff6a3d, #ffb03d); transition: width .3s; }
+#log { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; max-height: 260px; overflow: auto; background: #f7f7fa; padding: 10px; border-radius: 10px; }
+.stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; }
+.stats b { font-size: 22px; display: block; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.grid div { position: relative; border-radius: 10px; overflow: hidden; background: #ddd; aspect-ratio: 4/3; }
+.grid img { width: 100%; height: 100%; object-fit: cover; }
+.grid span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11px; background: rgba(0,0,0,.55); color: #fff; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grid button { position: absolute; top: 4px; right: 4px; padding: 2px 7px; font-size: 11px; background: rgba(0,0,0,.6); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Bilderpool-Builder</h1>
+  <p>Diese Seite sucht in deinem Browser bei Wikimedia Commons nach historischen Fotos mit eindeutigem Jahr, Aufnahmeort und freier Lizenz und erzeugt daraus die <code>photos.json</code> für History Shots. Es werden nur Verweise gespeichert, keine Bilder kopiert.</p>
+
+  <div class="card">
+    <label>Maximal Fotos je Thema</label><input id="max" type="number" value="120" min="20" max="400">
+    <label>Themen</label>
+    <div id="themes"></div>
+    <div style="margin-top:14px"><button id="start">Start</button><button class="sec" id="stop" disabled>Anhalten</button><button class="sec" id="dl" disabled>photos.json herunterladen</button></div>
+    <div class="bar"><i id="bar"></i></div>
+    <div id="status" style="font-size:13px;color:#5e5e66"></div>
+  </div>
+
+  <div class="card">
+    <div class="stats"><div><b id="nKept">0</b>aufgenommen</div><div><b id="nChecked">0</b>geprüft</div><div><b id="nCats">0</b>Kategorien</div><div><b id="nGeo">0</b>Orte</div></div>
+    <div id="perTheme" style="font-size:13px;color:#5e5e66;margin-top:8px"></div>
+  </div>
+
+  <div class="card"><b>Stichprobe</b> (Bild anklicken, ✕ entfernt den Eintrag)<div class="grid" id="grid"></div></div>
+  <div class="card"><b>Protokoll</b><div id="log"></div></div>
+</div>
+
+<script>
+const API = "https://commons.wikimedia.org/w/api.php";
+const NOMI = "https://nominatim.openstreetmap.org/reverse";
+const DECADES = [1890, 1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000];
+const YEARS = []; for (let y = 1895; y <= 2010; y++) YEARS.push(y);
+const CITIES = ["Berlin", "Frankfurt am Main", "Hamburg", "Munich", "Cologne", "Vienna", "Paris", "London", "Amsterdam", "Copenhagen", "Barcelona", "Rome", "Prague", "Zurich", "Stockholm", "Lisbon", "Madrid", "Brussels", "Warsaw", "Budapest", "New York City", "Chicago", "San Francisco", "Los Angeles", "Tokyo", "Sydney", "Istanbul", "Moscow", "Athens", "Dublin", "Dresden", "Leipzig", "Stuttgart", "Düsseldorf", "Hanover", "Nuremberg", "Bremen", "Milan", "Venice", "Florence"];
+const THEMES = {
+  cities: ["{c} in the {d}s", "{d}s photographs of {c}", "{d}s in {c}", "Street scenes in {c} in the {d}s", "Historical images of {c}"],
+  aviation: ["{y} in aviation", "Aviation in {y}", "Airports in the {d}s", "Aircraft in the {d}s", "Frankfurt Airport in the {d}s", "Berlin Tempelhof Airport in the {d}s", "Heathrow Airport in the {d}s", "Lufthansa in the {d}s", "Pan Am in the {d}s", "Airliners in the {d}s", "Airports in {y}", "Aircraft photographed in {y}"],
+  cars: ["Cars photographed in {y}", "Automobiles in the {d}s", "Cars in the {d}s", "Automobiles photographed in {y}", "Traffic in the {d}s", "Petrol stations in the {d}s", "Road transport in {y}", "{y} in road transport"],
+  pop: ["{y} in music", "Concerts in {y}", "Music festivals in {y}", "Cinemas in the {d}s", "Record shops in the {d}s", "Fashion in the {d}s", "Discotheques in the {d}s", "Television in the {d}s", "Youth culture in the {d}s", "Music in the {d}s"],
+  food: ["Restaurants in the {d}s", "Cafés in the {d}s", "Markets in the {d}s", "Food in the {d}s", "Bakeries in the {d}s", "Street food in the {d}s", "Pubs in the {d}s", "Beer gardens in the {d}s", "Kitchens in the {d}s", "Ice cream in the {d}s", "Food in {y}", "Restaurants in {y}", "Markets in {y}"],
+  sport: ["{y} in sports", "Football in {y}", "{y} in football", "Stadiums in the {d}s", "Olympic Games in {y}", "Cycling in {y}", "Motorsport in {y}", "Sport in {y}"],
+  rail: ["Rail transport in {y}", "{y} in rail transport", "Railway stations in the {d}s", "Trams in the {d}s", "Trains in the {d}s", "Locomotives photographed in {y}", "Trams in {y}", "Public transport in the {d}s"],
+  everyday: ["Everyday life in the {d}s", "Street scenes in the {d}s", "Children in the {d}s", "People in the {d}s", "Shops in the {d}s", "Beaches in the {d}s", "Families in the {d}s", "Schools in the {d}s", "{y} in Germany", "{y} in Austria", "{y} in Europe", "Daily life in {y}"]
+};
+const OK_LIC = /^(Public domain|PD|CC0|CC BY(-SA)?( \d\.\d)?( [a-z]{2})?|CC-BY(-SA)?.*|No restrictions)/i;
+const BAD = /(map|karte|plan|postcard|poster|drawing|painting|gemälde|zeichnung|stamp|briefmarke|logo|diagram|chart|scan of|newspaper|magazine|cover|advert)/i;
+
+const $ = id => document.getElementById(id);
+const log = m => { const el = $("log"); el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
+let running = false, pool = new Map(), checked = 0, cats = 0, geo = 0;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+$("themes").innerHTML = Object.keys(THEMES).map(k => '<label style="display:inline-flex;gap:6px;align-items:center;margin:4px 12px 4px 0"><input type="checkbox" value="' + k + '" checked>' + k + '</label>').join("");
+
+async function api(p) {
+  const u = API + "?origin=*&format=json&formatversion=2&action=query&" + new URLSearchParams(p);
+  for (let i = 0; i < 4; i++) {
+    try { const r = await fetch(u); if (r.ok) return await r.json(); } catch (e) {}
+    await sleep(1500 * (i + 1));
+  }
+  return null;
+}
+async function existing(names) {
+  const out = [];
+  for (let i = 0; i < names.length; i += 50) {
+    const r = await api({ titles: names.slice(i, i + 50).map(n => "Category:" + n).join("|"), prop: "categoryinfo" });
+    for (const pg of (r?.query?.pages || [])) {
+      const ci = pg.categoryinfo || {};
+      if (!pg.missing && (ci.files || 0) + (ci.subcats || 0) > 0) out.push(pg.title.replace(/^Category:/, ""));
+    }
+  }
+  return out;
+}
+async function members(cat, kind, cap) {
+  let out = [], cont = {};
+  while (true) {
+    const r = await api(Object.assign({ list: "categorymembers", cmtitle: "Category:" + cat, cmtype: kind, cmlimit: "200" }, cont));
+    if (!r) break;
+    out = out.concat(r.query.categorymembers.map(m => m.title));
+    if (r.continue && out.length < cap) cont = r.continue; else break;
+  }
+  return out.slice(0, cap);
+}
+function yearOfCat(n) { const m = n.match(/\b(1[89]\d\d|20[0-2]\d)\b/); if (!m) return null; const y = +m[1]; return new RegExp("\\b" + y + "s\\b").test(n) ? [y, y + 9] : [y, y]; }
+function parseYear(s) {
+  if (!s) return null; s = s.replace(/<[^>]+>/g, " ");
+  if (/(circa|ca\.|c\.|approx|vor |nach |before|after|between|zwischen|\d{4}\s*[-–/]\s*\d{4}|\d{4}s|unknown|unbekannt|\?)/i.test(s)) return null;
+  const m = s.match(/^\s*(1[89]\d\d|20[0-2]\d)(?:[-:/ .]|$)/); return m ? +m[1] : null;
+}
+const clean = (s, n) => (s || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().slice(0, n);
+const geoCache = new Map();
+async function placeOf(lat, lon) {
+  const k = lat.toFixed(2) + "," + lon.toFixed(2); if (geoCache.has(k)) return geoCache.get(k);
+  await sleep(1050);
+  let p = null;
+  try { const r = await (await fetch(NOMI + "?" + new URLSearchParams({ format: "jsonv2", lat, lon, zoom: 10, "accept-language": "de" }))).json(); const a = r.address || {}; const city = a.city || a.town || a.village || a.municipality || a.county || a.state || ""; p = [city, a.country].filter(Boolean).join(", ") || null; } catch (e) {}
+  geoCache.set(k, p); geo++; $("nGeo").textContent = geo; return p;
+}
+async function md5ish(s) { const b = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(s)); return [...new Uint8Array(b)].slice(0, 5).map(x => x.toString(16).padStart(2, "0")).join(""); }
+
+function status(m, pct) { $("status").textContent = m; if (pct != null) $("bar").style.width = pct + "%"; }
+function stats() {
+  $("nKept").textContent = pool.size; $("nChecked").textContent = checked; $("nCats").textContent = cats;
+  const c = {}; for (const p of pool.values()) p.cat.forEach(k => c[k] = (c[k] || 0) + 1);
+  $("perTheme").textContent = Object.entries(c).map(([k, v]) => k + ": " + v).join(" · ");
+  $("dl").disabled = !pool.size;
+}
+function showSample(p) {
+  const g = $("grid"); if (g.children.length > 60) g.removeChild(g.firstChild);
+  const d = document.createElement("div");
+  d.innerHTML = '<img loading="lazy" src="https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(p.file.slice(5)) + '?width=300" alt=""><span>' + p.year + ' · ' + (p.place || "?") + '</span><button>✕</button>';
+  d.querySelector("button").onclick = () => { pool.delete(p.file); d.remove(); stats(); };
+  d.querySelector("img").onclick = () => window.open("https://commons.wikimedia.org/wiki/" + encodeURIComponent(p.file), "_blank");
+  g.appendChild(d);
+}
+
+async function run() {
+  running = true; $("start").disabled = true; $("stop").disabled = false;
+  const max = +$("max").value || 120;
+  const themes = [...document.querySelectorAll("#themes input:checked")].map(i => i.value);
+  const cand = new Map();
+  for (const theme of themes) {
+    if (!running) break;
+    status("Kategorien suchen: " + theme, 2);
+    let names = new Set();
+    for (const pat of THEMES[theme]) {
+      if (pat.includes("{c}")) for (const c of CITIES) { if (pat.includes("{d}")) DECADES.forEach(d => names.add(pat.replace("{c}", c).replace("{d}", d))); else names.add(pat.replace("{c}", c)); }
+      else if (pat.includes("{d}")) DECADES.forEach(d => names.add(pat.replace("{d}", d)));
+      else if (pat.includes("{y}")) YEARS.forEach(y => names.add(pat.replace("{y}", y)));
+    }
+    const ex = await existing([...names]); cats += ex.length; stats();
+    log("[" + theme + "] " + ex.length + " Kategorien");
+    let n0 = cand.size;
+    for (const cat of ex) {
+      if (!running || cand.size - n0 > max * 25) break;
+      const rng = yearOfCat(cat);
+      let files = await members(cat, "file", 300);
+      for (const sub of (await members(cat, "subcat", 40))) {
+        const sr = yearOfCat(sub.replace("Category:", ""));
+        if (rng && sr && (sr[1] < rng[0] || sr[0] > rng[1])) continue;
+        files = files.concat(await members(sub.replace("Category:", ""), "file", 120));
+      }
+      for (const f of files) {
+        if (!/\.(jpe?g|png)$/i.test(f) || BAD.test(f)) continue;
+        const e = cand.get(f) || { themes: new Set(), rng: null };
+        e.themes.add(theme);
+        if (rng) e.rng = e.rng ? [Math.max(rng[0], e.rng[0]), Math.min(rng[1], e.rng[1])] : rng;
+        cand.set(f, e);
+      }
+      status("Kategorien lesen: " + theme + " · " + cat + " · " + cand.size + " Kandidaten", 5);
+    }
+    log("[" + theme + "] Kandidaten: " + (cand.size - n0));
+  }
+  const titles = [...cand.keys()].filter(f => !pool.has(f));
+  log("Metadaten prüfen für " + titles.length + " Dateien");
+  for (let i = 0; i < titles.length && running; i += 50) {
+    const r = await api({ titles: titles.slice(i, i + 50).join("|"), prop: "imageinfo|coordinates|categories", iiprop: "url|size|mime|extmetadata", iiextmetadatafilter: "DateTimeOriginal|LicenseShortName|Artist|Credit|ImageDescription|ObjectName", coprop: "type|primary", colimit: "max", cllimit: "50" });
+    for (const pg of (r?.query?.pages || [])) {
+      checked++;
+      const f = pg.title, ii = (pg.imageinfo || [{}])[0], md = {}; for (const k in (ii.extmetadata || {})) md[k] = ii.extmetadata[k].value;
+      const year = parseYear(md.DateTimeOriginal); if (!year) continue;
+      const rng = cand.get(f).rng; if (rng && !(rng[0] <= year && year <= rng[1])) continue;
+      const co = (pg.coordinates || []).filter(c => c.primary || !c.type || c.type === "camera"); if (!co.length) continue;
+      const lic = md.LicenseShortName || ""; if (!OK_LIC.test(lic)) continue;
+      if (!["image/jpeg", "image/png"].includes(ii.mime) || (ii.width || 0) < 700) continue;
+      const cs = (pg.categories || []).map(c => c.title).join(" "); if (BAD.test(cs) && !/photograph/i.test(cs)) continue;
+      const lat = co[0].lat, lon = co[0].lon; if (Math.abs(lat) < .01 && Math.abs(lon) < .01) continue;
+      const title = clean(md.ObjectName || md.ImageDescription || f.slice(5, -4), 90);
+      pool.set(f, { id: await md5ish(f), file: f, year, lat: +lat.toFixed(5), lon: +lon.toFixed(5), cat: [...cand.get(f).themes].sort(), title: { de: title, en: title }, place: null, author: clean(md.Artist || md.Credit || "", 60) || "unbekannt", license: clean(lic, 30), w: ii.width, h: ii.height });
+    }
+    status("Metadaten prüfen " + Math.min(i + 50, titles.length) + "/" + titles.length + " · " + pool.size + " aufgenommen", 10 + 50 * (i / titles.length));
+    stats();
+  }
+  // Je Thema begrenzen
+  const per = {}; const keep = new Map();
+  for (const p of [...pool.values()].sort((a, b) => a.cat.length - b.cat.length || a.id.localeCompare(b.id))) {
+    if (p.cat.some(c => (per[c] || 0) < max)) { keep.set(p.file, p); p.cat.forEach(c => per[c] = (per[c] || 0) + 1); }
+  }
+  pool = keep; stats();
+  const need = [...pool.values()].filter(p => !p.place);
+  log("Orte nachschlagen für " + need.length + " Fotos (1 pro Sekunde)");
+  for (let k = 0; k < need.length && running; k++) {
+    const p = need[k]; p.place = (await placeOf(p.lat, p.lon)) || (p.lat.toFixed(2) + ", " + p.lon.toFixed(2));
+    if (k % 3 === 0) showSample(p);
+    status("Orte nachschlagen " + (k + 1) + "/" + need.length, 60 + 40 * (k / need.length));
+  }
+  status(running ? "Fertig: " + pool.size + " Fotos. Jetzt herunterladen." : "Angehalten: " + pool.size + " Fotos bisher.", 100);
+  running = false; $("start").disabled = false; $("stop").disabled = true; stats();
+}
+$("start").onclick = () => run().catch(e => { log("Fehler: " + e); running = false; $("start").disabled = false; $("stop").disabled = true; });
+$("stop").onclick = () => { running = false; };
+$("dl").onclick = () => {
+  const photos = [...pool.values()].filter(p => p.place).sort((a, b) => a.id.localeCompare(b.id));
+  const blob = new Blob([JSON.stringify({ updated: new Date().toISOString().slice(0, 10), note: "Verweise auf Wikimedia Commons, erzeugt mit builder.html", photos }, null, 0)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "photos.json"; a.click();
+};
+</script>
+</body>
+</html>
