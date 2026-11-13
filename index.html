@@ -296,7 +296,7 @@ footer .priv b { color: var(--ink2); }
   var AREAS = [
     { id: "games", a: "games", n: "01", name: { de: "Games", en: "Games" },
       h: { de: 'Zum Abschalten. <em>Und zum Grübeln.</em>', en: 'To switch off. <em>And to think hard.</em>' },
-      p: { de: "Denkspiele und schnelle Runden für zwischendurch. Die ersten Spiele sind in Arbeit.", en: "Puzzles and quick rounds in between. The first games are in the works." },
+      p: { de: "Raten, knobeln, schnelle Runden für zwischendurch. Spielstände bleiben in deinem Browser.", en: "Guessing, puzzling, quick rounds in between. Progress stays in your browser." },
       sub: { de: "Aufbau & Strategie", en: "Build & strategy" } },
     { id: "tools", a: "tools", n: "02", name: { de: "Tools", en: "Tools" },
       h: { de: 'Werkzeuge, <em>die einfach funktionieren.</em>', en: 'Tools <em>that just work.</em>' },
@@ -315,9 +315,11 @@ footer .priv b { color: var(--ink2); }
   // size: big (4 Spalten, 2 Zeilen), wide (3 Spalten), sonst 2 Spalten
   var ITEMS = {
     games: [
-      { size: "wide", name: { de: "Denkspiele", en: "Puzzles" }, art: "dice",
+      { id: "history-shots", href: "games/history-shots/", size: "big", ver: "v0.1", name: { de: "History Shots", en: "History Shots" }, art: "shots",
+        d: { de: "Wann und wo wurde dieses Foto aufgenommen? Fünf historische Bilder, Jahr tippen, Pin auf die Karte setzen. Drei Modi, Themen wie Flugzeuge, Autos oder Städte, Highscore ohne Anmeldung.", en: "When and where was this photo taken? Five historical pictures, guess the year, drop a pin on the map. Three modes, themes like planes, cars or cities, high scores without signing up." } },
+      { name: { de: "Denkspiele", en: "Puzzles" }, art: "dice",
         d: { de: "Knobeln, planen, um die Ecke denken. Partien bleiben in deinem Browser.", en: "Puzzle, plan, think around corners. Games stay in your browser." } },
-      { size: "wide", name: { de: "Arcade", en: "Arcade" }, art: "joy",
+      { name: { de: "Arcade", en: "Arcade" }, art: "joy",
         d: { de: "Schnelle Runden für zwischendurch, mit Highscore.", en: "Quick rounds in between, with a high score." } }
     ],
     tools: [
@@ -349,6 +351,13 @@ footer .priv b { color: var(--ink2); }
   /* ---------- Grafiken (SVG, Farbe kommt über var(--c)) ---------- */
   var C = "var(--c)", INK = "var(--ink)", CARD = "var(--card)";
   var ART = {
+    shots:
+      '<svg viewBox="0 0 400 240"><rect x="36" y="30" width="328" height="180" rx="16" fill="' + CARD + '"/>' +
+      '<g transform="rotate(-4 160 120)"><rect x="58" y="52" width="200" height="140" rx="10" fill="' + INK + '" opacity=".85"/><rect x="70" y="64" width="176" height="100" rx="4" fill="' + C + '" opacity=".35"/>' +
+      '<path d="M70 164 L120 110 L160 140 L200 100 L246 150 V164 Z" fill="' + CARD + '" opacity=".35"/><circle cx="110" cy="92" r="12" fill="' + CARD + '" opacity=".6"/>' +
+      '<rect x="70" y="170" width="70" height="12" rx="4" fill="' + CARD + '" opacity=".5"/></g>' +
+      '<g transform="translate(272 60)"><rect width="80" height="34" rx="10" fill="' + C + '"/><text x="40" y="23" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="18" font-weight="700" fill="#fff">19<tspan class="a-blink">7</tspan>3</text></g>' +
+      '<g class="a-drift" style="--x1:-6px;--x2:6px;--y1:0px;--y2:-4px"><path d="M300 150 q0 -18 16 -18 q16 0 16 18 q0 14 -16 32 q-16 -18 -16 -32z" fill="' + C + '"/><circle cx="316" cy="150" r="6" fill="#fff"/></g></svg>',
     dice:
       '<svg viewBox="0 0 300 180"><g class="a-drift" style="--x1:0px;--x2:0px;--y1:-6px;--y2:6px"><rect x="78" y="44" width="80" height="80" rx="18" fill="' + CARD + '" transform="rotate(-10 118 84)"/>' +
       '<g fill="' + C + '"><circle cx="100" cy="68" r="7"/><circle cx="120" cy="86" r="7"/><circle cx="138" cy="104" r="7"/></g></g>' +
@@ -433,6 +442,7 @@ footer .priv b { color: var(--ink2); }
     { de: "<b>Hosting.</b> Die Seite liegt bei GitHub Pages (GitHub Inc., USA). Beim Aufruf verarbeitet der Anbieter technisch notwendige Daten wie IP-Adresse und Zeitpunkt in Server-Logs.", en: "<b>Hosting.</b> The site is hosted on GitHub Pages (GitHub Inc., USA). When you open it, the provider processes technically necessary data such as IP address and time in server logs." },
     { de: "<b>Schrift.</b> Es wird die Systemschrift deines Geräts verwendet, es werden keine Schriften von Google oder anderen Diensten geladen.", en: "<b>Font.</b> Your device's system font is used; no fonts are loaded from Google or other services." },
     { de: "<b>Karte in Foodradar.</b> Foodradar lädt Kartenbilder von OpenFreeMap, Lokale und Öffnungszeiten von der Overpass-API und Suchergebnisse von Nominatim (beides OpenStreetMap), Fotos gegebenenfalls von Wikimedia Commons. Dabei sehen diese Dienste wie bei jedem Webaufruf deine IP-Adresse und den angezeigten Kartenausschnitt bzw. deinen Suchbegriff. Die Standortfunktion nutzt dein Browser nur, wenn du sie antippst und erlaubst; dein Standort wird nicht übertragen. Die zuletzt gewählte Stadt und gefundene Orte merkt sich die Seite nur lokal in deinem Browser.", en: "<b>Map in Foodradar.</b> Foodradar loads map images from OpenFreeMap, places and opening hours from the Overpass API and search results from Nominatim (both OpenStreetMap), and photos from Wikimedia Commons where available. As with any web request, these services see your IP address and the map area shown or your search term. The location feature is only used by your browser if you tap it and allow it; your location is not sent anywhere. The last chosen city and found places are remembered only locally in your browser." },
+    { de: "<b>Fotos in History Shots.</b> Die Fotos im Spiel liegen bei Wikimedia Commons und werden von dort geladen; die Karte kommt von OpenFreeMap. Wie bei jedem Webaufruf sehen diese Dienste deine IP-Adresse. Dein User-Code, dein Anzeigename und deine Punkte werden nur lokal in deinem Browser gespeichert.", en: "<b>Photos in History Shots.</b> The photos in the game are hosted on Wikimedia Commons and loaded from there; the map comes from OpenFreeMap. As with any web request, these services see your IP address. Your user code, display name and scores are stored only locally in your browser." },
     { de: "<b>Videos in Hochkant.</b> Videos, die du in Hochkant öffnest, werden nur in deinem Browser abgespielt, zugeschnitten und neu kodiert. Sie werden nicht hochgeladen. Alle dafür nötigen Programmteile liegen auf diesem Server.", en: "<b>Videos in Hochkant.</b> Videos you open in Hochkant are played, cropped and re-encoded only in your browser. They are never uploaded. All program parts needed for this are hosted on this server." },
     { de: "<b>Einstellungen.</b> Deine Wahl von Sprache und Hell/Dunkel wird nur lokal in deinem Browser gespeichert.", en: "<b>Settings.</b> Your choice of language and light/dark mode is stored only locally in your browser." }
   ];

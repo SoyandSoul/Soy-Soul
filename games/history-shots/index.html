@@ -309,7 +309,7 @@ function showHome() {
     '<div class="modes">' + [["classic", "🗺️", "m1"], ["year", "📅", "m2"], ["theme", "🎯", "m3"]].map(([m, em, k]) =>
       '<button class="mode" data-m="' + m + '" aria-pressed="' + (S.mode === m) + '"><span class="em">' + em + '</span><b>' + T[k][L][0] + '</b><small>' + T[k][L][1] + '</small></button>').join("") + '</div>' +
     '<div id="themeBox"' + (S.mode === "theme" ? "" : " hidden") + '><div class="sec" style="margin:0 0 18px"><h3>' + t("pickTheme") + '</h3><div class="themes">' +
-      Object.keys(THEMES).map(k => '<button class="chip" data-th="' + k + '" aria-pressed="' + (S.theme === k) + '"' + ((counts[k] || 0) < ROUNDS ? " disabled style=\"opacity:.4\"" : "") + '>' + THEMES[k].em + ' ' + THEMES[k][L] + '<small>' + (counts[k] || 0) + '</small></button>').join("") + '</div></div></div>' +
+      Object.keys(THEMES).map(k => '<button class="chip" data-th="' + k + '" aria-pressed="' + (S.theme === k) + '"' + ((counts[k] || 0) < ROUNDS * 2 ? " disabled style=\"opacity:.4\"" : "") + '>' + THEMES[k].em + ' ' + THEMES[k][L] + '<small>' + (counts[k] || 0) + '</small></button>').join("") + '</div></div></div>' +
     '<div class="row"><button class="btn pri" id="start">' + t("start") + ' →</button><span class="muted">' + t("photos", { n: S.photos.length }) + '</span></div></section>' +
     '<section class="sec two"><div class="card"><h3 style="font-size:13px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">' + t("you") + '</h3>' +
       '<div class="row"><span class="code" id="codeV">' + esc(user.code) + '</span><button class="btn ghost sm" id="copyC">' + t("copy") + '</button></div>' +
