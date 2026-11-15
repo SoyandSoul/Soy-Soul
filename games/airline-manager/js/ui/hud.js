@@ -3,6 +3,7 @@ import { html } from "./dom.js";
 import { fmt } from "../core/util.js";
 import { fuelPrice } from "../sim/fuel.js";
 import { normalizeLivery } from "../art/livery.js";
+import { toggleAirMenu } from "./airmenu.js";
 
 let lastFuel = 0, lastShare = 0;
 
@@ -12,8 +13,11 @@ export function renderHud(el, ctx) {
   el.innerHTML = html`
     <div class="brand glass">
       <a href="../../" title="Zurück zu Soy & Soul" aria-label="Zurück zur Startseite"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></a>
-      <button class="tail" data-paint title="Lackiererei öffnen" style="background:${tail};color:${tailTxt?.c || "#1b2230"};box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)">${s.airline.iata}</button>
-      <div><b>${s.airline.name}</b><small>${s.player.code}</small></div>
+      <button class="am-btn" data-airmenu aria-haspopup="menu" aria-expanded="false" title="Airline-Menü">
+        <span class="tail" style="background:${tail};color:${tailTxt?.c || "#1b2230"};box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)">${s.airline.iata}</span>
+        <span class="am-name"><b>${s.airline.name}</b><small>${s.player.code}</small></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
     </div>
     <div class="stats glass">
       <div data-hud-open="airline" title="Finanzen"><span>Kasse</span><b data-h="cash"></b></div>
@@ -24,7 +28,7 @@ export function renderHud(el, ctx) {
     </div>
     <div class="clock glass"><b data-h="time"></b><span data-h="date"></span></div>`.s;
   el.querySelectorAll("[data-hud-open]").forEach(d => d.onclick = () => ctx.openApp(d.dataset.hudOpen));
-  el.querySelector("[data-paint]").onclick = () => ctx.openPainter();
+  el.querySelector("[data-airmenu]").onclick = e => toggleAirMenu(ctx, e.currentTarget);
   tickHud(el, ctx);
 }
 

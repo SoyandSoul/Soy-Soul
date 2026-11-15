@@ -10,8 +10,13 @@ export const GAME = {
   startCash: 200_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  newDeliveryH: 1,                   // Lieferzeit Neuflugzeug (Echtzeit-Stunden)
-  usedDeliveryH: 0.25,               // Überführung Gebrauchtflugzeug
+  label: "v0.15",
+  instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
+  // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
+  // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
+  newDeliveryH: { narrow: 72, wide: 120, jumbo: 168 },
+  orderStaggerH: 24,                 // jedes weitere Flugzeug derselben Bestellung kommt einen Tag später
+  usedDeliveryH: 24,                 // Gebraucht: Übergabe-Check, Umregistrierung, Überführungsflug
   marketShare: 0.30                  // Anteil am Gesamtmarkt einer Strecke, den eine Spieler-Airline bedienen kann
 };
 

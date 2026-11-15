@@ -26,7 +26,12 @@ export function orderNew(state, typeId, qty, now) {
   if (q.total > state.cash) return fail("Nicht genug Geld für diese Bestellung.");
   book(state, now, "cost", "aircraft", q.total);
   const list = [];
-  for (let i = 0; i < qty; i++) { const ac = createAircraft(state, t, now); ac.price = q.total / qty; state.fleet.push(ac); list.push(ac); }
+  let late = 0;
+  for (let i = 0; i < qty; i++) {
+    const ac = createAircraft(state, t, now, { orderIndex: late });
+    if (ac.availableAt) late++;
+    ac.price = q.total / qty; state.fleet.push(ac); list.push(ac);
+  }
   return ok({ aircraft: list, cost: q.total });
 }
 

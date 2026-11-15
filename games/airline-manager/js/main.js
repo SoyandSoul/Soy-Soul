@@ -30,7 +30,8 @@ import stocks from "./ui/apps/stocks.js";
 import board from "./ui/apps/leaderboard.js";
 import logbook from "./ui/apps/logbook.js";
 
-const DOCK = [[hangar, "Hangar"], [shop, "Markt"], [routes, "Routen"], [maint, "Wartung"], [fuel, "Kerosin"], [airline, "Airline"], [stocks, "Börse"], [board, "Rangliste"], [logbook, "Logbuch"]];
+const DOCK = [[hangar, "Hangar"], [shop, "Markt"], [routes, "Routen"], [maint, "Wartung"], [fuel, "Kerosin"], [stocks, "Börse"], [board, "Rangliste"], [logbook, "Logbuch"]];
+// Die Airline-App öffnet sich über das Dropdown oben links (ui/airmenu.js)
 
 // ---------- Kontext, den alle UI-Teile bekommen
 const ctx = {
@@ -96,7 +97,7 @@ function updateDock() {
     b.setAttribute("aria-pressed", String(isOpen(app.id)));
     b.querySelector(".badge")?.remove();
     const badge = ctx.state && app.badge?.(ctx);
-    if (badge) b.insertAdjacentHTML("beforeend", `<i class="badge ${badge.kind === "warn" ? "warn" : ""}">${badge.n}</i>`);
+    if (badge) b.insertAdjacentHTML("beforeend", `<i class="badge ${badge.kind}">${badge.n}</i>`);
   }
 }
 
@@ -163,6 +164,7 @@ async function boot() {
   try { setTracedProfiles(await (await fetch("data/profiles.json", { cache: "no-cache" })).json()); } catch { /* optional */ }
   initWindows(ctx);
   for (const [app] of DOCK) register(app);
+  register(airline);
   ctx.map = createMap(document.getElementById("map"), ctx);
   ctx.state = load();
   if (ctx.state) return start();
@@ -170,7 +172,7 @@ async function boot() {
     ctx.state = newGame({ name, iata, hub, player: newPlayer(), now: ctx.now() });
     save(ctx.state);
     start();
-    toast(`${name} ist gegründet! Deine Flugzeuge sind noch weiß – in der Lackiererei (Klick auf dein Kürzel oben links) malst du deine Livery.`, "good", 8000);
+    toast(`${name} ist gegründet! Deine Flugzeuge sind noch weiß – im Airline-Menü oben links → Lackiererei malst du deine Livery.`, "good", 8000);
   });
 }
 

@@ -5,6 +5,7 @@ import { typeOf, positionAt } from "../sim/flight.js";
 import { sideView } from "./aircraftArt.js";
 import { mostUrgent } from "../sim/maintenance.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
+import { weatherAt } from "../sim/weather.js";
 
 export function renderFlightCard(el, ctx, id) {
   const s = ctx.state, ac = id && s.fleet.find(a => a.id === id);
@@ -20,6 +21,7 @@ export function renderFlightCard(el, ctx, id) {
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--accent)"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       <div class="ap"><b data-f="d"></b><span data-f="dc"></span></div>
     </div>
+    <div class="fc-delay" data-f="delay" hidden></div>
     <div class="prog"><div class="bar"><i data-f="bar"></i></div><div class="row small muted" style="justify-content:space-between;margin-top:4px"><span data-f="dep"></span><span data-f="arr"></span></div></div>
     <div class="grid3">
       <div><span>Höhe</span><b data-f="alt"></b></div>
@@ -55,8 +57,12 @@ export function tickFlightCard(el, ctx, id) {
   const inCheck = ac.status === "check";
   const p = inCheck ? null : positionAt(ac, route, now);
   const o = p ? p.from : AIRPORT_BY_IATA[route.from], d = p ? p.to : AIRPORT_BY_IATA[route.to];
-  q("o").textContent = o.iata; q("oc").textContent = o.city;
-  q("d").textContent = d.iata; q("dc").textContent = d.city;
+  const wo = weatherAt(o.iata, now), wd = weatherAt(d.iata, now);
+  q("o").textContent = o.iata; q("oc").textContent = `${o.city} ${wo.icon}`; q("oc").title = wo.label;
+  q("d").textContent = d.iata; q("dc").textContent = `${wd.icon} ${d.city}`; q("dc").title = wd.label;
+  const dl = q("delay"), del = !inCheck && ac.ops.delay;
+  dl.hidden = !del;
+  if (del) dl.innerHTML = `<span class="fc-clock"></span> Verspätet +${del.min} min · ${del.reason} in ${del.at}`;
   q("bar").style.width = ((p?.progress || 0) * 100).toFixed(1) + "%";
   q("dep").textContent = p ? "Ab " + fmt.time(ac.ops.dep) : "";
   q("arr").textContent = p ? "An " + fmt.time(p.eta) : "";

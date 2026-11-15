@@ -18,6 +18,7 @@ import { book, prune } from "./ledger.js";
 import { updateRep } from "./reputation.js";
 import { addFlightHours, legRisk, mostUrgent, startCheck, finishCheck } from "./maintenance.js";
 import { aircraftValue } from "./market.js";
+import { weatherDelay } from "./weather.js";
 
 const MAX_STEPS = 200_000;
 
@@ -95,7 +96,7 @@ function process(state, ac, ts, report, quiet) {
   }
   if (ac.status === "check") {
     const done = finishCheck(ac);
-    if (ac.ops) { ac.ops.dir = 0; ac.ops.dep = Math.max(ac.ops.dep, done.until); }
+    if (ac.ops) { ac.ops.dir = 0; ac.ops.dep = Math.max(ac.ops.dep, done.until); ac.ops.delay = null; }
     log(state, ts, "info", `${ac.reg}: ${done.type}-Check abgeschlossen.`);
     return;
   }
@@ -103,6 +104,7 @@ function process(state, ac, ts, report, quiet) {
   const route = state.routes.find(r => r.id === ac.ops.routeId);
   const dep = ac.ops.dep;
   const leg = computeLeg(state, ac, route, ac.ops.dir, dep, flightsPerDay(state, route));
+  if (ac.ops.delay) { leg.delay = ac.ops.delay.min; leg.delayReason = ac.ops.delay.reason; report.delays = (report.delays || 0) + 1; }
   for (const [c, v] of Object.entries(leg.rev)) book(state, leg.arr, "rev", c, v);
   for (const [c, v] of Object.entries(leg.cost)) book(state, leg.arr, "cost", c, v);
   const risk = legRisk(ac, dep, leg.blockH);
@@ -132,11 +134,19 @@ function process(state, ac, ts, report, quiet) {
   const turn = turnaroundH(typeOf(ac)) * H;
   ac.ops.dir = 1 - ac.ops.dir;
   ac.ops.dep = leg.arr + turn;
+  // Wetter am Ankunftsflughafen kann den Turnaround verlängern
+  const wd = weatherDelay(leg.to, leg.arr, ac.id);
+  ac.ops.delay = wd;
+  if (wd) {
+    ac.ops.dep += wd.min * 60_000;
+    if (wd.min >= 45) log(state, leg.arr, "warn", `${ac.reg} in ${wd.at}: ${wd.min} min Verspätung wegen ${wd.reason}.`);
+  }
   if (!arrivedHome) return;
 
   if (ac.unassign) { ac.ops = null; ac.unassign = false; ac.status = "idle"; return; }
   const due = ac.scheduledCheck || (ac.autoCheck && mostUrgent(ac, leg.arr)?.check);
   if (due) {
+    ac.ops.delay = null;
     const cost = startCheck(state, ac, due, leg.arr);
     book(state, leg.arr, "cost", "checks", cost);
     ac.scheduledCheck = null;

@@ -3,7 +3,8 @@ import { html, raw } from "../dom.js";
 import { fmt } from "../../core/util.js";
 import { AIRCRAFT, AIRCRAFT_BY_ID, MAKERS } from "../../data/aircraft.js";
 import { CHECKS } from "../../core/config.js";
-import { canOrderNew, newOrderQuote, usedListings, listPrice, MARKET_FACTOR } from "../../sim/market.js";
+import { canOrderNew, newOrderQuote, usedListings, listPrice, MARKET_FACTOR, deliveryDelay } from "../../sim/market.js";
+import { GAME } from "../../core/config.js";
 import { sideView } from "../aircraftArt.js";
 import * as act from "../../sim/actions.js";
 
@@ -20,6 +21,7 @@ export default {
         <select class="in" data-act="maker">${[["all", "Alle Hersteller"], ...MAKERS.map(m => [m, m])].map(([id, l]) => html`<option value="${id}" ${v.maker === id ? "selected" : ""}>${l}</option>`)}</select>
         <select class="in" data-act="sort">${[["seats", "Nach Sitzen"], ["price", "Nach Preis"], ["range", "Nach Reichweite"]].map(([id, l]) => html`<option value="${id}" ${v.sort === id ? "selected" : ""}>${l}</option>`)}</select>
       </div>
+      ${deliveryNote(ctx.state)}
       ${c ? html`<p class="small" style="margin-bottom:10px"><span class="pill good">Exklusivvertrag ${c.maker}</span> <span class="muted">Mengenrabatt auf Neubestellungen, −15 % auf Checks.</span></p>`
           : html`<p class="small muted" style="margin-bottom:10px">Tipp: Ein Exklusivvertrag (Airline → Verträge) bringt Mengenrabatte und günstigere Wartung – sperrt aber Neubestellungen beim anderen Hersteller.</p>`}
       ${v.tab === "used" ? used(ctx, v) : newer(ctx, v)}`;
@@ -30,11 +32,13 @@ export default {
       buyNew: el => {
         const qty = Math.max(1, +el.closest(".shop-item").querySelector("[name=qty]").value || 1);
         const r = ctx.run(act.orderNew, el.dataset.id, qty, ctx.now());
-        if (r) ctx.toast(`${qty}× ${AIRCRAFT_BY_ID[el.dataset.id].name} bestellt für ${fmt.money(r.cost)}. Auslieferung in Kürze.`, "good");
+        if (!r) return;
+        const late = r.aircraft.filter(a => a.availableAt), now = ctx.now();
+        ctx.toast(`${qty}× ${AIRCRAFT_BY_ID[el.dataset.id].name} gekauft für ${fmt.money(r.cost)}. ` + (late.length ? `${qty - late.length ? `${qty - late.length} sofort einsatzbereit, ` : ""}Lieferung ${late.length > 1 ? "ab" : "in"} ${fmt.duration(late[0].availableAt - now)} – Countdown im Hangar.` : "Sofort einsatzbereit!"), "good", 6000);
       },
       buyUsed: el => {
         const r = ctx.run(act.buyUsed, el.dataset.id, ctx.now());
-        if (r) ctx.toast(`${r.aircraft.reg} gekauft – wird überführt.`, "good");
+        if (r) ctx.toast(r.aircraft.availableAt ? `${r.aircraft.reg} gekauft – Überführung dauert ${fmt.duration(r.aircraft.availableAt - ctx.now())}.` : `${r.aircraft.reg} gekauft und sofort einsatzbereit!`, "good", 6000);
       }
     };
   },
@@ -81,7 +85,7 @@ function newer(ctx, v) {
         ${specs(t)}
         <div class="price-line"><div><b>${fmt.money(q.unit * (1 - q.disc))}</b><br><s>Liste ${fmt.money(listPrice(t))}</s></div>
           <div class="row"><input class="in" type="number" name="qty" min="1" max="50" value="1" data-act="qty" style="width:56px" ${block ? "disabled" : ""}><button class="btn p sm" data-act="buyNew" data-id="${t.id}" ${block ? "disabled" : ""}>Bestellen</button></div></div>
-        <div class="small ${block ? "warn" : "muted"}">${block || html`Gesamt: <span data-total>${fmt.money(q.total)}</span>`}</div>
+        <div class="small ${block ? "warn" : "muted"}">${block || html`Gesamt: <span data-total>${fmt.money(q.total)}</span> · Lieferung ${leadTime(s, t, false)}`}</div>
       </div></article>`;
   })}</div>
   <p class="small muted" style="margin-top:10px">Preise: Listenpreis × ${MARKET_FACTOR} (übliche Kundenrabatte). Werte sind Richtwerte nach Herstellerangaben.</p>`;
@@ -105,9 +109,15 @@ function used(ctx, v) {
           <div><span>Reichw.</span><b>${fmt.int(t.rangeKm)} km</b></div><div><span>Sitze</span><b>${t.seats}</b></div>
         </div>
         ${l.nearHeavy ? html`<div class="small warn">Schwerer Check steht bald an – daher günstiger.</div>` : ""}
+        <div class="small muted">Übergabe ${leadTime(s, t, true)}</div>
         <div class="price-line"><b>${fmt.money(l.price)}</b><button class="btn p sm" data-act="buyUsed" data-id="${l.id}" ${sold ? "disabled" : ""}>${sold ? "Gekauft" : "Kaufen"}</button></div>
       </div></article>`;
   })}</div>`;
 }
 
+function leadTime(s, t, used) { const d = deliveryDelay(s, t, { used }); return d ? "in " + fmt.duration(d).replace(/ 0 min$/, "") : "sofort"; }
+function deliveryNote(s) {
+  const left = GAME.instantDeliveries - (s.ordered || 0);
+  return left > 0 ? html`<p class="small" style="margin-bottom:10px"><span class="pill good">Startbonus</span> Die nächsten ${left} Flugzeuge werden sofort geliefert – danach gelten echte Lieferzeiten.</p>` : "";
+}
 const fmtLeft = ms => `${Math.floor(ms / 3600000)} h ${Math.floor(ms / 60000) % 60} min`;

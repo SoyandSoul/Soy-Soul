@@ -14,7 +14,7 @@ export default {
       if (!s.flights.length) return html`${t}<div class="empty"><b>Noch keine Flüge</b>Weise ein Flugzeug einer Strecke zu.</div>`;
       return html`${t}<table class="t"><thead><tr><th>Landung</th><th>Flug</th><th>Flugzeug</th><th class="r">Pax</th><th class="r">Auslastung</th><th class="r">Fracht</th><th class="r">Ergebnis</th></tr></thead><tbody>
         ${s.flights.map(f => html`<tr title="${CABIN.classes.map(c => `${CABIN.names[c]}: ${f.pax[c]}`).join(" · ")}">
-          <td class="mono small">${fmt.dateTime(f.arr)}</td><td><b>${f.from}–${f.to}</b>${f.event ? html` <span class="pill ${f.event === "crash" ? "bad" : "warn"}">${f.event === "crash" ? "Absturz" : "Vorfall"}</span>` : ""}</td>
+          <td class="mono small">${fmt.dateTime(f.arr)}</td><td><b>${f.from}–${f.to}</b>${f.event ? html` <span class="pill ${f.event === "crash" ? "bad" : "warn"}">${f.event === "crash" ? "Absturz" : "Vorfall"}</span>` : ""}${f.delay ? html` <span class="pill warn" title="${f.delayReason}">+${f.delay} min</span>` : ""}</td>
           <td class="small">${f.reg} · ${f.type}</td><td class="r">${f.paxTotal}</td><td class="r">${Math.round(f.lf * 100)} %</td><td class="r">${fmt.dec(f.cargoKg / 1000)} t</td>
           <td class="r ${f.profit < 0 ? "bad" : "good"}">${fmt.money(f.profit)}</td></tr>`)}
       </tbody></table>`;

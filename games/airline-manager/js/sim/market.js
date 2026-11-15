@@ -81,7 +81,15 @@ export function defaultConfig(type) {
   return { f: 0, j, w, y: Math.max(0, y) };
 }
 
-export function createAircraft(state, type, ts, { used = null } = {}) {
+/** Lieferzeit in ms für das nächste Flugzeug (die ersten GAME.instantDeliveries kommen sofort). */
+export function deliveryDelay(state, type, { used = false, orderIndex = 0 } = {}) {
+  if ((state.ordered || 0) < GAME.instantDeliveries) return 0;
+  return ((used ? GAME.usedDeliveryH : GAME.newDeliveryH[type.size]) + (used ? 0 : orderIndex * GAME.orderStaggerH)) * H;
+}
+
+export function createAircraft(state, type, ts, { used = null, orderIndex = 0 } = {}) {
+  const delay = deliveryDelay(state, type, { used: !!used, orderIndex });
+  state.ordered = (state.ordered || 0) + 1;
   const maint = {};
   for (const k of CHECKS.order) {
     maint[k] = used ? { fh: used.maint[k].fh, at: ts - used.maint[k].daysAgo * DAY } : { fh: 0, at: ts };
@@ -100,8 +108,8 @@ export function createAircraft(state, type, ts, { used = null } = {}) {
     aux: 0,
     autoCheck: true,
     scheduledCheck: null,
-    status: "delivery",
-    availableAt: ts + (used ? GAME.usedDeliveryH : GAME.newDeliveryH) * H,
+    status: delay ? "delivery" : "idle",
+    availableAt: delay ? ts + delay : null,
     ops: null,
     check: null
   };

@@ -37,6 +37,7 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
     flights: [],                              // letzte Flüge (Logbuch)
     log: [],                                  // Ereignisse für die UI
     market: { boughtUsed: [] },
+    ordered: 0,                               // Zähler für Sofort-Lieferungen
     lastSettled: now,
     lastFixedAt: now
   };
@@ -48,7 +49,8 @@ export function migrate(s) {
   // Beispiel für spätere Versionen:
   // if (s.v === 1) { s.airline.newField = default; s.v = 2; }
   if (s.v !== GAME.version) return null;
-  s.airline.livery = normalizeLivery(s.airline.livery); // alte Farbflächen-Livery → Malformat
+  s.airline.livery = normalizeLivery(s.airline.livery);
+  s.ordered ??= s.fleet.length; // alte Farbflächen-Livery → Malformat
   return s;
 }
 

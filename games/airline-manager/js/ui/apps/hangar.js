@@ -7,6 +7,7 @@ import { checkStatus, condition } from "../../sim/maintenance.js";
 import { aircraftValue } from "../../sim/market.js";
 import { sideView } from "../aircraftArt.js";
 import * as act from "../../sim/actions.js";
+import { seatmapSVG, setClass, moveBoundary, CLASS_COLORS } from "../seatmap.js";
 
 export const STATUS = {
   idle: ["Am Boden", "info"], active: ["Im Liniendienst", "good"], check: ["In Wartung", "warn"],
@@ -19,7 +20,7 @@ export default {
 
   render(ctx, v) {
     const s = ctx.state;
-    if (v.detail && s.fleet.some(a => a.id === v.detail)) return detail(ctx, s.fleet.find(a => a.id === v.detail));
+    if (v.detail && s.fleet.some(a => a.id === v.detail)) return detail(ctx, s.fleet.find(a => a.id === v.detail), v);
     if (!s.fleet.length) return html`<div class="empty"><b>Noch keine Flugzeuge</b>Im Flugzeugmarkt kannst du neu bestellen oder gebraucht kaufen.<div style="margin-top:12px"><button class="btn p" data-act="shop">Zum Flugzeugmarkt</button></div></div>`;
     const now = ctx.now();
     return html`<div class="row" style="margin-bottom:10px"><span class="muted small grow">${s.fleet.length} Flugzeuge · Flottenwert ${fmt.money(s.fleet.reduce((x, a) => x + (a.status === "crashed" ? 0 : aircraftValue(a, now)), 0))}</span><button class="btn sm" data-act="shop">Flugzeug kaufen</button></div>
@@ -30,9 +31,24 @@ export default {
           ${raw(sideView(t, s.airline.livery, { fit: true }))}
           <div><h3>${ac.reg} <span class="muted small">${t.name}</span></h3>
             <div class="meta">${r ? `${r.from} ⇄ ${r.to}` : "keine Strecke"} · ${totalSeats(ac.cfg)} Sitze · Zustand ${condition(ac, now)} %</div></div>
-          <div style="text-align:right" class="stack"><span class="pill ${st[1]}">${st[0]}</span>${worst ? html`<span class="pill ${cs[worst].state === "overdue" ? "bad" : "warn"}">${worst}-Check ${fmt.fh(cs[worst].rem)}</span>` : ""}</div>
+          <div style="text-align:right" class="stack"><span class="pill ${st[1]}">${st[0]}</span>${ac.status === "delivery" ? html`<span class="pill info" title="Lieferung ${fmt.dateTime(ac.availableAt)}">⏱ <span data-eta="${ac.availableAt}"></span></span>` : ""}${worst ? html`<span class="pill ${cs[worst].state === "overdue" ? "bad" : "warn"}">${worst}-Check ${fmt.fh(cs[worst].rem)}</span>` : ""}</div>
         </div>`;
       })}`;
+  },
+
+  /** Lieferungs-Countdowns jede Sekunde */
+  tick(el, ctx, v) {
+    const now = ctx.now();
+    if (v.detail && el.querySelector("[data-sm]")) {
+      bindSeatmap(el, ctx, v);
+      if (!el.querySelector("[data-units]").textContent) updateCabin(el, ctx, v);
+    }
+    el.querySelectorAll("[data-eta]").forEach(s => { const left = +s.dataset.eta - now; s.textContent = left > 0 ? fmt.duration(left) : "gleich da"; });
+  },
+
+  badge(ctx) {
+    const n = ctx.state.fleet.filter(a => a.status === "delivery").length;
+    return n ? { n, kind: "info" } : null;
   },
 
   click(ctx, v, api) {
@@ -41,11 +57,8 @@ export default {
       shop: () => api.open("shop"),
       open: el => { v.detail = el.dataset.id; api.rerender(); },
       back: () => { v.detail = null; api.rerender(); },
-      saveCabin: el => {
-        const box = el.closest(".body"), cfg = {};
-        for (const c of CABIN.classes) cfg[c] = box.querySelector(`[name="cab-${c}"]`).value;
-        ctx.run(act.setCabin, id(), cfg) && ctx.toast("Kabine umgebaut.", "good");
-      },
+      saveCabin: () => { if (ctx.run(act.setCabin, id(), v.draft)) ctx.toast("Kabine umgebaut.", "good"); },
+      resetCabin: el => { v.draft = { ...ctx.state.fleet.find(a => a.id === id()).cfg }; updateCabin(el.closest(".body"), ctx, v); },
       aux: () => ctx.run(act.addAuxTank, id(), ctx.now()) && ctx.toast("Zusatztank eingebaut.", "good"),
       assign: el => {
         const rid = el.closest(".body").querySelector("[name=route]").value;
@@ -69,24 +82,58 @@ export default {
 
   input(ctx, v) {
     return {
-      cab: el => {
-        const box = el.closest(".body"), ac = ctx.state.fleet.find(a => a.id === v.detail), cfg = {};
-        for (const c of CABIN.classes) cfg[c] = +box.querySelector(`[name="cab-${c}"]`).value || 0;
-        const u = seatUnits(cfg), max = typeOf(ac).seatsMax;
-        const out = box.querySelector("[data-units]");
-        out.textContent = `${Math.round(u)} / ${max} Einheiten · ${totalSeats(cfg)} Sitze`;
-        out.className = u > max ? "bad small" : u / max > 0.93 ? "warn small" : "muted small";
+      cabS: el => {
+        const ac = ctx.state.fleet.find(a => a.id === v.detail);
+        v.draft = setClass(v.draft, el.dataset.c, +el.value, typeOf(ac));
+        updateCabin(el.closest(".body"), ctx, v, el);
       }
     };
   }
 };
+
+/** Kabinenplan + Slider aktualisieren, ohne den gerade gezogenen Slider neu zu erzeugen */
+function updateCabin(box, ctx, v, active = null) {
+  const ac = ctx.state.fleet.find(a => a.id === v.detail), t = typeOf(ac), d = v.draft;
+  box.querySelector("[data-sm]").innerHTML = seatmapSVG(d, t);
+  for (const c of CABIN.classes) {
+    const sl = box.querySelector(`[data-act="cabS"][data-c="${c}"]`);
+    if (sl && sl !== active) sl.value = d[c] || 0;
+    const n = box.querySelector(`[data-n="${c}"]`); if (n) n.textContent = d[c] || 0;
+  }
+  const u = seatUnits(d), out = box.querySelector("[data-units]");
+  const changed = CABIN.classes.some(c => (d[c] || 0) !== (ac.cfg[c] || 0));
+  out.textContent = `${totalSeats(d)} Sitze · ${Math.round(u / t.seatsMax * 100)} % der Kabine belegt${u / t.seatsMax > 0.93 ? " – eng (Reputation −)" : ""}`;
+  out.className = u / t.seatsMax > 0.93 ? "warn small grow" : "muted small grow";
+  box.querySelector('[data-act="saveCabin"]').disabled = !changed || ac.status === "active";
+}
+
+/** Klassengrenzen im Kabinenplan ziehen */
+function bindSeatmap(box, ctx, v) {
+  const host = box.querySelector("[data-sm]");
+  if (!host || host.dataset.bound) return;
+  host.dataset.bound = "1";
+  host.addEventListener("pointerdown", e => {
+    const h = e.target.closest(".sm-handle");
+    const ac = ctx.state.fleet.find(a => a.id === v.detail);
+    if (!h || ac.status === "active") return;
+    const svg = host.querySelector("svg"), [l, r] = h.dataset.bound.split(",");
+    const x0 = svgX(svg, e.clientX), start = { ...v.draft }, scale = +svg.dataset.scale;
+    host.setPointerCapture(e.pointerId);
+    const move = ev => { v.draft = moveBoundary(start, l, r, (svgX(host.querySelector("svg"), ev.clientX) - x0) / scale, typeOf(ac)); updateCabin(box, ctx, v); };
+    const up = () => { host.removeEventListener("pointermove", move); host.removeEventListener("pointerup", up); };
+    host.addEventListener("pointermove", move);
+    host.addEventListener("pointerup", up);
+  });
+}
+const svgX = (svg, cx) => { const p = svg.createSVGPoint(); p.x = cx; p.y = 0; return p.matrixTransform(svg.getScreenCTM().inverse()).x; };
 
 function confirmSell(ac, ctx) {
   // Eigener Bestätigungsdialog wäre schöner; confirm() reicht fürs Fundament.
   return window.confirm(`${ac.reg} für ca. ${fmt.money(aircraftValue(ac, ctx.now()) * 0.95)} verkaufen?`);
 }
 
-function detail(ctx, ac) {
+function detail(ctx, ac, v) {
+  if (v.draftFor !== ac.id) { v.draft = { ...ac.cfg }; v.draftFor = ac.id; }
   const s = ctx.state, t = typeOf(ac), now = ctx.now();
   const route = ac.ops && s.routes.find(r => r.id === ac.ops.routeId);
   const units = seatUnits(ac.cfg), cs = checkStatus(ac, now), canEdit = ac.status !== "active";
@@ -98,6 +145,7 @@ function detail(ctx, ac) {
     <div class="row" style="margin:10px 0"><div class="grow"><h3 style="font-size:20px">${ac.reg} · ${t.maker} ${t.name}</h3>
       <div class="muted small">Gekauft ${new Date(ac.bought).toLocaleDateString("de-DE")} · ${fmt.int(ac.hours)} Flugstunden · ${fmt.int(ac.cycles)} Zyklen · Baujahr-Alter ${ac.ageYears} J.</div></div>
       <span class="pill ${STATUS[ac.status][1]}">${STATUS[ac.status][0]}</span></div>
+    ${ac.status === "delivery" ? html`<div class="card row" style="margin-bottom:10px"><span class="grow">Lieferung am ${fmt.dateTime(ac.availableAt)}</span><b class="mono acc">⏱ <span data-eta="${ac.availableAt}"></span></b></div>` : ""}
     <input class="in" style="width:100%" name="rename" data-act="rename" placeholder="Taufname (optional)" value="${ac.name}" maxlength="24">
 
     <h3 style="margin:16px 0 8px;font-size:15px">Einsatz</h3>
@@ -107,11 +155,13 @@ function detail(ctx, ac) {
         <p class="small muted" style="margin-top:6px">${s.routes.length - usable.length ? `${s.routes.length - usable.length} Strecke(n) ausgeblendet: Reichweite oder Bahnlänge passt nicht.` : "Fliegt im Pendel: Hinflug, Turnaround, Rückflug – rund um die Uhr in Echtzeit."}</p>`}</div>
 
     <h3 style="margin:16px 0 8px;font-size:15px">Kabine</h3>
-    <div class="card"><div class="cabin-edit">
-      ${CABIN.classes.map(c => html`<span>${CABIN.names[c]}</span><span class="muted small">${CABIN.units[c]} Einheit${CABIN.units[c] === 1 ? "" : "en"} pro Sitz</span><input class="in" type="number" min="0" step="1" name="cab-${c}" value="${ac.cfg[c] || 0}" data-act="cab" ${canEdit ? "" : "disabled"}>`)}
-    </div>
-    <div class="row" style="margin-top:10px"><span data-units class="muted small grow">${Math.round(units)} / ${t.seatsMax} Einheiten · ${totalSeats(ac.cfg)} Sitze</span><button class="btn sm p" data-act="saveCabin" ${canEdit ? "" : "disabled"}>Umbauen</button></div>
-    <p class="small muted" style="margin-top:6px">Über ${Math.round(93)} % Auslastung des Budgets gilt die Kabine als eng (Reputation −). Umbau nur ohne Strecke.</p></div>
+    <div class="card">
+      <div data-sm>${raw(seatmapSVG(v.draft, t))}</div>
+      <div class="cab-sliders">${CABIN.classes.map(c => html`<label><span style="color:${CLASS_COLORS[c]}">${CABIN.names[c]}</span>
+        <input type="range" min="0" max="${Math.floor(t.seatsMax / CABIN.units[c])}" value="${v.draft[c] || 0}" data-act="cabS" data-c="${c}" style="accent-color:${CLASS_COLORS[c]}" ${canEdit ? "" : "disabled"}>
+        <b class="mono" data-n="${c}">${v.draft[c] || 0}</b></label>`)}</div>
+      <div class="row" style="margin-top:8px"><span data-units class="muted small grow"></span><button class="btn sm" data-act="resetCabin">Zurücksetzen</button><button class="btn sm p" data-act="saveCabin" disabled>Umbauen</button></div>
+      <p class="small muted" style="margin-top:6px">${canEdit ? "Slider oder die gelben Griffe im Kabinenplan ziehen. Mehr Business oder First nimmt Economy-Plätze weg – und umgekehrt." : "Umbau nur, wenn das Flugzeug keine Strecke fliegt."} Über 93 % belegter Kabine gilt sie als eng (Reputation −).</p></div>
 
     <h3 style="margin:16px 0 8px;font-size:15px">Technik</h3>
     <div class="grid2">

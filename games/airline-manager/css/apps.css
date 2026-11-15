@@ -90,3 +90,13 @@
   .pt-palette { grid-template-columns: repeat(9, 1fr); }
   .pt-foot { display: none; }
 }
+
+/* ---------- Kabinenplan */
+.seatmap { width: 100%; height: auto; display: block; touch-action: none; user-select: none; }
+.seatmap .sm-handle { cursor: ew-resize; }
+.seatmap .sm-handle:hover rect:last-child { fill: #ffd27a; }
+.cab-sliders { display: grid; gap: 4px; margin-top: 8px; }
+.cab-sliders label { display: grid; grid-template-columns: 96px 1fr 40px; gap: 10px; align-items: center; font-size: 13px; font-weight: 600; }
+.cab-sliders b { text-align: right; }
+.pt-toolgrid.pt7 { grid-template-columns: repeat(4, 1fr); }
+.pt-canvas .pt-text { cursor: move; }

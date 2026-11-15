@@ -163,7 +163,7 @@ function parametric(t) {
   else if (L > 42) doorsX.push(L * 0.40, L * 0.62);
   const dw = t.size === "narrow" ? 0.82 : 1.05, dh = t.size === "narrow" ? 1.85 : 1.93;
   const doors = doorsX.map(x => ({ x, y: winY[0] - 0.55, w: dw, h: dh }));
-  const ck = cockpit(nl, noseY, top, D, t.family);
+  const ck = cockpit(nl, D, t.family, x => yTopAt(upper, x));
   return { id: t.id, L, D, zones: { fin, fuselage, stab, wing, engine }, deco: { windows: rows, doors, cockpit: [ck] }, source: "parametric" };
 }
 
@@ -175,11 +175,11 @@ function nacelle(x, cy, l, d) {
   return [...pts, [x + l * 0.72, cy - r], [x + l, cy - r * 0.62], [x + l * 1.08, cy - r * 0.15], [x + l, cy + r * 0.5], [x + l * 0.72, cy + r * 0.95]];
 }
 
-function cockpit(nl, noseY, top, D, fam) {
-  const sleek = fam === "787" || fam === "A350";
-  const x0 = nl * (sleek ? 0.42 : 0.5), x1 = nl * (sleek ? 0.8 : 0.78);
-  const y0 = top + D * (sleek ? 0.2 : 0.24), y1 = top + D * 0.37;
-  return { pts: [[x0, y1], [x0 + (x1 - x0) * 0.35, y0], [x1, y0 - D * 0.02], [x1, y1 - D * 0.01]], smooth: false };
+/** Cockpitfenster: sitzen vorne auf der Nasenrundung, folgen der Oberkontur */
+function cockpit(nl, D, fam, yTop) {
+  const [a, b] = { 737: [0.2, 0.4], 757: [0.2, 0.4], 787: [0.24, 0.5], A350: [0.24, 0.5], A380: [0.3, 0.55], 747: [0.26, 0.48] }[fam] || [0.24, 0.45];
+  const x0 = nl * a, x1 = nl * b, xm = x0 + (x1 - x0) * 0.3;
+  return { pts: [[x0, yTop(x0) + D * 0.13], [xm, yTop(xm) + D * 0.045], [x1, yTop(x1) + D * 0.06], [x1, yTop(x1) + D * 0.16], [xm, yTop(xm) + D * 0.15]], smooth: false };
 }
 
 function yTopAt(upper, x) {

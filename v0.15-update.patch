@@ -1,0 +1,1361 @@
+From 9305fdf881e945dcc0475a7a8679d3d6822281e2 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 15 Nov 2026 20:59:14 +0100
+Subject: [PATCH] Airline Manager v0.15: Lieferzeiten, Airline-Dropdown,
+ Fensterplatzierung, Kabinenplan, Wetter, Lackiererei-Fixes
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NQCrhPYKgBdc6nKYNTae7E
+---
+ games/airline-manager/README.md             | 14 ++++
+ games/airline-manager/css/apps.css          | 10 +++
+ games/airline-manager/css/base.css          |  1 +
+ games/airline-manager/css/layout.css        | 32 ++++++-
+ games/airline-manager/js/art/geometry.js    | 12 +--
+ games/airline-manager/js/art/render.js      | 33 ++++----
+ games/airline-manager/js/core/config.js     |  9 +-
+ games/airline-manager/js/core/store.js      |  4 +-
+ games/airline-manager/js/main.js            |  8 +-
+ games/airline-manager/js/sim/actions.js     |  7 +-
+ games/airline-manager/js/sim/engine.js      | 12 ++-
+ games/airline-manager/js/sim/market.js      | 14 +++-
+ games/airline-manager/js/sim/weather.js     | 73 ++++++++++++++++
+ games/airline-manager/js/ui/airmenu.js      | 64 ++++++++++++++
+ games/airline-manager/js/ui/apps/hangar.js  | 90 +++++++++++++++-----
+ games/airline-manager/js/ui/apps/logbook.js |  2 +-
+ games/airline-manager/js/ui/apps/shop.js    | 18 +++-
+ games/airline-manager/js/ui/flightcard.js   | 10 ++-
+ games/airline-manager/js/ui/hud.js          | 10 ++-
+ games/airline-manager/js/ui/map.js          | 33 +++++++-
+ games/airline-manager/js/ui/painter.js      | 92 +++++++++++++++++----
+ games/airline-manager/js/ui/seatmap.js      | 89 ++++++++++++++++++++
+ games/airline-manager/js/ui/windows.js      | 29 ++++++-
+ games/airline-manager/tests/sim.test.mjs    | 15 ++++
+ index.html                                  |  2 +-
+ 25 files changed, 596 insertions(+), 87 deletions(-)
+ create mode 100644 games/airline-manager/js/sim/weather.js
+ create mode 100644 games/airline-manager/js/ui/airmenu.js
+ create mode 100644 games/airline-manager/js/ui/seatmap.js
+
+diff --git a/games/airline-manager/README.md b/games/airline-manager/README.md
+index a014f49..22e0135 100644
+--- a/games/airline-manager/README.md
++++ b/games/airline-manager/README.md
+@@ -244,3 +244,17 @@ aber langsam. Hebel in `core/config.js`: `GAME.startCash`, `GAME.marketShare`, `
+ - Konkurrenz auf Strecken: Nachfrage teilen, wenn andere Spieler dieselbe Strecke fliegen (braucht Backend)
+ - Slots an Tier-5-Flughäfen, Nachtflugverbote
+ - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
++
++## Änderungen
++
++**v0.15**
++- Die ersten 5 Flugzeuge kommen sofort, danach Lieferzeiten in Echtzeit (`GAME.newDeliveryH`, `orderStaggerH`,
++  `usedDeliveryH` in `core/config.js`) mit Countdown im Hangar und Badge im Dock.
++- Airline-Menü als großes Dropdown oben links (Klick auf den Airline-Namen); der Airline-Knopf im Dock entfällt.
++- Neue Fenster suchen sich den freiesten Platz auf dem Bildschirm (`ui/windows.js → place`).
++- Kabine: Slider pro Klasse und ziehbare Klassengrenzen im Kabinenplan (`ui/seatmap.js`). Mehr Business/First nimmt
++  Economy Plätze weg und umgekehrt.
++- Wetter (`sim/weather.js`): saisonal und nach Klimazone, für alle Spieler identisch. Gewitter, Schnee und Nebel
++  verlängern manchmal den Turnaround → Verspätungssymbol auf der Karte, Hinweis in der Flug-Infokarte und im Logbuch.
++- Lackiererei: Cockpitfenster sitzen weiter vorn auf der Nase; Texte lassen sich auswählen, verschieben, umfärben,
++  in Größe/Inhalt ändern und löschen (Werkzeug „Auswählen“, Taste V).
+diff --git a/games/airline-manager/css/apps.css b/games/airline-manager/css/apps.css
+index c113bfc..81a7970 100644
+--- a/games/airline-manager/css/apps.css
++++ b/games/airline-manager/css/apps.css
+@@ -90,3 +90,13 @@
+   .pt-palette { grid-template-columns: repeat(9, 1fr); }
+   .pt-foot { display: none; }
+ }
++
++/* ---------- Kabinenplan */
++.seatmap { width: 100%; height: auto; display: block; touch-action: none; user-select: none; }
++.seatmap .sm-handle { cursor: ew-resize; }
++.seatmap .sm-handle:hover rect:last-child { fill: #ffd27a; }
++.cab-sliders { display: grid; gap: 4px; margin-top: 8px; }
++.cab-sliders label { display: grid; grid-template-columns: 96px 1fr 40px; gap: 10px; align-items: center; font-size: 13px; font-weight: 600; }
++.cab-sliders b { text-align: right; }
++.pt-toolgrid.pt7 { grid-template-columns: repeat(4, 1fr); }
++.pt-canvas .pt-text { cursor: move; }
+diff --git a/games/airline-manager/css/base.css b/games/airline-manager/css/base.css
+index 4c23da5..674e505 100644
+--- a/games/airline-manager/css/base.css
++++ b/games/airline-manager/css/base.css
+@@ -18,6 +18,7 @@
+ }
+ 
+ * { box-sizing: border-box; margin: 0; padding: 0; }
++[hidden] { display: none !important; }
+ html, body { height: 100%; overflow: hidden; }
+ body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+ button, input, select { font: inherit; color: inherit; }
+diff --git a/games/airline-manager/css/layout.css b/games/airline-manager/css/layout.css
+index ac7d7ea..4232ebc 100644
+--- a/games/airline-manager/css/layout.css
++++ b/games/airline-manager/css/layout.css
+@@ -12,7 +12,7 @@
+ .hud { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 20; display: flex; gap: 8px; align-items: stretch; pointer-events: none; }
+ .hud > * { pointer-events: auto; }
+ .glass { background: var(--panel); backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+-.hud .brand { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; }
++.hud .brand { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 8px; }
+ .hud .brand a { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--raise2); color: var(--ink2); text-decoration: none; }
+ .hud .brand .tail { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font: 800 13px var(--display); }
+ .hud .brand b { display: block; font: 650 15px var(--display); line-height: 1.1; }
+@@ -96,3 +96,33 @@
+   .win { left: 8px !important; right: 8px; top: auto !important; bottom: 86px; width: auto !important; max-height: 70vh; }
+   .flightcard { left: 12px; right: 12px; width: auto; top: auto; bottom: 86px; }
+ }
++
++/* ---------- Airline-Dropdown */
++.am-btn { display: flex; align-items: center; gap: 10px; padding: 3px 8px 3px 3px; border-radius: 11px; text-align: left; transition: background .15s; }
++.am-btn:hover, .am-btn[aria-expanded="true"] { background: rgba(255,255,255,.06); }
++.am-btn .am-name b { display: block; font: 650 15px var(--display); line-height: 1.1; }
++.am-btn .am-name small { color: var(--ink3); font: 12px var(--mono); }
++.am-btn .chev { color: var(--ink3); transition: transform .2s var(--ease); }
++.am-btn[aria-expanded="true"] .chev { transform: rotate(180deg); color: var(--accent); }
++.airmenu { position: fixed; top: 74px; left: 12px; z-index: 70; width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 170px); overflow: auto; padding: 14px; border-color: var(--line2); animation: menuIn .2s var(--ease); transform-origin: top left; }
++@keyframes menuIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
++.am-head { display: grid; grid-template-columns: 170px 1fr; gap: 14px; align-items: center; }
++.am-head b { display: block; font: 700 22px var(--display); letter-spacing: -.01em; }
++.am-art { background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,.1), transparent 70%); border-radius: 12px; padding: 4px; }
++.am-art svg { width: 100%; height: auto; display: block; }
++.am-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0; }
++.am-stats div { background: var(--raise); border-radius: 10px; padding: 7px 10px; }
++.am-stats span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink3); }
++.am-stats b { font: 650 15px var(--display); }
++.am-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
++.am-grid button { display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border-radius: 12px; background: var(--raise); border: 1px solid transparent; transition: border-color .15s, background .15s; }
++.am-grid button:hover, .am-grid button:focus-visible { border-color: rgba(255,176,0,.45); background: var(--raise2); }
++.am-grid svg { width: 26px; height: 26px; color: var(--accent); flex: none; }
++.am-grid b { display: block; font-size: 14px; }
++.am-grid small { color: var(--ink3); font-size: 12px; }
++.am-foot { margin-top: 10px; text-align: right; }
++.dock .badge.info { background: var(--info); }
++@media (max-width: 720px) { .am-grid { grid-template-columns: 1fr; } .am-stats { grid-template-columns: 1fr 1fr; } .am-head { grid-template-columns: 110px 1fr; } }
++.fc-delay { margin: 0 14px 8px; padding: 6px 10px; border-radius: 9px; background: color-mix(in srgb, var(--bad) 16%, transparent); color: #ffb3bb; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
++.fc-clock { width: 14px; height: 14px; border-radius: 50%; background: var(--bad); position: relative; flex: none; }
++.fc-clock::after { content: ""; position: absolute; left: 6px; top: 3px; width: 2px; height: 5px; background: #fff; box-shadow: 2px 3px 0 -0px #fff; }
+diff --git a/games/airline-manager/js/art/geometry.js b/games/airline-manager/js/art/geometry.js
+index 6537c18..b3c522c 100644
+--- a/games/airline-manager/js/art/geometry.js
++++ b/games/airline-manager/js/art/geometry.js
+@@ -163,7 +163,7 @@ function parametric(t) {
+   else if (L > 42) doorsX.push(L * 0.40, L * 0.62);
+   const dw = t.size === "narrow" ? 0.82 : 1.05, dh = t.size === "narrow" ? 1.85 : 1.93;
+   const doors = doorsX.map(x => ({ x, y: winY[0] - 0.55, w: dw, h: dh }));
+-  const ck = cockpit(nl, noseY, top, D, t.family);
++  const ck = cockpit(nl, D, t.family, x => yTopAt(upper, x));
+   return { id: t.id, L, D, zones: { fin, fuselage, stab, wing, engine }, deco: { windows: rows, doors, cockpit: [ck] }, source: "parametric" };
+ }
+ 
+@@ -175,11 +175,11 @@ function nacelle(x, cy, l, d) {
+   return [...pts, [x + l * 0.72, cy - r], [x + l, cy - r * 0.62], [x + l * 1.08, cy - r * 0.15], [x + l, cy + r * 0.5], [x + l * 0.72, cy + r * 0.95]];
+ }
+ 
+-function cockpit(nl, noseY, top, D, fam) {
+-  const sleek = fam === "787" || fam === "A350";
+-  const x0 = nl * (sleek ? 0.42 : 0.5), x1 = nl * (sleek ? 0.8 : 0.78);
+-  const y0 = top + D * (sleek ? 0.2 : 0.24), y1 = top + D * 0.37;
+-  return { pts: [[x0, y1], [x0 + (x1 - x0) * 0.35, y0], [x1, y0 - D * 0.02], [x1, y1 - D * 0.01]], smooth: false };
++/** Cockpitfenster: sitzen vorne auf der Nasenrundung, folgen der Oberkontur */
++function cockpit(nl, D, fam, yTop) {
++  const [a, b] = { 737: [0.2, 0.4], 757: [0.2, 0.4], 787: [0.24, 0.5], A350: [0.24, 0.5], A380: [0.3, 0.55], 747: [0.26, 0.48] }[fam] || [0.24, 0.45];
++  const x0 = nl * a, x1 = nl * b, xm = x0 + (x1 - x0) * 0.3;
++  return { pts: [[x0, yTop(x0) + D * 0.13], [xm, yTop(xm) + D * 0.045], [x1, yTop(x1) + D * 0.06], [x1, yTop(x1) + D * 0.16], [xm, yTop(xm) + D * 0.15]], smooth: false };
+ }
+ 
+ function yTopAt(upper, x) {
+diff --git a/games/airline-manager/js/art/render.js b/games/airline-manager/js/art/render.js
+index 0347f88..c2655da 100644
+--- a/games/airline-manager/js/art/render.js
++++ b/games/airline-manager/js/art/render.js
+@@ -29,23 +29,24 @@ export function renderAircraft(typeOrId, livery, opts = {}) {
+   defs.push(`<linearGradient id="${id}-sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".28" stop-color="#fff" stop-opacity="0"/><stop offset=".72" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0b1a33" stop-opacity=".22"/></linearGradient>`);
+   defs.push(`<linearGradient id="${id}-eng" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#0b1a33" stop-opacity=".3"/></linearGradient>`);
+ 
+-  const outline = (polys, extra = "") => polys.map(poly => `<path d="${pathD(poly.pts, poly.smooth)}" fill="none" stroke="#1b2230" stroke-opacity=".75" stroke-width="${ow}" stroke-linejoin="round" vector-effect="non-scaling-stroke" ${extra}/>`).join("");
++  const outline = (polys, extra = "") => polys.map(poly => `<path d="${pathD(poly.pts, poly.smooth)}" fill="none" stroke="#1b2230" stroke-opacity=".75" stroke-width="${ow}" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none" ${extra}/>`).join("");
+ 
+   if (opts.shadow !== false) body.push(`<ellipse cx="${(bb.x0 + bb.x1) / 2}" cy="${bb.y1 + 1.6}" rx="${(bb.x1 - bb.x0) * 0.42}" ry="${0.45}" fill="#000" opacity=".22"/>`);
+ 
+   // Malreihenfolge: Leitwerk (hinter dem Rumpf), Rumpf + Deko, Höhenleitwerk, Flügel, Triebwerke
+-  body.push(zoneLayer(p, lv, "fin", id), outline(p.zones.fin));
+-  body.push(zoneLayer(p, lv, "fuselage", id));
++  const ia = !!opts.interactive;
++  body.push(zoneLayer(p, lv, "fin", id, null, ia), outline(p.zones.fin));
++  body.push(zoneLayer(p, lv, "fuselage", id, null, ia));
+   body.push(deco(p, id));
+-  body.push(`<rect x="${bb.x0 - 1}" y="${p.zoneBox.fuselage.y0}" width="${bb.x1 - bb.x0 + 2}" height="${boxH(p.zoneBox.fuselage)}" fill="url(#${id}-sheen)" clip-path="url(#${id}-fuselage)"/>`);
++  body.push(`<rect x="${bb.x0 - 1}" y="${p.zoneBox.fuselage.y0}" width="${bb.x1 - bb.x0 + 2}" height="${boxH(p.zoneBox.fuselage)}" fill="url(#${id}-sheen)" clip-path="url(#${id}-fuselage)" pointer-events="none"/>`);
+   body.push(outline(p.zones.fuselage));
+-  body.push(zoneLayer(p, lv, "stab", id), outline(p.zones.stab));
+-  body.push(zoneLayer(p, lv, "wing", id), `<g clip-path="url(#${id}-wing)"><rect x="${bb.x0}" y="${bb.y0}" width="${bb.x1 - bb.x0}" height="${bb.y1 - bb.y0}" fill="#0b1a33" opacity=".07"/></g>`, outline(p.zones.wing));
++  body.push(zoneLayer(p, lv, "stab", id, null, ia), outline(p.zones.stab));
++  body.push(zoneLayer(p, lv, "wing", id, null, ia), `<g clip-path="url(#${id}-wing)" pointer-events="none"><rect x="${bb.x0}" y="${bb.y0}" width="${bb.x1 - bb.x0}" height="${bb.y1 - bb.y0}" fill="#0b1a33" opacity=".07"/></g>`, outline(p.zones.wing));
+   (p.zones.engine || []).forEach((poly, i) => {
+-    body.push(zoneLayer(p, lv, "engine", id, i));
++    body.push(zoneLayer(p, lv, "engine", id, i, ia));
+     const b = poly.box, h = b.y1 - b.y0;
+-    body.push(`<rect x="${b.x0}" y="${b.y0}" width="${b.x1 - b.x0}" height="${h}" fill="url(#${id}-eng)" clip-path="url(#${id}-engine-${i})"/>`);
+-    body.push(`<ellipse cx="${b.x0 + h * 0.06}" cy="${(b.y0 + b.y1) / 2}" rx="${h * 0.07}" ry="${h * 0.4}" fill="#1b2230" opacity=".85"/>`);
++    body.push(`<rect x="${b.x0}" y="${b.y0}" width="${b.x1 - b.x0}" height="${h}" fill="url(#${id}-eng)" clip-path="url(#${id}-engine-${i})" pointer-events="none"/>`);
++    body.push(`<ellipse cx="${b.x0 + h * 0.06}" cy="${(b.y0 + b.y1) / 2}" rx="${h * 0.07}" ry="${h * 0.4}" fill="#1b2230" opacity=".85" pointer-events="none"/>`);
+     body.push(outline([poly]));
+   });
+   if (opts.overlay) body.push(opts.overlay);
+@@ -57,18 +58,18 @@ export function renderAircraft(typeOrId, livery, opts = {}) {
+ }
+ 
+ /** Ein Bauteil: Grundfarbe + alle Livery-Elemente dieses Bauteils, auf die Kontur zugeschnitten */
+-function zoneLayer(p, lv, z, id, engineIdx = null) {
++function zoneLayer(p, lv, z, id, engineIdx = null, interactive = false) {
+   const fr = frames(p, z);
+   const list = z === "engine" ? [[fr[engineIdx], `${id}-engine-${engineIdx}`]] : fr.map(b => [b, `${id}-${z}`]);
+   return list.map(([box, clip]) => {
+     if (!box) return "";
+     const out = [`<rect x="${box.x0 - 1}" y="${box.y0 - 1}" width="${box.x1 - box.x0 + 2}" height="${boxH(box) + 2}" fill="${lv.base[z]}"/>`];
+-    for (const it of lv.items) if (it.z === z) out.push(item(it, box, lv.base[z]));
++    lv.items.forEach((it, i) => { if (it.z === z) out.push(item(it, box, lv.base[z], interactive ? i : null)); });
+     return `<g clip-path="url(#${clip})">${out.join("")}</g>`;
+   }).join("");
+ }
+ 
+-export function item(it, box, baseColor) {
++export function item(it, box, baseColor, idx = null) {
+   const h = boxH(box);
+   switch (it.t) {
+     case "band": {
+@@ -78,7 +79,7 @@ export function item(it, box, baseColor) {
+     case "text": {
+       const [x, y] = fromUV(box, it.u, it.v), s = it.s * h;
+       const tr = it.i ? ` transform="skewX(-12)" transform-origin="${x} ${y}"` : "";
+-      return `<text x="${x}" y="${y}" font-size="${s}" font-family="Bricolage, system-ui, sans-serif" font-weight="${it.b ? 800 : 500}" fill="${it.c}" text-anchor="middle" dominant-baseline="central"${tr}>${esc(it.txt)}</text>`;
++      return `<text${idx != null ? ` data-it="${idx}" class="pt-text"` : ""} x="${x}" y="${y}" font-size="${s}" font-family="Bricolage, system-ui, sans-serif" font-weight="${it.b ? 800 : 500}" fill="${it.c}" text-anchor="middle" dominant-baseline="central"${tr}>${esc(it.txt)}</text>`;
+     }
+     default: {
+       const pts = it.p.map(([u, v]) => fromUV(box, u, v));
+@@ -93,9 +94,9 @@ function deco(p) {
+   for (const r of p.deco.windows || []) {
+     for (let x = r.x0; x <= r.x1; x += r.pitch) out.push(`<rect x="${(x - r.w / 2).toFixed(2)}" y="${(r.y - r.h / 2).toFixed(2)}" width="${r.w}" height="${r.h}" rx="${r.w / 2}"/>`);
+   }
+-  const win = `<g fill="#1b2a3f" opacity=".9">${out.join("")}</g>`;
+-  const doors = (p.deco.doors || []).map(d => `<rect x="${d.x - d.w / 2}" y="${d.y}" width="${d.w}" height="${d.h}" rx="${d.w * 0.3}" fill="none" stroke="#1b2230" stroke-opacity=".35" stroke-width=".7" vector-effect="non-scaling-stroke"/>`).join("");
+-  const ck = (p.deco.cockpit || []).map(c => `<path d="${pathD(c.pts, c.smooth)}" fill="#14202f"/>`).join("");
++  const win = `<g fill="#1b2a3f" opacity=".9" pointer-events="none">${out.join("")}</g>`;
++  const doors = (p.deco.doors || []).map(d => `<rect x="${d.x - d.w / 2}" y="${d.y}" width="${d.w}" height="${d.h}" rx="${d.w * 0.3}" fill="none" stroke="#1b2230" stroke-opacity=".35" stroke-width=".7" vector-effect="non-scaling-stroke" pointer-events="none"/>`).join("");
++  const ck = (p.deco.cockpit || []).map(c => `<path d="${pathD(c.pts, c.smooth)}" fill="#14202f" pointer-events="none"/>`).join("");
+   return win + doors + ck;
+ }
+ 
+diff --git a/games/airline-manager/js/core/config.js b/games/airline-manager/js/core/config.js
+index 204723a..479714f 100644
+--- a/games/airline-manager/js/core/config.js
++++ b/games/airline-manager/js/core/config.js
+@@ -10,8 +10,13 @@ export const GAME = {
+   startCash: 200_000_000,
+   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
+   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
+-  newDeliveryH: 1,                   // Lieferzeit Neuflugzeug (Echtzeit-Stunden)
+-  usedDeliveryH: 0.25,               // Überführung Gebrauchtflugzeug
++  label: "v0.15",
++  instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
++  // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
++  // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
++  newDeliveryH: { narrow: 72, wide: 120, jumbo: 168 },
++  orderStaggerH: 24,                 // jedes weitere Flugzeug derselben Bestellung kommt einen Tag später
++  usedDeliveryH: 24,                 // Gebraucht: Übergabe-Check, Umregistrierung, Überführungsflug
+   marketShare: 0.30                  // Anteil am Gesamtmarkt einer Strecke, den eine Spieler-Airline bedienen kann
+ };
+ 
+diff --git a/games/airline-manager/js/core/store.js b/games/airline-manager/js/core/store.js
+index 6b70eff..9fb8446 100644
+--- a/games/airline-manager/js/core/store.js
++++ b/games/airline-manager/js/core/store.js
+@@ -37,6 +37,7 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
+     flights: [],                              // letzte Flüge (Logbuch)
+     log: [],                                  // Ereignisse für die UI
+     market: { boughtUsed: [] },
++    ordered: 0,                               // Zähler für Sofort-Lieferungen
+     lastSettled: now,
+     lastFixedAt: now
+   };
+@@ -48,7 +49,8 @@ export function migrate(s) {
+   // Beispiel für spätere Versionen:
+   // if (s.v === 1) { s.airline.newField = default; s.v = 2; }
+   if (s.v !== GAME.version) return null;
+-  s.airline.livery = normalizeLivery(s.airline.livery); // alte Farbflächen-Livery → Malformat
++  s.airline.livery = normalizeLivery(s.airline.livery);
++  s.ordered ??= s.fleet.length; // alte Farbflächen-Livery → Malformat
+   return s;
+ }
+ 
+diff --git a/games/airline-manager/js/main.js b/games/airline-manager/js/main.js
+index 3420fcf..8a0cdc1 100644
+--- a/games/airline-manager/js/main.js
++++ b/games/airline-manager/js/main.js
+@@ -30,7 +30,8 @@ import stocks from "./ui/apps/stocks.js";
+ import board from "./ui/apps/leaderboard.js";
+ import logbook from "./ui/apps/logbook.js";
+ 
+-const DOCK = [[hangar, "Hangar"], [shop, "Markt"], [routes, "Routen"], [maint, "Wartung"], [fuel, "Kerosin"], [airline, "Airline"], [stocks, "Börse"], [board, "Rangliste"], [logbook, "Logbuch"]];
++const DOCK = [[hangar, "Hangar"], [shop, "Markt"], [routes, "Routen"], [maint, "Wartung"], [fuel, "Kerosin"], [stocks, "Börse"], [board, "Rangliste"], [logbook, "Logbuch"]];
++// Die Airline-App öffnet sich über das Dropdown oben links (ui/airmenu.js)
+ 
+ // ---------- Kontext, den alle UI-Teile bekommen
+ const ctx = {
+@@ -96,7 +97,7 @@ function updateDock() {
+     b.setAttribute("aria-pressed", String(isOpen(app.id)));
+     b.querySelector(".badge")?.remove();
+     const badge = ctx.state && app.badge?.(ctx);
+-    if (badge) b.insertAdjacentHTML("beforeend", `<i class="badge ${badge.kind === "warn" ? "warn" : ""}">${badge.n}</i>`);
++    if (badge) b.insertAdjacentHTML("beforeend", `<i class="badge ${badge.kind}">${badge.n}</i>`);
+   }
+ }
+ 
+@@ -163,6 +164,7 @@ async function boot() {
+   try { setTracedProfiles(await (await fetch("data/profiles.json", { cache: "no-cache" })).json()); } catch { /* optional */ }
+   initWindows(ctx);
+   for (const [app] of DOCK) register(app);
++  register(airline);
+   ctx.map = createMap(document.getElementById("map"), ctx);
+   ctx.state = load();
+   if (ctx.state) return start();
+@@ -170,7 +172,7 @@ async function boot() {
+     ctx.state = newGame({ name, iata, hub, player: newPlayer(), now: ctx.now() });
+     save(ctx.state);
+     start();
+-    toast(`${name} ist gegründet! Deine Flugzeuge sind noch weiß – in der Lackiererei (Klick auf dein Kürzel oben links) malst du deine Livery.`, "good", 8000);
++    toast(`${name} ist gegründet! Deine Flugzeuge sind noch weiß – im Airline-Menü oben links → Lackiererei malst du deine Livery.`, "good", 8000);
+   });
+ }
+ 
+diff --git a/games/airline-manager/js/sim/actions.js b/games/airline-manager/js/sim/actions.js
+index 15c7451..ab412c3 100644
+--- a/games/airline-manager/js/sim/actions.js
++++ b/games/airline-manager/js/sim/actions.js
+@@ -26,7 +26,12 @@ export function orderNew(state, typeId, qty, now) {
+   if (q.total > state.cash) return fail("Nicht genug Geld für diese Bestellung.");
+   book(state, now, "cost", "aircraft", q.total);
+   const list = [];
+-  for (let i = 0; i < qty; i++) { const ac = createAircraft(state, t, now); ac.price = q.total / qty; state.fleet.push(ac); list.push(ac); }
++  let late = 0;
++  for (let i = 0; i < qty; i++) {
++    const ac = createAircraft(state, t, now, { orderIndex: late });
++    if (ac.availableAt) late++;
++    ac.price = q.total / qty; state.fleet.push(ac); list.push(ac);
++  }
+   return ok({ aircraft: list, cost: q.total });
+ }
+ 
+diff --git a/games/airline-manager/js/sim/engine.js b/games/airline-manager/js/sim/engine.js
+index b211916..b985000 100644
+--- a/games/airline-manager/js/sim/engine.js
++++ b/games/airline-manager/js/sim/engine.js
+@@ -18,6 +18,7 @@ import { book, prune } from "./ledger.js";
+ import { updateRep } from "./reputation.js";
+ import { addFlightHours, legRisk, mostUrgent, startCheck, finishCheck } from "./maintenance.js";
+ import { aircraftValue } from "./market.js";
++import { weatherDelay } from "./weather.js";
+ 
+ const MAX_STEPS = 200_000;
+ 
+@@ -95,7 +96,7 @@ function process(state, ac, ts, report, quiet) {
+   }
+   if (ac.status === "check") {
+     const done = finishCheck(ac);
+-    if (ac.ops) { ac.ops.dir = 0; ac.ops.dep = Math.max(ac.ops.dep, done.until); }
++    if (ac.ops) { ac.ops.dir = 0; ac.ops.dep = Math.max(ac.ops.dep, done.until); ac.ops.delay = null; }
+     log(state, ts, "info", `${ac.reg}: ${done.type}-Check abgeschlossen.`);
+     return;
+   }
+@@ -103,6 +104,7 @@ function process(state, ac, ts, report, quiet) {
+   const route = state.routes.find(r => r.id === ac.ops.routeId);
+   const dep = ac.ops.dep;
+   const leg = computeLeg(state, ac, route, ac.ops.dir, dep, flightsPerDay(state, route));
++  if (ac.ops.delay) { leg.delay = ac.ops.delay.min; leg.delayReason = ac.ops.delay.reason; report.delays = (report.delays || 0) + 1; }
+   for (const [c, v] of Object.entries(leg.rev)) book(state, leg.arr, "rev", c, v);
+   for (const [c, v] of Object.entries(leg.cost)) book(state, leg.arr, "cost", c, v);
+   const risk = legRisk(ac, dep, leg.blockH);
+@@ -132,11 +134,19 @@ function process(state, ac, ts, report, quiet) {
+   const turn = turnaroundH(typeOf(ac)) * H;
+   ac.ops.dir = 1 - ac.ops.dir;
+   ac.ops.dep = leg.arr + turn;
++  // Wetter am Ankunftsflughafen kann den Turnaround verlängern
++  const wd = weatherDelay(leg.to, leg.arr, ac.id);
++  ac.ops.delay = wd;
++  if (wd) {
++    ac.ops.dep += wd.min * 60_000;
++    if (wd.min >= 45) log(state, leg.arr, "warn", `${ac.reg} in ${wd.at}: ${wd.min} min Verspätung wegen ${wd.reason}.`);
++  }
+   if (!arrivedHome) return;
+ 
+   if (ac.unassign) { ac.ops = null; ac.unassign = false; ac.status = "idle"; return; }
+   const due = ac.scheduledCheck || (ac.autoCheck && mostUrgent(ac, leg.arr)?.check);
+   if (due) {
++    ac.ops.delay = null;
+     const cost = startCheck(state, ac, due, leg.arr);
+     book(state, leg.arr, "cost", "checks", cost);
+     ac.scheduledCheck = null;
+diff --git a/games/airline-manager/js/sim/market.js b/games/airline-manager/js/sim/market.js
+index dad2b51..3ff882c 100644
+--- a/games/airline-manager/js/sim/market.js
++++ b/games/airline-manager/js/sim/market.js
+@@ -81,7 +81,15 @@ export function defaultConfig(type) {
+   return { f: 0, j, w, y: Math.max(0, y) };
+ }
+ 
+-export function createAircraft(state, type, ts, { used = null } = {}) {
++/** Lieferzeit in ms für das nächste Flugzeug (die ersten GAME.instantDeliveries kommen sofort). */
++export function deliveryDelay(state, type, { used = false, orderIndex = 0 } = {}) {
++  if ((state.ordered || 0) < GAME.instantDeliveries) return 0;
++  return ((used ? GAME.usedDeliveryH : GAME.newDeliveryH[type.size]) + (used ? 0 : orderIndex * GAME.orderStaggerH)) * H;
++}
++
++export function createAircraft(state, type, ts, { used = null, orderIndex = 0 } = {}) {
++  const delay = deliveryDelay(state, type, { used: !!used, orderIndex });
++  state.ordered = (state.ordered || 0) + 1;
+   const maint = {};
+   for (const k of CHECKS.order) {
+     maint[k] = used ? { fh: used.maint[k].fh, at: ts - used.maint[k].daysAgo * DAY } : { fh: 0, at: ts };
+@@ -100,8 +108,8 @@ export function createAircraft(state, type, ts, { used = null } = {}) {
+     aux: 0,
+     autoCheck: true,
+     scheduledCheck: null,
+-    status: "delivery",
+-    availableAt: ts + (used ? GAME.usedDeliveryH : GAME.newDeliveryH) * H,
++    status: delay ? "delivery" : "idle",
++    availableAt: delay ? ts + delay : null,
+     ops: null,
+     check: null
+   };
+diff --git a/games/airline-manager/js/sim/weather.js b/games/airline-manager/js/sim/weather.js
+new file mode 100644
+index 0000000..d731adf
+--- /dev/null
++++ b/games/airline-manager/js/sim/weather.js
+@@ -0,0 +1,73 @@
++// Globales Wetter, ganz ohne Server: Das Wetter an jedem Flughafen ist eine feste Funktion von Ort und Zeit
++// (wie der Kerosinpreis) – alle Spieler sehen dasselbe Wetter, und Nachrechnen nach Abwesenheit ergibt dasselbe.
++//
++// Klima nach Breite und Jahreszeit:
++//   Tropen        Gewitter vor allem in der Regenzeit (lokaler Sommer)
++//   Mittelbreiten Sommergewitter, Herbst-/Winternebel, Schnee ab ~38° im Winter
++//   hohe Breiten  viel Schnee im Winter
++// Unwetter verlängern manchmal den Turnaround (Enteisen, Gewitterstopp am Vorfeld, Sichtflugregeln bei Nebel).
++
++import { smoothNoise, rand01 } from "../core/util.js";
++import { AIRPORT_BY_IATA } from "../data/airports.js";
++
++const TAU = Math.PI * 2, BLOCK_H = 3;
++
++export const WX = {
++  clear: { label: "Klar", icon: "☀️" },
++  clouds: { label: "Bewölkt", icon: "☁️" },
++  rain: { label: "Regen", icon: "🌧️" },
++  storm: { label: "Gewitter", icon: "⛈️", bad: true },
++  snow: { label: "Schnee", icon: "❄️", bad: true },
++  fog: { label: "Nebel", icon: "🌫️", bad: true }
++};
++
++/** Jahreszeit am Ort: +1 Hochsommer, −1 tiefer Winter */
++function season(ts, lat) {
++  const d = new Date(ts), doy = (ts - Date.UTC(d.getUTCFullYear(), 0, 0)) / 86400000;
++  const peak = lat >= 0 ? 200 : 17;
++  return Math.cos(TAU * (doy - peak) / 365);
++}
++
++function chances(lat, s) {
++  const a = Math.abs(lat), summer = Math.max(0, s), winter = Math.max(0, -s);
++  const storm = a < 25 ? 0.07 + 0.13 * summer : a < 45 ? 0.03 + 0.07 * summer : 0.01 + 0.03 * summer;
++  const snow = a > 38 ? winter * (a > 52 ? 0.24 : a > 45 ? 0.14 : 0.07) : 0;
++  const fog = a > 28 ? 0.025 + 0.05 * winter : 0.01;
++  return { storm, snow, fog };
++}
++
++/** Wetter an einem Flughafen zu einem Zeitpunkt. sev = Stärke 0..1 (nur bei Unwetter > 0) */
++export function weatherAt(iata, ts) {
++  const ap = AIRPORT_BY_IATA[iata];
++  const t = ts / 3600_000 / BLOCK_H;
++  const n = (smoothNoise("wx-" + iata, t) + 1) / 2;          // 0..1, ändert sich über Stunden
++  const s = season(ts, ap.lat), c = chances(ap.lat, s);
++  const bad = c.storm + c.snow + c.fog;
++  if (n > 1 - bad) {
++    const pick = rand01("wx-kind", iata, Math.floor(t / 2)) * bad;
++    const kind = pick < c.storm ? "storm" : pick < c.storm + c.snow ? "snow" : "fog";
++    return { kind, sev: Math.min(1, (n - (1 - bad)) / bad + 0.15), ...WX[kind] };
++  }
++  const kind = n > 0.72 ? (Math.abs(ap.lat) > 35 && s < -0.3 && n > 0.8 ? "snow" : "rain") : n > 0.5 ? "clouds" : "clear";
++  return { kind, sev: 0, ...WX[kind], bad: false };
++}
++
++/**
++ * Zusätzliche Turnaround-Minuten durch Wetter am Flughafen (deterministisch pro Flugzeug + Zeitpunkt).
++ * Nicht jedes Unwetter verspätet jeden Flug – die Wahrscheinlichkeit steigt mit der Stärke.
++ */
++export function weatherDelay(iata, ts, key) {
++  const w = weatherAt(iata, ts);
++  if (!w.bad && w.kind !== "rain") return null;
++  const r = rand01("wx-delay", key, ts);
++  if (w.kind === "rain") return r < 0.12 ? { min: 5 + Math.round(r * 60), reason: "Regen", at: iata, kind: w.kind } : null;
++  if (r > 0.35 + 0.55 * w.sev) return null;
++  const base = { storm: [15, 75], snow: [20, 100], fog: [10, 45] }[w.kind];
++  const min = Math.round(base[0] + (base[1] - base[0]) * w.sev * (0.6 + 0.4 * rand01("wx-len", key, ts)));
++  return { min, reason: w.label, at: iata, kind: w.kind };
++}
++
++/** Alle Flughäfen mit Unwetter (für die Karte) */
++export function severeWeather(airports, ts) {
++  return airports.map(a => ({ a, w: weatherAt(a.iata, ts) })).filter(x => x.w.bad);
++}
+diff --git a/games/airline-manager/js/ui/airmenu.js b/games/airline-manager/js/ui/airmenu.js
+new file mode 100644
+index 0000000..4ee5509
+--- /dev/null
++++ b/games/airline-manager/js/ui/airmenu.js
+@@ -0,0 +1,64 @@
++// Airline-Menü: großes Dropdown oben links (Klick auf Airline-Name). Ersetzt den Airline-Knopf im Dock.
++import { html, raw } from "./dom.js";
++import { fmt } from "../core/util.js";
++import { GAME } from "../core/config.js";
++import { summary } from "../sim/ledger.js";
++import { sideView } from "./aircraftArt.js";
++
++const ITEMS = [
++  ["finance", "Finanzen", "Einnahmen, Ausgaben, Unternehmenswert", '<path d="M4 19h16"/><path d="M7 15v-4M12 15V7M17 15v-6"/>'],
++  ["rep", "Reputation", "Was Passagiere von dir halten", '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'],
++  ["offer", "Angebot an Bord", "Catering und Gepäckgebühren", '<path d="M4 11h16"/><path d="M5 11a7 7 0 0 1 14 0"/><path d="M3 15h18"/>'],
++  ["staff", "Personal & Schulung", "Crews, Techniker, Schulungsstufe", '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15 14c3 0 6 1.8 6 5"/>'],
++  ["paint", "Lackiererei", "Eigene Livery für die ganze Flotte malen", '<path d="M4 20c2 0 4-1 4-4l9-9 3 3-9 9c-3 0-4 2-4 4"/><path d="M14 6l4 4"/>'],
++  ["contract", "Herstellerverträge", "Exklusivdeal mit Airbus oder Boeing", '<path d="M6 3h9l4 4v14H6z"/><path d="M9 13l2 2 4-4"/>'],
++  ["hubs", "Drehkreuze", "Weitere Basen eröffnen", '<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/>'],
++  ["account", "Spielstand & Code", "Spielercode, Export, Gerätewechsel", '<rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>']
++];
++
++let menu = null;
++
++export function toggleAirMenu(ctx, anchor) {
++  if (menu) return closeAirMenu();
++  const s = ctx.state, now = ctx.now(), sum = summary(s, 30, now);
++  const main = s.fleet.find(a => a.status !== "crashed")?.typeId || "a320neo";
++  menu = document.createElement("div");
++  menu.className = "airmenu glass";
++  menu.setAttribute("role", "menu");
++  menu.innerHTML = html`
++    <div class="am-head">
++      <div class="am-art">${raw(sideView(main, s.airline.livery, { fit: true, shadow: false }))}</div>
++      <div><b>${s.airline.name}</b><span class="code">${s.player.code} · ${s.airline.iata} · Basis ${s.airline.hubs.join(", ")}</span></div>
++    </div>
++    <div class="am-stats">
++      <div><span>Kasse</span><b>${fmt.money(s.cash)}</b></div>
++      <div><span>Ergebnis 30 T</span><b class="${sum.profit < 0 ? "bad" : "good"}">${fmt.money(sum.profit)}</b></div>
++      <div><span>Reputation</span><b>${s.airline.rep.toFixed(1)}</b></div>
++      <div><span>Flotte</span><b>${s.fleet.filter(a => a.status !== "crashed").length}</b></div>
++    </div>
++    <div class="am-grid">${ITEMS.map(([id, t, d, icon]) => html`<button role="menuitem" data-m="${id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${raw(icon)}</svg><span><b>${t}</b><small>${d}</small></span></button>`)}</div>
++    <div class="am-foot small muted">Airline Manager ${GAME.label}</div>`.s;
++  document.body.appendChild(menu);
++  anchor?.setAttribute("aria-expanded", "true");
++  menu.addEventListener("click", e => {
++    const b = e.target.closest("[data-m]"); if (!b) return;
++    closeAirMenu();
++    if (b.dataset.m === "paint") ctx.openPainter();
++    else ctx.openApp("airline", { tab: b.dataset.m });
++  });
++  setTimeout(() => {
++    document.addEventListener("pointerdown", outside);
++    document.addEventListener("keydown", esc);
++  });
++  menu.querySelector("[data-m]").focus();
++}
++
++export function closeAirMenu() {
++  if (!menu) return;
++  menu.remove(); menu = null;
++  document.querySelector("[data-airmenu]")?.setAttribute("aria-expanded", "false");
++  document.removeEventListener("pointerdown", outside);
++  document.removeEventListener("keydown", esc);
++}
++const outside = e => { if (!menu?.contains(e.target) && !e.target.closest("[data-airmenu]")) closeAirMenu(); };
++const esc = e => { if (e.key === "Escape") closeAirMenu(); };
+diff --git a/games/airline-manager/js/ui/apps/hangar.js b/games/airline-manager/js/ui/apps/hangar.js
+index 050bc0e..996b20b 100644
+--- a/games/airline-manager/js/ui/apps/hangar.js
++++ b/games/airline-manager/js/ui/apps/hangar.js
+@@ -7,6 +7,7 @@ import { checkStatus, condition } from "../../sim/maintenance.js";
+ import { aircraftValue } from "../../sim/market.js";
+ import { sideView } from "../aircraftArt.js";
+ import * as act from "../../sim/actions.js";
++import { seatmapSVG, setClass, moveBoundary, CLASS_COLORS } from "../seatmap.js";
+ 
+ export const STATUS = {
+   idle: ["Am Boden", "info"], active: ["Im Liniendienst", "good"], check: ["In Wartung", "warn"],
+@@ -19,7 +20,7 @@ export default {
+ 
+   render(ctx, v) {
+     const s = ctx.state;
+-    if (v.detail && s.fleet.some(a => a.id === v.detail)) return detail(ctx, s.fleet.find(a => a.id === v.detail));
++    if (v.detail && s.fleet.some(a => a.id === v.detail)) return detail(ctx, s.fleet.find(a => a.id === v.detail), v);
+     if (!s.fleet.length) return html`<div class="empty"><b>Noch keine Flugzeuge</b>Im Flugzeugmarkt kannst du neu bestellen oder gebraucht kaufen.<div style="margin-top:12px"><button class="btn p" data-act="shop">Zum Flugzeugmarkt</button></div></div>`;
+     const now = ctx.now();
+     return html`<div class="row" style="margin-bottom:10px"><span class="muted small grow">${s.fleet.length} Flugzeuge · Flottenwert ${fmt.money(s.fleet.reduce((x, a) => x + (a.status === "crashed" ? 0 : aircraftValue(a, now)), 0))}</span><button class="btn sm" data-act="shop">Flugzeug kaufen</button></div>
+@@ -30,22 +31,34 @@ export default {
+           ${raw(sideView(t, s.airline.livery, { fit: true }))}
+           <div><h3>${ac.reg} <span class="muted small">${t.name}</span></h3>
+             <div class="meta">${r ? `${r.from} ⇄ ${r.to}` : "keine Strecke"} · ${totalSeats(ac.cfg)} Sitze · Zustand ${condition(ac, now)} %</div></div>
+-          <div style="text-align:right" class="stack"><span class="pill ${st[1]}">${st[0]}</span>${worst ? html`<span class="pill ${cs[worst].state === "overdue" ? "bad" : "warn"}">${worst}-Check ${fmt.fh(cs[worst].rem)}</span>` : ""}</div>
++          <div style="text-align:right" class="stack"><span class="pill ${st[1]}">${st[0]}</span>${ac.status === "delivery" ? html`<span class="pill info" title="Lieferung ${fmt.dateTime(ac.availableAt)}">⏱ <span data-eta="${ac.availableAt}"></span></span>` : ""}${worst ? html`<span class="pill ${cs[worst].state === "overdue" ? "bad" : "warn"}">${worst}-Check ${fmt.fh(cs[worst].rem)}</span>` : ""}</div>
+         </div>`;
+       })}`;
+   },
+ 
++  /** Lieferungs-Countdowns jede Sekunde */
++  tick(el, ctx, v) {
++    const now = ctx.now();
++    if (v.detail && el.querySelector("[data-sm]")) {
++      bindSeatmap(el, ctx, v);
++      if (!el.querySelector("[data-units]").textContent) updateCabin(el, ctx, v);
++    }
++    el.querySelectorAll("[data-eta]").forEach(s => { const left = +s.dataset.eta - now; s.textContent = left > 0 ? fmt.duration(left) : "gleich da"; });
++  },
++
++  badge(ctx) {
++    const n = ctx.state.fleet.filter(a => a.status === "delivery").length;
++    return n ? { n, kind: "info" } : null;
++  },
++
+   click(ctx, v, api) {
+     const id = () => v.detail;
+     return {
+       shop: () => api.open("shop"),
+       open: el => { v.detail = el.dataset.id; api.rerender(); },
+       back: () => { v.detail = null; api.rerender(); },
+-      saveCabin: el => {
+-        const box = el.closest(".body"), cfg = {};
+-        for (const c of CABIN.classes) cfg[c] = box.querySelector(`[name="cab-${c}"]`).value;
+-        ctx.run(act.setCabin, id(), cfg) && ctx.toast("Kabine umgebaut.", "good");
+-      },
++      saveCabin: () => { if (ctx.run(act.setCabin, id(), v.draft)) ctx.toast("Kabine umgebaut.", "good"); },
++      resetCabin: el => { v.draft = { ...ctx.state.fleet.find(a => a.id === id()).cfg }; updateCabin(el.closest(".body"), ctx, v); },
+       aux: () => ctx.run(act.addAuxTank, id(), ctx.now()) && ctx.toast("Zusatztank eingebaut.", "good"),
+       assign: el => {
+         const rid = el.closest(".body").querySelector("[name=route]").value;
+@@ -69,24 +82,58 @@ export default {
+ 
+   input(ctx, v) {
+     return {
+-      cab: el => {
+-        const box = el.closest(".body"), ac = ctx.state.fleet.find(a => a.id === v.detail), cfg = {};
+-        for (const c of CABIN.classes) cfg[c] = +box.querySelector(`[name="cab-${c}"]`).value || 0;
+-        const u = seatUnits(cfg), max = typeOf(ac).seatsMax;
+-        const out = box.querySelector("[data-units]");
+-        out.textContent = `${Math.round(u)} / ${max} Einheiten · ${totalSeats(cfg)} Sitze`;
+-        out.className = u > max ? "bad small" : u / max > 0.93 ? "warn small" : "muted small";
++      cabS: el => {
++        const ac = ctx.state.fleet.find(a => a.id === v.detail);
++        v.draft = setClass(v.draft, el.dataset.c, +el.value, typeOf(ac));
++        updateCabin(el.closest(".body"), ctx, v, el);
+       }
+     };
+   }
+ };
+ 
++/** Kabinenplan + Slider aktualisieren, ohne den gerade gezogenen Slider neu zu erzeugen */
++function updateCabin(box, ctx, v, active = null) {
++  const ac = ctx.state.fleet.find(a => a.id === v.detail), t = typeOf(ac), d = v.draft;
++  box.querySelector("[data-sm]").innerHTML = seatmapSVG(d, t);
++  for (const c of CABIN.classes) {
++    const sl = box.querySelector(`[data-act="cabS"][data-c="${c}"]`);
++    if (sl && sl !== active) sl.value = d[c] || 0;
++    const n = box.querySelector(`[data-n="${c}"]`); if (n) n.textContent = d[c] || 0;
++  }
++  const u = seatUnits(d), out = box.querySelector("[data-units]");
++  const changed = CABIN.classes.some(c => (d[c] || 0) !== (ac.cfg[c] || 0));
++  out.textContent = `${totalSeats(d)} Sitze · ${Math.round(u / t.seatsMax * 100)} % der Kabine belegt${u / t.seatsMax > 0.93 ? " – eng (Reputation −)" : ""}`;
++  out.className = u / t.seatsMax > 0.93 ? "warn small grow" : "muted small grow";
++  box.querySelector('[data-act="saveCabin"]').disabled = !changed || ac.status === "active";
++}
++
++/** Klassengrenzen im Kabinenplan ziehen */
++function bindSeatmap(box, ctx, v) {
++  const host = box.querySelector("[data-sm]");
++  if (!host || host.dataset.bound) return;
++  host.dataset.bound = "1";
++  host.addEventListener("pointerdown", e => {
++    const h = e.target.closest(".sm-handle");
++    const ac = ctx.state.fleet.find(a => a.id === v.detail);
++    if (!h || ac.status === "active") return;
++    const svg = host.querySelector("svg"), [l, r] = h.dataset.bound.split(",");
++    const x0 = svgX(svg, e.clientX), start = { ...v.draft }, scale = +svg.dataset.scale;
++    host.setPointerCapture(e.pointerId);
++    const move = ev => { v.draft = moveBoundary(start, l, r, (svgX(host.querySelector("svg"), ev.clientX) - x0) / scale, typeOf(ac)); updateCabin(box, ctx, v); };
++    const up = () => { host.removeEventListener("pointermove", move); host.removeEventListener("pointerup", up); };
++    host.addEventListener("pointermove", move);
++    host.addEventListener("pointerup", up);
++  });
++}
++const svgX = (svg, cx) => { const p = svg.createSVGPoint(); p.x = cx; p.y = 0; return p.matrixTransform(svg.getScreenCTM().inverse()).x; };
++
+ function confirmSell(ac, ctx) {
+   // Eigener Bestätigungsdialog wäre schöner; confirm() reicht fürs Fundament.
+   return window.confirm(`${ac.reg} für ca. ${fmt.money(aircraftValue(ac, ctx.now()) * 0.95)} verkaufen?`);
+ }
+ 
+-function detail(ctx, ac) {
++function detail(ctx, ac, v) {
++  if (v.draftFor !== ac.id) { v.draft = { ...ac.cfg }; v.draftFor = ac.id; }
+   const s = ctx.state, t = typeOf(ac), now = ctx.now();
+   const route = ac.ops && s.routes.find(r => r.id === ac.ops.routeId);
+   const units = seatUnits(ac.cfg), cs = checkStatus(ac, now), canEdit = ac.status !== "active";
+@@ -98,6 +145,7 @@ function detail(ctx, ac) {
+     <div class="row" style="margin:10px 0"><div class="grow"><h3 style="font-size:20px">${ac.reg} · ${t.maker} ${t.name}</h3>
+       <div class="muted small">Gekauft ${new Date(ac.bought).toLocaleDateString("de-DE")} · ${fmt.int(ac.hours)} Flugstunden · ${fmt.int(ac.cycles)} Zyklen · Baujahr-Alter ${ac.ageYears} J.</div></div>
+       <span class="pill ${STATUS[ac.status][1]}">${STATUS[ac.status][0]}</span></div>
++    ${ac.status === "delivery" ? html`<div class="card row" style="margin-bottom:10px"><span class="grow">Lieferung am ${fmt.dateTime(ac.availableAt)}</span><b class="mono acc">⏱ <span data-eta="${ac.availableAt}"></span></b></div>` : ""}
+     <input class="in" style="width:100%" name="rename" data-act="rename" placeholder="Taufname (optional)" value="${ac.name}" maxlength="24">
+ 
+     <h3 style="margin:16px 0 8px;font-size:15px">Einsatz</h3>
+@@ -107,11 +155,13 @@ function detail(ctx, ac) {
+         <p class="small muted" style="margin-top:6px">${s.routes.length - usable.length ? `${s.routes.length - usable.length} Strecke(n) ausgeblendet: Reichweite oder Bahnlänge passt nicht.` : "Fliegt im Pendel: Hinflug, Turnaround, Rückflug – rund um die Uhr in Echtzeit."}</p>`}</div>
+ 
+     <h3 style="margin:16px 0 8px;font-size:15px">Kabine</h3>
+-    <div class="card"><div class="cabin-edit">
+-      ${CABIN.classes.map(c => html`<span>${CABIN.names[c]}</span><span class="muted small">${CABIN.units[c]} Einheit${CABIN.units[c] === 1 ? "" : "en"} pro Sitz</span><input class="in" type="number" min="0" step="1" name="cab-${c}" value="${ac.cfg[c] || 0}" data-act="cab" ${canEdit ? "" : "disabled"}>`)}
+-    </div>
+-    <div class="row" style="margin-top:10px"><span data-units class="muted small grow">${Math.round(units)} / ${t.seatsMax} Einheiten · ${totalSeats(ac.cfg)} Sitze</span><button class="btn sm p" data-act="saveCabin" ${canEdit ? "" : "disabled"}>Umbauen</button></div>
+-    <p class="small muted" style="margin-top:6px">Über ${Math.round(93)} % Auslastung des Budgets gilt die Kabine als eng (Reputation −). Umbau nur ohne Strecke.</p></div>
++    <div class="card">
++      <div data-sm>${raw(seatmapSVG(v.draft, t))}</div>
++      <div class="cab-sliders">${CABIN.classes.map(c => html`<label><span style="color:${CLASS_COLORS[c]}">${CABIN.names[c]}</span>
++        <input type="range" min="0" max="${Math.floor(t.seatsMax / CABIN.units[c])}" value="${v.draft[c] || 0}" data-act="cabS" data-c="${c}" style="accent-color:${CLASS_COLORS[c]}" ${canEdit ? "" : "disabled"}>
++        <b class="mono" data-n="${c}">${v.draft[c] || 0}</b></label>`)}</div>
++      <div class="row" style="margin-top:8px"><span data-units class="muted small grow"></span><button class="btn sm" data-act="resetCabin">Zurücksetzen</button><button class="btn sm p" data-act="saveCabin" disabled>Umbauen</button></div>
++      <p class="small muted" style="margin-top:6px">${canEdit ? "Slider oder die gelben Griffe im Kabinenplan ziehen. Mehr Business oder First nimmt Economy-Plätze weg – und umgekehrt." : "Umbau nur, wenn das Flugzeug keine Strecke fliegt."} Über 93 % belegter Kabine gilt sie als eng (Reputation −).</p></div>
+ 
+     <h3 style="margin:16px 0 8px;font-size:15px">Technik</h3>
+     <div class="grid2">
+diff --git a/games/airline-manager/js/ui/apps/logbook.js b/games/airline-manager/js/ui/apps/logbook.js
+index 6159cb1..282ebf4 100644
+--- a/games/airline-manager/js/ui/apps/logbook.js
++++ b/games/airline-manager/js/ui/apps/logbook.js
+@@ -14,7 +14,7 @@ export default {
+       if (!s.flights.length) return html`${t}<div class="empty"><b>Noch keine Flüge</b>Weise ein Flugzeug einer Strecke zu.</div>`;
+       return html`${t}<table class="t"><thead><tr><th>Landung</th><th>Flug</th><th>Flugzeug</th><th class="r">Pax</th><th class="r">Auslastung</th><th class="r">Fracht</th><th class="r">Ergebnis</th></tr></thead><tbody>
+         ${s.flights.map(f => html`<tr title="${CABIN.classes.map(c => `${CABIN.names[c]}: ${f.pax[c]}`).join(" · ")}">
+-          <td class="mono small">${fmt.dateTime(f.arr)}</td><td><b>${f.from}–${f.to}</b>${f.event ? html` <span class="pill ${f.event === "crash" ? "bad" : "warn"}">${f.event === "crash" ? "Absturz" : "Vorfall"}</span>` : ""}</td>
++          <td class="mono small">${fmt.dateTime(f.arr)}</td><td><b>${f.from}–${f.to}</b>${f.event ? html` <span class="pill ${f.event === "crash" ? "bad" : "warn"}">${f.event === "crash" ? "Absturz" : "Vorfall"}</span>` : ""}${f.delay ? html` <span class="pill warn" title="${f.delayReason}">+${f.delay} min</span>` : ""}</td>
+           <td class="small">${f.reg} · ${f.type}</td><td class="r">${f.paxTotal}</td><td class="r">${Math.round(f.lf * 100)} %</td><td class="r">${fmt.dec(f.cargoKg / 1000)} t</td>
+           <td class="r ${f.profit < 0 ? "bad" : "good"}">${fmt.money(f.profit)}</td></tr>`)}
+       </tbody></table>`;
+diff --git a/games/airline-manager/js/ui/apps/shop.js b/games/airline-manager/js/ui/apps/shop.js
+index 5ca924d..0c06290 100644
+--- a/games/airline-manager/js/ui/apps/shop.js
++++ b/games/airline-manager/js/ui/apps/shop.js
+@@ -3,7 +3,8 @@ import { html, raw } from "../dom.js";
+ import { fmt } from "../../core/util.js";
+ import { AIRCRAFT, AIRCRAFT_BY_ID, MAKERS } from "../../data/aircraft.js";
+ import { CHECKS } from "../../core/config.js";
+-import { canOrderNew, newOrderQuote, usedListings, listPrice, MARKET_FACTOR } from "../../sim/market.js";
++import { canOrderNew, newOrderQuote, usedListings, listPrice, MARKET_FACTOR, deliveryDelay } from "../../sim/market.js";
++import { GAME } from "../../core/config.js";
+ import { sideView } from "../aircraftArt.js";
+ import * as act from "../../sim/actions.js";
+ 
+@@ -20,6 +21,7 @@ export default {
+         <select class="in" data-act="maker">${[["all", "Alle Hersteller"], ...MAKERS.map(m => [m, m])].map(([id, l]) => html`<option value="${id}" ${v.maker === id ? "selected" : ""}>${l}</option>`)}</select>
+         <select class="in" data-act="sort">${[["seats", "Nach Sitzen"], ["price", "Nach Preis"], ["range", "Nach Reichweite"]].map(([id, l]) => html`<option value="${id}" ${v.sort === id ? "selected" : ""}>${l}</option>`)}</select>
+       </div>
++      ${deliveryNote(ctx.state)}
+       ${c ? html`<p class="small" style="margin-bottom:10px"><span class="pill good">Exklusivvertrag ${c.maker}</span> <span class="muted">Mengenrabatt auf Neubestellungen, −15 % auf Checks.</span></p>`
+           : html`<p class="small muted" style="margin-bottom:10px">Tipp: Ein Exklusivvertrag (Airline → Verträge) bringt Mengenrabatte und günstigere Wartung – sperrt aber Neubestellungen beim anderen Hersteller.</p>`}
+       ${v.tab === "used" ? used(ctx, v) : newer(ctx, v)}`;
+@@ -30,11 +32,13 @@ export default {
+       buyNew: el => {
+         const qty = Math.max(1, +el.closest(".shop-item").querySelector("[name=qty]").value || 1);
+         const r = ctx.run(act.orderNew, el.dataset.id, qty, ctx.now());
+-        if (r) ctx.toast(`${qty}× ${AIRCRAFT_BY_ID[el.dataset.id].name} bestellt für ${fmt.money(r.cost)}. Auslieferung in Kürze.`, "good");
++        if (!r) return;
++        const late = r.aircraft.filter(a => a.availableAt), now = ctx.now();
++        ctx.toast(`${qty}× ${AIRCRAFT_BY_ID[el.dataset.id].name} gekauft für ${fmt.money(r.cost)}. ` + (late.length ? `${qty - late.length ? `${qty - late.length} sofort einsatzbereit, ` : ""}Lieferung ${late.length > 1 ? "ab" : "in"} ${fmt.duration(late[0].availableAt - now)} – Countdown im Hangar.` : "Sofort einsatzbereit!"), "good", 6000);
+       },
+       buyUsed: el => {
+         const r = ctx.run(act.buyUsed, el.dataset.id, ctx.now());
+-        if (r) ctx.toast(`${r.aircraft.reg} gekauft – wird überführt.`, "good");
++        if (r) ctx.toast(r.aircraft.availableAt ? `${r.aircraft.reg} gekauft – Überführung dauert ${fmt.duration(r.aircraft.availableAt - ctx.now())}.` : `${r.aircraft.reg} gekauft und sofort einsatzbereit!`, "good", 6000);
+       }
+     };
+   },
+@@ -81,7 +85,7 @@ function newer(ctx, v) {
+         ${specs(t)}
+         <div class="price-line"><div><b>${fmt.money(q.unit * (1 - q.disc))}</b><br><s>Liste ${fmt.money(listPrice(t))}</s></div>
+           <div class="row"><input class="in" type="number" name="qty" min="1" max="50" value="1" data-act="qty" style="width:56px" ${block ? "disabled" : ""}><button class="btn p sm" data-act="buyNew" data-id="${t.id}" ${block ? "disabled" : ""}>Bestellen</button></div></div>
+-        <div class="small ${block ? "warn" : "muted"}">${block || html`Gesamt: <span data-total>${fmt.money(q.total)}</span>`}</div>
++        <div class="small ${block ? "warn" : "muted"}">${block || html`Gesamt: <span data-total>${fmt.money(q.total)}</span> · Lieferung ${leadTime(s, t, false)}`}</div>
+       </div></article>`;
+   })}</div>
+   <p class="small muted" style="margin-top:10px">Preise: Listenpreis × ${MARKET_FACTOR} (übliche Kundenrabatte). Werte sind Richtwerte nach Herstellerangaben.</p>`;
+@@ -105,9 +109,15 @@ function used(ctx, v) {
+           <div><span>Reichw.</span><b>${fmt.int(t.rangeKm)} km</b></div><div><span>Sitze</span><b>${t.seats}</b></div>
+         </div>
+         ${l.nearHeavy ? html`<div class="small warn">Schwerer Check steht bald an – daher günstiger.</div>` : ""}
++        <div class="small muted">Übergabe ${leadTime(s, t, true)}</div>
+         <div class="price-line"><b>${fmt.money(l.price)}</b><button class="btn p sm" data-act="buyUsed" data-id="${l.id}" ${sold ? "disabled" : ""}>${sold ? "Gekauft" : "Kaufen"}</button></div>
+       </div></article>`;
+   })}</div>`;
+ }
+ 
++function leadTime(s, t, used) { const d = deliveryDelay(s, t, { used }); return d ? "in " + fmt.duration(d).replace(/ 0 min$/, "") : "sofort"; }
++function deliveryNote(s) {
++  const left = GAME.instantDeliveries - (s.ordered || 0);
++  return left > 0 ? html`<p class="small" style="margin-bottom:10px"><span class="pill good">Startbonus</span> Die nächsten ${left} Flugzeuge werden sofort geliefert – danach gelten echte Lieferzeiten.</p>` : "";
++}
+ const fmtLeft = ms => `${Math.floor(ms / 3600000)} h ${Math.floor(ms / 60000) % 60} min`;
+diff --git a/games/airline-manager/js/ui/flightcard.js b/games/airline-manager/js/ui/flightcard.js
+index 462fcb3..ef88142 100644
+--- a/games/airline-manager/js/ui/flightcard.js
++++ b/games/airline-manager/js/ui/flightcard.js
+@@ -5,6 +5,7 @@ import { typeOf, positionAt } from "../sim/flight.js";
+ import { sideView } from "./aircraftArt.js";
+ import { mostUrgent } from "../sim/maintenance.js";
+ import { AIRPORT_BY_IATA } from "../data/airports.js";
++import { weatherAt } from "../sim/weather.js";
+ 
+ export function renderFlightCard(el, ctx, id) {
+   const s = ctx.state, ac = id && s.fleet.find(a => a.id === id);
+@@ -20,6 +21,7 @@ export function renderFlightCard(el, ctx, id) {
+       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--accent)"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+       <div class="ap"><b data-f="d"></b><span data-f="dc"></span></div>
+     </div>
++    <div class="fc-delay" data-f="delay" hidden></div>
+     <div class="prog"><div class="bar"><i data-f="bar"></i></div><div class="row small muted" style="justify-content:space-between;margin-top:4px"><span data-f="dep"></span><span data-f="arr"></span></div></div>
+     <div class="grid3">
+       <div><span>Höhe</span><b data-f="alt"></b></div>
+@@ -55,8 +57,12 @@ export function tickFlightCard(el, ctx, id) {
+   const inCheck = ac.status === "check";
+   const p = inCheck ? null : positionAt(ac, route, now);
+   const o = p ? p.from : AIRPORT_BY_IATA[route.from], d = p ? p.to : AIRPORT_BY_IATA[route.to];
+-  q("o").textContent = o.iata; q("oc").textContent = o.city;
+-  q("d").textContent = d.iata; q("dc").textContent = d.city;
++  const wo = weatherAt(o.iata, now), wd = weatherAt(d.iata, now);
++  q("o").textContent = o.iata; q("oc").textContent = `${o.city} ${wo.icon}`; q("oc").title = wo.label;
++  q("d").textContent = d.iata; q("dc").textContent = `${wd.icon} ${d.city}`; q("dc").title = wd.label;
++  const dl = q("delay"), del = !inCheck && ac.ops.delay;
++  dl.hidden = !del;
++  if (del) dl.innerHTML = `<span class="fc-clock"></span> Verspätet +${del.min} min · ${del.reason} in ${del.at}`;
+   q("bar").style.width = ((p?.progress || 0) * 100).toFixed(1) + "%";
+   q("dep").textContent = p ? "Ab " + fmt.time(ac.ops.dep) : "";
+   q("arr").textContent = p ? "An " + fmt.time(p.eta) : "";
+diff --git a/games/airline-manager/js/ui/hud.js b/games/airline-manager/js/ui/hud.js
+index ac135b9..dc03a53 100644
+--- a/games/airline-manager/js/ui/hud.js
++++ b/games/airline-manager/js/ui/hud.js
+@@ -3,6 +3,7 @@ import { html } from "./dom.js";
+ import { fmt } from "../core/util.js";
+ import { fuelPrice } from "../sim/fuel.js";
+ import { normalizeLivery } from "../art/livery.js";
++import { toggleAirMenu } from "./airmenu.js";
+ 
+ let lastFuel = 0, lastShare = 0;
+ 
+@@ -12,8 +13,11 @@ export function renderHud(el, ctx) {
+   el.innerHTML = html`
+     <div class="brand glass">
+       <a href="../../" title="Zurück zu Soy & Soul" aria-label="Zurück zur Startseite"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></a>
+-      <button class="tail" data-paint title="Lackiererei öffnen" style="background:${tail};color:${tailTxt?.c || "#1b2230"};box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)">${s.airline.iata}</button>
+-      <div><b>${s.airline.name}</b><small>${s.player.code}</small></div>
++      <button class="am-btn" data-airmenu aria-haspopup="menu" aria-expanded="false" title="Airline-Menü">
++        <span class="tail" style="background:${tail};color:${tailTxt?.c || "#1b2230"};box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)">${s.airline.iata}</span>
++        <span class="am-name"><b>${s.airline.name}</b><small>${s.player.code}</small></span>
++        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
++      </button>
+     </div>
+     <div class="stats glass">
+       <div data-hud-open="airline" title="Finanzen"><span>Kasse</span><b data-h="cash"></b></div>
+@@ -24,7 +28,7 @@ export function renderHud(el, ctx) {
+     </div>
+     <div class="clock glass"><b data-h="time"></b><span data-h="date"></span></div>`.s;
+   el.querySelectorAll("[data-hud-open]").forEach(d => d.onclick = () => ctx.openApp(d.dataset.hudOpen));
+-  el.querySelector("[data-paint]").onclick = () => ctx.openPainter();
++  el.querySelector("[data-airmenu]").onclick = e => toggleAirMenu(ctx, e.currentTarget);
+   tickHud(el, ctx);
+ }
+ 
+diff --git a/games/airline-manager/js/ui/map.js b/games/airline-manager/js/ui/map.js
+index bf29b07..a54890f 100644
+--- a/games/airline-manager/js/ui/map.js
++++ b/games/airline-manager/js/ui/map.js
+@@ -8,6 +8,7 @@ import { arc } from "../sim/geo.js";
+ import { topViewIcon } from "./aircraftArt.js";
+ import { html } from "./dom.js";
+ import { fmt } from "../core/util.js";
++import { weatherAt, severeWeather } from "../sim/weather.js";
+ 
+ // Notfall-Stil ohne Kacheln: Spiel bleibt bedienbar, auch wenn der Kartendienst nicht erreichbar ist.
+ const OFFLINE = { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#121822" } }] };
+@@ -15,7 +16,7 @@ const STYLES = ["https://tiles.openfreemap.org/styles/dark", "https://tiles.open
+ const PLANE = "#ffb000", PLANE_SEL = "#ff5a1f", HUB = "#ffb000";
+ 
+ export function createMap(container, ctx) {
+-  let styleIdx = 0, ready = false, selected = null, pickMode = null, popup = null;
++  let styleIdx = 0, ready = false, selected = null, pickMode = null, popup = null, lastWx = 0;
+   const map = new MLMap({
+     container, style: STYLES[0], center: [10, 35], zoom: 1.6, minZoom: 1, maxZoom: 12,
+     attributionControl: false, dragRotate: false, pitchWithRotate: false, renderWorldCopies: true
+@@ -33,6 +34,8 @@ export function createMap(container, ctx) {
+     map.addSource("track", { type: "geojson", data: empty() });
+     map.addSource("airports", { type: "geojson", data: empty() });
+     map.addSource("planes", { type: "geojson", data: empty() });
++    map.addSource("weather", { type: "geojson", data: empty() });
++    for (const k of ["storm", "snow", "fog", "delay"]) if (!map.hasImage("wx-" + k)) map.addImage("wx-" + k, wxIcon(k), { pixelRatio: 2 });
+     map.addLayer({ id: "routes", type: "line", source: "routes", paint: { "line-color": ["case", ["get", "sel"], "#ffd27a", "#ffb000"], "line-opacity": ["case", ["get", "sel"], 0.9, 0.28], "line-width": ["case", ["get", "sel"], 2.2, 1.1] }, layout: { "line-cap": "round" } });
+     map.addLayer({ id: "track-done", type: "line", source: "track", filter: ["==", ["get", "done"], true], paint: { "line-color": PLANE_SEL, "line-width": 2.4 } });
+     map.addLayer({ id: "track-todo", type: "line", source: "track", filter: ["==", ["get", "done"], false], paint: { "line-color": PLANE_SEL, "line-width": 2, "line-opacity": 0.7, "line-dasharray": [2, 2] } });
+@@ -50,6 +53,11 @@ export function createMap(container, ctx) {
+       layout: { "text-field": ["get", "iata"], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top", "text-font": ["Noto Sans Bold"], "text-allow-overlap": false },
+       paint: { "text-color": "#c8d0dc", "text-halo-color": "#0d1016", "text-halo-width": 1.4 }
+     });
++    map.addLayer({
++      id: "weather", type: "symbol", source: "weather",
++      layout: { "icon-image": ["concat", "wx-", ["get", "kind"]], "icon-size": ["interpolate", ["linear"], ["zoom"], 1, 0.55, 5, 0.9], "icon-offset": [16, -16], "icon-allow-overlap": true, "icon-ignore-placement": true },
++      paint: { "icon-opacity": ["+", 0.55, ["*", 0.45, ["get", "sev"]]] }
++    });
+     map.addLayer({
+       id: "planes", type: "symbol", source: "planes",
+       layout: {
+@@ -60,7 +68,12 @@ export function createMap(container, ctx) {
+       },
+       paint: { "icon-color": ["case", ["get", "sel"], PLANE_SEL, PLANE], "icon-opacity": ["case", ["get", "air"], 1, 0.55], "text-color": "#ffd27a", "text-halo-color": "#0d1016", "text-halo-width": 1.2 }
+     });
++    map.addLayer({
++      id: "plane-delay", type: "symbol", source: "planes", filter: ["==", ["get", "delayed"], true],
++      layout: { "icon-image": "wx-delay", "icon-size": ["interpolate", ["linear"], ["zoom"], 1, 0.45, 5, 0.7], "icon-offset": [22, -22], "icon-allow-overlap": true, "icon-ignore-placement": true }
++    });
+     ready = true;
++    lastWx = 0;
+     updateStatic();
+     updatePlanes();
+   });
+@@ -80,7 +93,7 @@ export function createMap(container, ctx) {
+   }
+ 
+   function showAirport(iata) {
+-    const a = AIRPORT_BY_IATA[iata], s = ctx.state, isHub = s?.airline.hubs.includes(iata);
++    const a = AIRPORT_BY_IATA[iata], s = ctx.state, isHub = s?.airline.hubs.includes(iata), wx = weatherAt(iata, ctx.now());
+     popup?.remove();
+     const el = document.createElement("div");
+     el.innerHTML = html`<div class="stack">
+@@ -91,6 +104,7 @@ export function createMap(container, ctx) {
+         <dt>Einzugsgebiet</dt><dd>${fmt.dec(a.pop)} Mio</dd>
+         <dt>Geschäft / Urlaub</dt><dd>${Math.round(a.biz * 100)} % / ${Math.round(a.tour * 100)} %</dd>
+         <dt>Kategorie</dt><dd>${"★".repeat(a.tier)}</dd>
++        <dt>Wetter jetzt</dt><dd>${wx.icon} ${wx.label}${wx.bad ? html` <span class="pill warn">Verspätungen möglich</span>` : ""}</dd>
+       </dl>
+       <div class="row">${s ? (isHub ? html`<span class="pill good">Dein Drehkreuz</span>` : html`<button class="btn sm p" data-plan>Strecke planen</button>`) : ""}</div>
+     </div>`.s;
+@@ -125,13 +139,14 @@ export function createMap(container, ctx) {
+       if (!route) continue;
+       const p = ac.status === "check" ? { phase: "ground", lat: AIRPORT_BY_IATA[route.from].lat, lon: AIRPORT_BY_IATA[route.from].lon, heading: 0 } : positionAt(ac, route, now);
+       const t = typeOf(ac);
+-      feats.push(pt([p.lon, p.lat], { id: ac.id, reg: ac.reg, hdg: p.heading, kind: t.art.deck2 || t.art.engines === 4 ? "jumbo" : t.size, air: p.phase === "air", sel: ac.id === selected }));
++      feats.push(pt([p.lon, p.lat], { id: ac.id, reg: ac.reg + (ac.ops.delay ? ` +${ac.ops.delay.min}'` : ""), hdg: p.heading, kind: t.art.deck2 || t.art.engines === 4 ? "jumbo" : t.size, air: p.phase === "air", sel: ac.id === selected, delayed: !!ac.ops.delay }));
+       if (ac.id === selected && p.phase === "air") {
+         const full = arc(p.from, p.to, 96), cut = Math.max(1, Math.round(p.progress * 96));
+         track = fc([line(full.slice(0, cut + 1), { done: true }), line(full.slice(cut), { done: false })]);
+       }
+     }
+     map.getSource("planes").setData(fc(feats));
++    if (now - lastWx > 60_000) { lastWx = now; map.getSource("weather").setData(fc(severeWeather(AIRPORTS, now).map(({ a, w }) => pt([a.lon, a.lat], { kind: w.kind, sev: w.sev })))); }
+     map.getSource("track").setData(track);
+   }
+ 
+@@ -150,6 +165,18 @@ export function createMap(container, ctx) {
+   };
+ }
+ 
++/** Kleine Wetter- und Verspätungssymbole für die Karte */
++function wxIcon(kind) {
++  const c = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(48, 48) : Object.assign(document.createElement("canvas"), { width: 48, height: 48 });
++  const g = c.getContext("2d");
++  const cloud = (col) => { g.fillStyle = col; g.beginPath(); g.arc(17, 22, 9, 0, 7); g.arc(28, 18, 11, 0, 7); g.arc(36, 25, 7, 0, 7); g.fill(); g.fillRect(17, 22, 20, 10); };
++  if (kind === "storm") { cloud("#5a6578"); g.fillStyle = "#ffd23f"; g.beginPath(); g.moveTo(27, 26); g.lineTo(19, 40); g.lineTo(25, 39); g.lineTo(22, 47); g.lineTo(33, 32); g.lineTo(27, 33); g.lineTo(31, 26); g.closePath(); g.fill(); }
++  if (kind === "snow") { g.strokeStyle = "#e6f3ff"; g.lineWidth = 3.5; g.lineCap = "round"; for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; g.beginPath(); g.moveTo(24 + 15 * Math.cos(a), 24 + 15 * Math.sin(a)); g.lineTo(24 - 15 * Math.cos(a), 24 - 15 * Math.sin(a)); g.stroke(); } }
++  if (kind === "fog") { g.strokeStyle = "#c3cad6"; g.lineWidth = 4; g.lineCap = "round"; for (const [y, x0, x1] of [[14, 8, 34], [24, 14, 40], [34, 6, 30]]) { g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); } }
++  if (kind === "delay") { g.fillStyle = "#ff4d5e"; g.beginPath(); g.arc(24, 24, 18, 0, 7); g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 3.5; g.lineCap = "round"; g.beginPath(); g.arc(24, 24, 10, 0, 7); g.stroke(); g.beginPath(); g.moveTo(24, 17); g.lineTo(24, 24); g.lineTo(29, 27); g.stroke(); }
++  return g.getImageData(0, 0, 48, 48);
++}
++
+ const empty = () => ({ type: "FeatureCollection", features: [] });
+ const fc = features => ({ type: "FeatureCollection", features });
+ const pt = (c, properties) => ({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties });
+diff --git a/games/airline-manager/js/ui/painter.js b/games/airline-manager/js/ui/painter.js
+index 8ad81cf..97332b2 100644
+--- a/games/airline-manager/js/ui/painter.js
++++ b/games/airline-manager/js/ui/painter.js
+@@ -13,6 +13,7 @@ import { esc } from "./dom.js";
+ import * as act from "../sim/actions.js";
+ 
+ const TOOLS = [
++  ["move", "Auswählen", "V", '<path d="M5 3l14 8-6 2-2 6z"/>', "Text anklicken: ziehen zum Verschieben. Farbe, Größe, Inhalt, Fett/Kursiv ändern den ausgewählten Text. Entf löscht ihn."],
+   ["brush", "Pinsel", "B", '<path d="M4 20c2 0 4-1 4-4l9-9 3 3-9 9c-3 0-4 2-4 4"/><path d="M14 6l4 4"/>', "Freihand malen. Bleibt im Bauteil, auf dem du beginnst."],
+   ["line", "Linie", "L", '<path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="5" r="1.5"/>', "Gerade Linie ziehen – mit Umschalt waagerecht."],
+   ["band", "Band", "G", '<rect x="3" y="9" width="18" height="6" rx="1"/>', "Senkrecht ziehen: farbiges Band über die ganze Länge des Bauteils (Bauch, Zierstreifen)."],
+@@ -30,7 +31,7 @@ export function openPainter(ctx) {
+   const undo = [], redo = [];
+   let dirty = false;
+   const ui = {
+-    tool: "brush", color: "#e0262d", size: 0.12, txt: s.airline.name, bold: true, italic: false, zoom: 1,
++    tool: "brush", sel: null, color: "#e0262d", size: 0.12, txt: s.airline.name, bold: true, italic: false, zoom: 1,
+     type: s.fleet.find(a => a.status !== "crashed")?.typeId || "a320neo"
+   };
+ 
+@@ -48,7 +49,7 @@ export function openPainter(ctx) {
+       </div>
+     </header>
+     <aside class="pt-tools">
+-      <div class="pt-toolgrid">${TOOLS.map(([id, label, key, icon]) => `<button data-tool="${id}" title="${label} (${key})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><span>${label}</span></button>`).join("")}</div>
++      <div class="pt-toolgrid pt7">${TOOLS.map(([id, label, key, icon]) => `<button data-tool="${id}" title="${label} (${key})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><span>${label}</span></button>`).join("")}</div>
+       <p class="small muted" data-k="hint"></p>
+       <label class="pt-label">Farbe</label>
+       <div class="row"><input type="color" data-k="color" value="${ui.color}"><span class="mono small" data-k="hex">${ui.color}</span></div>
+@@ -56,7 +57,7 @@ export function openPainter(ctx) {
+       <label class="pt-label">Größe</label>
+       <input type="range" min="1" max="60" value="${Math.round(ui.size * 100)}" data-k="size">
+       <div data-k="textopts" hidden>
+-        <label class="pt-label">Text</label>
++        <div class="row" style="justify-content:space-between"><span class="pt-label">Text</span><button class="btn sm danger" data-a="delsel" title="Ausgewählten Text löschen (Entf)">Löschen</button></div>
+         <input class="in" data-k="txt" maxlength="40" value="${esc(ui.txt)}" style="width:100%">
+         <div class="row" style="margin-top:6px"><label class="row small"><input type="checkbox" data-k="bold" checked> Fett</label><label class="row small"><input type="checkbox" data-k="italic"> Kursiv</label></div>
+       </div>
+@@ -72,17 +73,42 @@ export function openPainter(ctx) {
+   let svg, profile;
+   function draw() {
+     profile = getProfile(ui.type);
+-    $("stage").innerHTML = `<div class="pt-canvas" style="width:${ui.zoom * 100}%">${renderAircraft(ui.type, lv, { fit: true, prefix: "pt", outline: 1.6, shadow: false, overlay: '<g id="pt-live"></g><circle id="pt-cursor" r="0" fill="none" stroke="#ffb000" stroke-width="1.5" vector-effect="non-scaling-stroke" pointer-events="none"/>' })}</div>`;
++    $("stage").innerHTML = `<div class="pt-canvas" style="width:${ui.zoom * 100}%">${renderAircraft(ui.type, lv, { fit: true, prefix: "pt", outline: 1.6, shadow: false, interactive: true, overlay: '<g id="pt-live"></g><g id="pt-sel"></g><circle id="pt-cursor" r="0" fill="none" stroke="#ffb000" stroke-width="1.5" vector-effect="non-scaling-stroke" pointer-events="none"/>' })}</div>`;
+     svg = $("stage").querySelector("svg");
+     bindStage();
++    drawSelection();
++  }
++  /** gestrichelter Rahmen um den ausgewählten Text + Textfelder mit seinen Werten füllen */
++  function drawSelection() {
++    const g = svg.querySelector("#pt-sel"), it = lv.items[ui.sel];
++    if (!it || it.t !== "text") { ui.sel = null; g.innerHTML = ""; syncTools(); return; }
++    const parts = [...svg.querySelectorAll(`[data-it="${ui.sel}"]`)].map(n => n.getBBox());
++    g.innerHTML = parts.map(b => `<rect x="${b.x - 0.25}" y="${b.y - 0.2}" width="${b.width + 0.5}" height="${b.height + 0.4}" fill="none" stroke="#ffb000" stroke-width="1.5" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" pointer-events="none"/>`).join("");
++    $("txt").value = it.txt; $("bold").checked = !!it.b; $("italic").checked = !!it.i;
++    $("size").value = Math.round(it.s / 1.6 * 100);
++    ui.color = it.c;
++    syncTools();
++  }
++  /** Ausgewählten Text ändern. Mehrere schnelle Änderungen (Tippen, Slider) = ein Rückgängig-Schritt. */
++  let lastEdit = { key: null, t: 0 };
++  function editSel(key, fn) {
++    const it = lv.items[ui.sel];
++    if (!it) return false;
++    const now = Date.now();
++    if (lastEdit.key !== key || now - lastEdit.t > 1500) { undo.push(JSON.stringify(lv)); redo.length = 0; }
++    lastEdit = { key, t: now };
++    fn(it); dirty = true;
++    draw(); drawPreviews();
++    return true;
+   }
+   function drawPreviews() {
+     $("previews").innerHTML = PREVIEWS.map(id => `<button data-prev="${id}" class="${id === ui.type ? "on" : ""}" title="${esc(AIRCRAFT_BY_ID[id].name)}">${renderAircraft(id, lv, { fit: true, outline: 0.8, shadow: false })}<span>${esc(AIRCRAFT_BY_ID[id].name)}</span></button>`).join("");
+   }
+   function syncTools() {
+     el.querySelectorAll("[data-tool]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tool === ui.tool)));
+-    $("hint").textContent = TOOLS.find(t => t[0] === ui.tool)[4];
+-    $("textopts").hidden = ui.tool !== "text";
++    const selIt = lv.items[ui.sel];
++    $("hint").textContent = selIt ? `Ausgewählt: „${selIt.txt}“ – ziehen zum Verschieben, Entf zum Löschen, Klick daneben hebt die Auswahl auf.` : TOOLS.find(t => t[0] === ui.tool)[4];
++    $("textopts").hidden = ui.tool !== "text" && ui.sel == null;
+     $("hex").textContent = ui.color;
+     $("color").value = ui.color;
+     el.querySelector('[data-a="zoom"]').textContent = ui.zoom + "×";
+@@ -117,6 +143,9 @@ export function openPainter(ctx) {
+     });
+     svg.addEventListener("pointerdown", e => {
+       if (e.button !== 0) return;
++      const tEl = e.target.closest("[data-it]");
++      if (tEl && (ui.tool === "move" || ui.tool === "text")) return grabText(e, +tEl.dataset.it);
++      if (ui.tool === "move") { ui.sel = null; drawSelection(); return; }
+       const { x, y } = svgPoint(e), hit = hitZone(profile, x, y);
+       if (!hit) return;
+       const box = frames(profile, hit.zone)[hit.zone === "engine" ? hit.index : 0];
+@@ -126,7 +155,7 @@ export function openPainter(ctx) {
+         const txt = $("txt").value.trim();
+         if (!txt) return ctx.toast("Erst Text eingeben.", "warn");
+         const [u, v] = toUV(box, x, y);
+-        const f = Object.assign(() => lv.items.push({ t: "text", z: hit.zone, c: ui.color, u: r3(u), v: r3(v), s: r3(ui.size * 1.6), txt, b: ui.bold ? 1 : 0, i: ui.italic ? 1 : 0 }), { adds: true });
++        const f = Object.assign(() => { lv.items.push({ t: "text", z: hit.zone, c: ui.color, u: r3(u), v: r3(v), s: r3(ui.size * 1.6), txt, b: ui.bold ? 1 : 0, i: ui.italic ? 1 : 0 }); ui.sel = lv.items.length - 1; }, { adds: true });
+         return change(f);
+       }
+       svg.setPointerCapture(e.pointerId);
+@@ -151,6 +180,34 @@ export function openPainter(ctx) {
+     svg.addEventListener("pointerleave", () => { $("status").textContent = ""; });
+   }
+ 
++  /** Text anfassen und verschieben (alle Kopien, z. B. auf mehreren Triebwerken, bewegen sich mit) */
++  function grabText(e, idx) {
++    ui.sel = idx; drawSelection();
++    const it = lv.items[idx], box = frames(profile, it.z)[0];
++    const start = svgPoint(e), u0 = it.u, v0 = it.v, before = JSON.stringify(lv);
++    let moved = false;
++    svg.setPointerCapture(e.pointerId);
++    const move = ev => {
++      const p = svgPoint(ev), w = box.x1 - box.x0, h = boxH(box);
++      it.u = r3(u0 + (p.x - start.x) / w); it.v = r3(v0 + (p.y - start.y) / h);
++      moved = true;
++      svg.querySelectorAll(`[data-it="${idx}"]`).forEach(n => {
++        const nx = +n.getAttribute("x") + (p.x - start.x) - (n._dx || 0), ny = +n.getAttribute("y") + (p.y - start.y) - (n._dy || 0);
++        n._dx = p.x - start.x; n._dy = p.y - start.y;
++        n.setAttribute("x", nx); n.setAttribute("y", ny);
++        if (n.getAttribute("transform-origin")) n.setAttribute("transform-origin", `${nx} ${ny}`);
++      });
++      const g = svg.querySelector("#pt-sel"); if (g) g.innerHTML = "";
++    };
++    const up = () => {
++      svg.removeEventListener("pointermove", move); svg.removeEventListener("pointerup", up);
++      if (moved) { undo.push(before); redo.length = 0; dirty = true; draw(); drawPreviews(); }
++    };
++    svg.addEventListener("pointermove", move);
++    svg.addEventListener("pointerup", up);
++    e.stopPropagation();
++  }
++
+   function paintLive(live) {
+     const st = stroke, base = lv.base[st.zone];
+     let it;
+@@ -166,10 +223,11 @@ export function openPainter(ctx) {
+   // ---------- Bedienung
+   el.addEventListener("click", e => {
+     const t = e.target.closest("[data-tool]"); if (t) { ui.tool = t.dataset.tool; syncTools(); return; }
+-    const c = e.target.closest("[data-c]"); if (c) { ui.color = c.dataset.c; syncTools(); return; }
++    const c = e.target.closest("[data-c]"); if (c) { ui.color = c.dataset.c; if (!editSel("color", it => (it.c = ui.color))) syncTools(); return; }
+     const p = e.target.closest("[data-prev]"); if (p) { ui.type = p.dataset.prev; $("type").value = ui.type; draw(); drawPreviews(); return; }
+     const a = e.target.closest("[data-a]")?.dataset.a;
+     if (a === "undo") doUndo();
++    if (a === "delsel") deleteSel();
+     if (a === "redo") doRedo();
+     if (a === "zoom") { ui.zoom = ui.zoom >= 3 ? 1 : ui.zoom + 1; syncTools(); draw(); }
+     if (a === "white" && confirm("Alles entfernen und wieder komplett weiß lackieren?")) change(() => { lv = whiteLivery(); });
+@@ -179,20 +237,22 @@ export function openPainter(ctx) {
+     }
+   });
+   $("type").addEventListener("change", e => { ui.type = e.target.value; draw(); drawPreviews(); });
+-  $("color").addEventListener("input", e => { ui.color = e.target.value; $("hex").textContent = ui.color; });
+-  $("size").addEventListener("input", e => { ui.size = +e.target.value / 100; });
+-  $("txt").addEventListener("input", e => { ui.txt = e.target.value; });
+-  $("bold").addEventListener("change", e => { ui.bold = e.target.checked; });
+-  $("italic").addEventListener("change", e => { ui.italic = e.target.checked; });
++  $("color").addEventListener("input", e => { ui.color = e.target.value; $("hex").textContent = ui.color; editSel("color", it => (it.c = ui.color)); });
++  $("size").addEventListener("input", e => { ui.size = +e.target.value / 100; editSel("size", it => (it.s = r3(ui.size * 1.6))); });
++  $("txt").addEventListener("input", e => { ui.txt = e.target.value; if (e.target.value.trim()) editSel("txt", it => (it.txt = e.target.value)); });
++  $("bold").addEventListener("change", e => { ui.bold = e.target.checked; editSel("bold", it => (it.b = ui.bold ? 1 : 0)); });
++  $("italic").addEventListener("change", e => { ui.italic = e.target.checked; editSel("italic", it => (it.i = ui.italic ? 1 : 0)); });
++  function deleteSel() { if (ui.sel == null) return; const i = ui.sel; ui.sel = null; change(() => lv.items.splice(i, 1)); }
+ 
+-  function doUndo() { if (!undo.length) return; redo.push(JSON.stringify(lv)); lv = JSON.parse(undo.pop()); dirty = true; draw(); drawPreviews(); }
+-  function doRedo() { if (!redo.length) return; undo.push(JSON.stringify(lv)); lv = JSON.parse(redo.pop()); dirty = true; draw(); drawPreviews(); }
++  function doUndo() { if (!undo.length) return; ui.sel = null; redo.push(JSON.stringify(lv)); lv = JSON.parse(undo.pop()); dirty = true; draw(); drawPreviews(); }
++  function doRedo() { if (!redo.length) return; ui.sel = null; undo.push(JSON.stringify(lv)); lv = JSON.parse(redo.pop()); dirty = true; draw(); drawPreviews(); }
+ 
+   const keys = e => {
+     if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName) && e.key !== "Escape") return;
+     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
+     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); return; }
+-    if (e.key === "Escape") { close(); return; }
++    if ((e.key === "Delete" || e.key === "Backspace") && ui.sel != null) { e.preventDefault(); deleteSel(); return; }
++    if (e.key === "Escape") { if (ui.sel != null) { ui.sel = null; drawSelection(); } else close(); return; }
+     const t = TOOLS.find(x => x[2].toLowerCase() === e.key.toLowerCase());
+     if (t && !e.ctrlKey && !e.metaKey) { ui.tool = t[0]; syncTools(); }
+   };
+diff --git a/games/airline-manager/js/ui/seatmap.js b/games/airline-manager/js/ui/seatmap.js
+new file mode 100644
+index 0000000..e8577a1
+--- /dev/null
++++ b/games/airline-manager/js/ui/seatmap.js
+@@ -0,0 +1,89 @@
++// Kabinenplan: Draufsicht der Kabine mit allen Sitzen, Klassengrenzen lassen sich ziehen.
++// Logik: Jede Klasse belegt "Sitzeinheiten" (First 5, Business 3, Premium 1,35, Economy 1) aus dem Budget des Typs (seatsMax).
++// Ändert man eine Premium-Klasse, passt Economy sich an, damit die Kabine gleich voll bleibt.
++
++import { CABIN } from "../core/config.js";
++
++const ORDER = ["f", "j", "w", "y"];
++const COL = { f: "#c9a227", j: "#4f7cff", w: "#2bb6a8", y: "#8a94a6" };
++
++export function abreast(t, c) {
++  const wide = t.size !== "narrow", jumbo = t.size === "jumbo";
++  return { f: 4, j: wide ? 4 : 4, w: wide ? 8 : 6, y: jumbo ? 10 : wide ? 9 : 6 }[c];
++}
++const units = cfg => ORDER.reduce((s, c) => s + (cfg[c] || 0) * CABIN.units[c], 0);
++
++/** Wert einer Klasse setzen; Economy (bzw. bei Economy-Änderung nichts) gleicht aus, Ziel = bisher belegte Einheiten */
++export function setClass(cfg, cls, value, t) {
++  const out = { ...cfg }, budget = t.seatsMax;
++  const target = Math.min(budget, Math.max(units(cfg), 1));
++  out[cls] = Math.max(0, Math.round(value));
++  if (cls !== "y") {
++    const others = ORDER.filter(c => c !== "y").reduce((s, c) => s + (out[c] || 0) * CABIN.units[c], 0);
++    if (others > budget) out[cls] = Math.floor((budget - (others - out[cls] * CABIN.units[cls])) / CABIN.units[cls]);
++    const used = ORDER.filter(c => c !== "y").reduce((s, c) => s + (out[c] || 0) * CABIN.units[c], 0);
++    out.y = Math.max(0, Math.floor(target - used));
++  } else {
++    const rest = budget - (units(out) - out.y);
++    out.y = Math.min(out.y, Math.floor(rest));
++  }
++  return out;
++}
++
++/** Klassengrenze verschieben: Einheiten wandern zwischen den Klassen links und rechts der Grenze.
++ *  Ist die direkte Nachbarklasse leer, wird die nächste belegte Klasse in Zugrichtung genommen. */
++export function moveBoundary(cfg, left, right, du, t) {
++  const out = { ...cfg }, U = CABIN.units;
++  let li = ORDER.indexOf(left), ri = ORDER.indexOf(right);
++  if (du > 0) while (ri < ORDER.length - 1 && !(out[ORDER[ri]] > 0)) ri++;
++  else while (li > 0 && !(out[ORDER[li]] > 0)) li--;
++  const L = ORDER[li], R = ORDER[ri];
++  const lu = (out[L] || 0) * U[L], ru = (out[R] || 0) * U[R];
++  const d = Math.max(-lu, Math.min(ru, du));
++  out[L] = Math.max(0, Math.round((lu + d) / U[L]));
++  const moved = out[L] * U[L] - lu;            // tatsächlich gewanderte Einheiten (auf ganze Sitze gerundet)
++  out[R] = Math.max(0, Math.floor((ru - moved) / U[R]));
++  if (units(out) > t.seatsMax) out[R] = Math.max(0, out[R] - Math.ceil((units(out) - t.seatsMax) / U[R]));
++  return out;
++}
++
++const W = 760, H = 120, NOSE = 46, TAIL = 40;
++
++/** SVG-Kabinenplan. Grenzen haben data-bound="links,rechts" zum Ziehen. */
++export function seatmapSVG(cfg, t) {
++  const budget = t.seatsMax, inner = W - NOSE - TAIL, scale = inner / budget;
++  const out = [`<svg viewBox="0 0 ${W} ${H}" class="seatmap" data-scale="${scale}">`,
++    `<path d="M${NOSE},14 H${W - TAIL} q${TAIL},0 ${TAIL},${H / 2 - 14} q0,${H / 2 - 14} -${TAIL},${H / 2 - 14} H${NOSE} C10,${H - 14} 2,${H / 2 + 14} 2,${H / 2} C2,${H / 2 - 14} 10,14 ${NOSE},14 Z" fill="#1c222d" stroke="#3a4352" stroke-width="1.5"/>`];
++  let x = NOSE;
++  const bounds = [];
++  ORDER.forEach((c, i) => {
++    const n = cfg[c] || 0, len = n * CABIN.units[c] * scale;
++    if (n) {
++      const ab = abreast(t, c), rows = Math.ceil(n / ab), pitch = len / rows;
++      const aisles = ab >= 9 ? [3, 6] : ab >= 6 ? [ab / 2] : [2];
++      const gap = 7, rowsH = H - 36, seatH = (rowsH - gap * aisles.length) / ab;
++      out.push(`<rect x="${x}" y="16" width="${len}" height="${H - 32}" fill="${COL[c]}" opacity=".08"/>`);
++      let left = n;
++      for (let r = 0; r < rows; r++) {
++        for (let s = 0; s < ab && left > 0; s++, left--) {
++          const off = aisles.filter(a => s >= a).length * gap;
++          out.push(`<rect x="${(x + r * pitch + pitch * 0.12).toFixed(1)}" y="${(18 + s * seatH + off).toFixed(1)}" width="${Math.max(1.5, pitch * 0.72).toFixed(1)}" height="${Math.max(1.5, seatH * 0.8).toFixed(1)}" rx="${Math.min(3, pitch * 0.2).toFixed(1)}" fill="${COL[c]}"/>`);
++        }
++      }
++      if (len > 40) out.push(`<text x="${x + len / 2}" y="${H - 4}" text-anchor="middle" font-size="11" fill="${COL[c]}" font-weight="700">${CABIN.names[c]} · ${n}</text>`);
++    }
++    x += len;
++    if (i < ORDER.length - 1) bounds.push([x, c, ORDER[i + 1]]);
++  });
++  const free = W - TAIL - x;
++  if (free > 2) out.push(`<rect x="${x}" y="16" width="${free}" height="${H - 32}" fill="url(#hatch)" opacity=".5"/><text x="${x + free / 2}" y="${H / 2 + 4}" text-anchor="middle" font-size="11" fill="#6f7888">frei</text>`);
++  out.push(`<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="8" fill="#3a4352"/></pattern></defs>`);
++  // Ziehgriffe (letzter oben, damit bei Klassen mit 0 Sitzen der rechte Griff greift)
++  for (const [bx, l, r] of bounds) {
++    out.push(`<g class="sm-handle" data-bound="${l},${r}" transform="translate(${bx.toFixed(1)},0)"><rect x="-7" y="6" width="14" height="${H - 12}" fill="transparent"/><line y1="10" y2="${H - 10}" stroke="#ffb000" stroke-width="2"/><rect x="-5" y="${H / 2 - 9}" width="10" height="18" rx="4" fill="#ffb000"/></g>`);
++  }
++  out.push("</svg>");
++  return out.join("");
++}
++
++export const CLASS_COLORS = COL;
+diff --git a/games/airline-manager/js/ui/windows.js b/games/airline-manager/js/ui/windows.js
+index 2af933c..5eb507f 100644
+--- a/games/airline-manager/js/ui/windows.js
++++ b/games/airline-manager/js/ui/windows.js
+@@ -35,9 +35,7 @@ export function openApp(id, params = {}) {
+   const pos = prefs.get("win-" + id, null);
+   const w = Math.min(app.width || 480, innerWidth - 16);
+   el.style.width = w + "px";
+-  const n = open.size;
+-  el.style.left = (pos?.x ?? Math.max(8, Math.min(innerWidth - w - 8, 24 + n * 36))) + "px";
+-  el.style.top = Math.min(pos?.y ?? 84 + n * 28, Math.max(8, innerHeight - 260)) + "px";
++  el.style.left = "-9999px"; el.style.top = "84px"; // erst rendern + messen, dann freien Platz suchen
+   document.getElementById("windows").appendChild(el);
+   const body = el.querySelector(".body");
+   const view = { ...(app.initialView?.() || {}), ...params };
+@@ -54,6 +52,7 @@ export function openApp(id, params = {}) {
+   body.addEventListener("focusout", () => setTimeout(() => { if (entry.dirty && !hasFocus(entry)) rerender(id); }, 0));
+   drag(el, id);
+   rerender(id);
++  place(el, pos);
+   focus(id);
+   document.dispatchEvent(new CustomEvent("windows:change"));
+ }
+@@ -88,6 +87,30 @@ export function rerender(id) {
+ export function refreshAll() { for (const id of open.keys()) rerender(id); }
+ export function tickAll() { for (const [id, w] of open) apps.get(id).tick?.(w.body, ctxRef, w.view); }
+ 
++// ---------- Freien Platz finden
++const TOP = 84, DOCK_H = 96, STEP = 16;
++const rectOf = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
++const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
++
++/** Neues Fenster dorthin, wo es am wenigsten andere Fenster (und die Flug-Infokarte) verdeckt. */
++function place(el, saved) {
++  if (innerWidth <= 720) return; // mobil: CSS legt Fenster unten an
++  const w = el.offsetWidth, h = Math.min(el.offsetHeight, innerHeight - TOP - DOCK_H);
++  const others = [...open.values()].map(o => o.el).filter(o => o !== el).map(rectOf);
++  const fc = document.getElementById("flightcard");
++  if (fc && !fc.hidden) others.push(rectOf(fc));
++  const cost = (x, y) => others.reduce((s, o) => s + overlap({ x, y, w, h }, o), 0);
++  let best = null;
++  const consider = (x, y, bias) => { const c = cost(x, y) * 1000 + bias; if (!best || c < best.c) best = { x, y, c }; };
++  if (saved) consider(clampX(saved.x, w), clampY(saved.y, h), -1); // gespeicherte Position bevorzugen, wenn sie frei ist
++  for (let y = TOP; y <= Math.max(TOP, innerHeight - DOCK_H - h); y += STEP)
++    for (let x = 8; x <= Math.max(8, innerWidth - w - 8); x += STEP) consider(x, y, x * 0.6 + (y - TOP));
++  el.style.left = best.x + "px";
++  el.style.top = best.y + "px";
++}
++const clampX = (x, w) => Math.max(8, Math.min(innerWidth - w - 8, x));
++const clampY = (y, h) => Math.max(TOP, Math.min(innerHeight - DOCK_H - Math.min(h, 200), y));
++
+ function drag(el, id) {
+   const h = el.querySelector("header");
+   h.addEventListener("pointerdown", e => {
+diff --git a/games/airline-manager/tests/sim.test.mjs b/games/airline-manager/tests/sim.test.mjs
+index b6aa7b5..461d750 100644
+--- a/games/airline-manager/tests/sim.test.mjs
++++ b/games/airline-manager/tests/sim.test.mjs
+@@ -112,4 +112,19 @@ const fresh = newGame({ name: "W", iata: "WW", hub: "FRA", player: { code: "c",
+ assert.equal(fresh.airline.livery.items.length, 0, "neue Airline ist komplett weiß");
+ assert.ok(Object.values(fresh.airline.livery.base).every(c => c === "#ffffff"));
+ 
++test("Erste 5 Flugzeuge sofort, danach Lieferzeit", () => {
++  const g = newGame({ name: "D", iata: "DD", hub: "FRA", player: { code: "c", secret: "s" }, now: T0 });
++  g.cash = 2e9;
++  act.orderNew(g, "a320neo", 4, T0); act.orderNew(g, "a320neo", 3, T0);
++  assert.deepEqual(g.fleet.map(a => a.status), ["idle", "idle", "idle", "idle", "idle", "delivery", "delivery"]);
++  assert.ok(g.fleet[6].availableAt > g.fleet[5].availableAt, "zweites spätes Flugzeug derselben Bestellung kommt später");
++});
++
++test("Wetter deterministisch, Verspätungen kommen vor", async () => {});
++const { weatherAt, weatherDelay } = await import("../js/sim/weather.js");
++assert.deepEqual(weatherAt("OSL", T0), weatherAt("OSL", T0));
++let delays = 0;
++for (let h = 0; h < 24 * 60; h++) if (weatherDelay("OSL", Date.UTC(2026, 0, 1) + h * H, "k" + h)) delays++;
++assert.ok(delays > 20 && delays < 24 * 60 * 0.5, "Oslo im Winter: " + delays);
++
+ console.log(`\n${pass} Tests bestanden`);
+diff --git a/index.html b/index.html
+index 53e7a27..9f80446 100644
+--- a/index.html
++++ b/index.html
+@@ -319,7 +319,7 @@ footer .priv b { color: var(--ink2); }
+     games: [
+       { id: "history-shots", href: "games/history-shots/", size: "big", ver: "v0.1", name: { de: "History Shots", en: "History Shots" }, art: "shots",
+         d: { de: "Wann und wo wurde dieses Foto aufgenommen? Fünf historische Bilder, Jahr tippen, Pin auf die Karte setzen. Drei Modi, Themen wie Flugzeuge, Autos oder Städte, Highscore ohne Anmeldung.", en: "When and where was this photo taken? Five historical pictures, guess the year, drop a pin on the map. Three modes, themes like planes, cars or cities, high scores without signing up." } },
+-      { id: "airline-manager", href: "games/airline-manager/", size: "big", ver: "v0.1", name: { de: "Airline Manager", en: "Airline Manager" }, art: "airline",
++      { id: "airline-manager", href: "games/airline-manager/", size: "big", ver: "v0.15", name: { de: "Airline Manager", en: "Airline Manager" }, art: "airline",
+         d: { de: "Gründe deine eigene Airline: Airbus- und Boeing-Flotte, Routen in Echtzeit auf der Weltkarte, A- bis D-Checks, Kerosinmarkt und eine Börse mit den Airlines aller Spieler.", en: "Found your own airline: Airbus and Boeing fleet, real-time routes on a world map, A to D checks, a fuel market and a stock exchange with every player's airline." } },
+       { name: { de: "Denkspiele", en: "Puzzles" }, art: "dice",
+         d: { de: "Knobeln, planen, um die Ecke denken. Partien bleiben in deinem Browser.", en: "Puzzle, plan, think around corners. Games stay in your browser." } },
+-- 
+2.43.0
+

@@ -35,9 +35,7 @@ export function openApp(id, params = {}) {
   const pos = prefs.get("win-" + id, null);
   const w = Math.min(app.width || 480, innerWidth - 16);
   el.style.width = w + "px";
-  const n = open.size;
-  el.style.left = (pos?.x ?? Math.max(8, Math.min(innerWidth - w - 8, 24 + n * 36))) + "px";
-  el.style.top = Math.min(pos?.y ?? 84 + n * 28, Math.max(8, innerHeight - 260)) + "px";
+  el.style.left = "-9999px"; el.style.top = "84px"; // erst rendern + messen, dann freien Platz suchen
   document.getElementById("windows").appendChild(el);
   const body = el.querySelector(".body");
   const view = { ...(app.initialView?.() || {}), ...params };
@@ -54,6 +52,7 @@ export function openApp(id, params = {}) {
   body.addEventListener("focusout", () => setTimeout(() => { if (entry.dirty && !hasFocus(entry)) rerender(id); }, 0));
   drag(el, id);
   rerender(id);
+  place(el, pos);
   focus(id);
   document.dispatchEvent(new CustomEvent("windows:change"));
 }
@@ -87,6 +86,30 @@ export function rerender(id) {
 
 export function refreshAll() { for (const id of open.keys()) rerender(id); }
 export function tickAll() { for (const [id, w] of open) apps.get(id).tick?.(w.body, ctxRef, w.view); }
+
+// ---------- Freien Platz finden
+const TOP = 84, DOCK_H = 96, STEP = 16;
+const rectOf = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+
+/** Neues Fenster dorthin, wo es am wenigsten andere Fenster (und die Flug-Infokarte) verdeckt. */
+function place(el, saved) {
+  if (innerWidth <= 720) return; // mobil: CSS legt Fenster unten an
+  const w = el.offsetWidth, h = Math.min(el.offsetHeight, innerHeight - TOP - DOCK_H);
+  const others = [...open.values()].map(o => o.el).filter(o => o !== el).map(rectOf);
+  const fc = document.getElementById("flightcard");
+  if (fc && !fc.hidden) others.push(rectOf(fc));
+  const cost = (x, y) => others.reduce((s, o) => s + overlap({ x, y, w, h }, o), 0);
+  let best = null;
+  const consider = (x, y, bias) => { const c = cost(x, y) * 1000 + bias; if (!best || c < best.c) best = { x, y, c }; };
+  if (saved) consider(clampX(saved.x, w), clampY(saved.y, h), -1); // gespeicherte Position bevorzugen, wenn sie frei ist
+  for (let y = TOP; y <= Math.max(TOP, innerHeight - DOCK_H - h); y += STEP)
+    for (let x = 8; x <= Math.max(8, innerWidth - w - 8); x += STEP) consider(x, y, x * 0.6 + (y - TOP));
+  el.style.left = best.x + "px";
+  el.style.top = best.y + "px";
+}
+const clampX = (x, w) => Math.max(8, Math.min(innerWidth - w - 8, x));
+const clampY = (y, h) => Math.max(TOP, Math.min(innerHeight - DOCK_H - Math.min(h, 200), y));
 
 function drag(el, id) {
   const h = el.querySelector("header");

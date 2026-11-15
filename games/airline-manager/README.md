@@ -244,3 +244,17 @@ aber langsam. Hebel in `core/config.js`: `GAME.startCash`, `GAME.marketShare`, `
 - Konkurrenz auf Strecken: Nachfrage teilen, wenn andere Spieler dieselbe Strecke fliegen (braucht Backend)
 - Slots an Tier-5-Flughäfen, Nachtflugverbote
 - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
+
+## Änderungen
+
+**v0.15**
+- Die ersten 5 Flugzeuge kommen sofort, danach Lieferzeiten in Echtzeit (`GAME.newDeliveryH`, `orderStaggerH`,
+  `usedDeliveryH` in `core/config.js`) mit Countdown im Hangar und Badge im Dock.
+- Airline-Menü als großes Dropdown oben links (Klick auf den Airline-Namen); der Airline-Knopf im Dock entfällt.
+- Neue Fenster suchen sich den freiesten Platz auf dem Bildschirm (`ui/windows.js → place`).
+- Kabine: Slider pro Klasse und ziehbare Klassengrenzen im Kabinenplan (`ui/seatmap.js`). Mehr Business/First nimmt
+  Economy Plätze weg und umgekehrt.
+- Wetter (`sim/weather.js`): saisonal und nach Klimazone, für alle Spieler identisch. Gewitter, Schnee und Nebel
+  verlängern manchmal den Turnaround → Verspätungssymbol auf der Karte, Hinweis in der Flug-Infokarte und im Logbuch.
+- Lackiererei: Cockpitfenster sitzen weiter vorn auf der Nase; Texte lassen sich auswählen, verschieben, umfärben,
+  in Größe/Inhalt ändern und löschen (Werkzeug „Auswählen“, Taste V).

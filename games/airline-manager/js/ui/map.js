@@ -8,6 +8,7 @@ import { arc } from "../sim/geo.js";
 import { topViewIcon } from "./aircraftArt.js";
 import { html } from "./dom.js";
 import { fmt } from "../core/util.js";
+import { weatherAt, severeWeather } from "../sim/weather.js";
 
 // Notfall-Stil ohne Kacheln: Spiel bleibt bedienbar, auch wenn der Kartendienst nicht erreichbar ist.
 const OFFLINE = { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#121822" } }] };
@@ -15,7 +16,7 @@ const STYLES = ["https://tiles.openfreemap.org/styles/dark", "https://tiles.open
 const PLANE = "#ffb000", PLANE_SEL = "#ff5a1f", HUB = "#ffb000";
 
 export function createMap(container, ctx) {
-  let styleIdx = 0, ready = false, selected = null, pickMode = null, popup = null;
+  let styleIdx = 0, ready = false, selected = null, pickMode = null, popup = null, lastWx = 0;
   const map = new MLMap({
     container, style: STYLES[0], center: [10, 35], zoom: 1.6, minZoom: 1, maxZoom: 12,
     attributionControl: false, dragRotate: false, pitchWithRotate: false, renderWorldCopies: true
@@ -33,6 +34,8 @@ export function createMap(container, ctx) {
     map.addSource("track", { type: "geojson", data: empty() });
     map.addSource("airports", { type: "geojson", data: empty() });
     map.addSource("planes", { type: "geojson", data: empty() });
+    map.addSource("weather", { type: "geojson", data: empty() });
+    for (const k of ["storm", "snow", "fog", "delay"]) if (!map.hasImage("wx-" + k)) map.addImage("wx-" + k, wxIcon(k), { pixelRatio: 2 });
     map.addLayer({ id: "routes", type: "line", source: "routes", paint: { "line-color": ["case", ["get", "sel"], "#ffd27a", "#ffb000"], "line-opacity": ["case", ["get", "sel"], 0.9, 0.28], "line-width": ["case", ["get", "sel"], 2.2, 1.1] }, layout: { "line-cap": "round" } });
     map.addLayer({ id: "track-done", type: "line", source: "track", filter: ["==", ["get", "done"], true], paint: { "line-color": PLANE_SEL, "line-width": 2.4 } });
     map.addLayer({ id: "track-todo", type: "line", source: "track", filter: ["==", ["get", "done"], false], paint: { "line-color": PLANE_SEL, "line-width": 2, "line-opacity": 0.7, "line-dasharray": [2, 2] } });
@@ -51,6 +54,11 @@ export function createMap(container, ctx) {
       paint: { "text-color": "#c8d0dc", "text-halo-color": "#0d1016", "text-halo-width": 1.4 }
     });
     map.addLayer({
+      id: "weather", type: "symbol", source: "weather",
+      layout: { "icon-image": ["concat", "wx-", ["get", "kind"]], "icon-size": ["interpolate", ["linear"], ["zoom"], 1, 0.55, 5, 0.9], "icon-offset": [16, -16], "icon-allow-overlap": true, "icon-ignore-placement": true },
+      paint: { "icon-opacity": ["+", 0.55, ["*", 0.45, ["get", "sev"]]] }
+    });
+    map.addLayer({
       id: "planes", type: "symbol", source: "planes",
       layout: {
         "icon-image": ["concat", "plane-", ["get", "kind"]], "icon-rotate": ["get", "hdg"], "icon-rotation-alignment": "map",
@@ -60,7 +68,12 @@ export function createMap(container, ctx) {
       },
       paint: { "icon-color": ["case", ["get", "sel"], PLANE_SEL, PLANE], "icon-opacity": ["case", ["get", "air"], 1, 0.55], "text-color": "#ffd27a", "text-halo-color": "#0d1016", "text-halo-width": 1.2 }
     });
+    map.addLayer({
+      id: "plane-delay", type: "symbol", source: "planes", filter: ["==", ["get", "delayed"], true],
+      layout: { "icon-image": "wx-delay", "icon-size": ["interpolate", ["linear"], ["zoom"], 1, 0.45, 5, 0.7], "icon-offset": [22, -22], "icon-allow-overlap": true, "icon-ignore-placement": true }
+    });
     ready = true;
+    lastWx = 0;
     updateStatic();
     updatePlanes();
   });
@@ -80,7 +93,7 @@ export function createMap(container, ctx) {
   }
 
   function showAirport(iata) {
-    const a = AIRPORT_BY_IATA[iata], s = ctx.state, isHub = s?.airline.hubs.includes(iata);
+    const a = AIRPORT_BY_IATA[iata], s = ctx.state, isHub = s?.airline.hubs.includes(iata), wx = weatherAt(iata, ctx.now());
     popup?.remove();
     const el = document.createElement("div");
     el.innerHTML = html`<div class="stack">
@@ -91,6 +104,7 @@ export function createMap(container, ctx) {
         <dt>Einzugsgebiet</dt><dd>${fmt.dec(a.pop)} Mio</dd>
         <dt>Geschäft / Urlaub</dt><dd>${Math.round(a.biz * 100)} % / ${Math.round(a.tour * 100)} %</dd>
         <dt>Kategorie</dt><dd>${"★".repeat(a.tier)}</dd>
+        <dt>Wetter jetzt</dt><dd>${wx.icon} ${wx.label}${wx.bad ? html` <span class="pill warn">Verspätungen möglich</span>` : ""}</dd>
       </dl>
       <div class="row">${s ? (isHub ? html`<span class="pill good">Dein Drehkreuz</span>` : html`<button class="btn sm p" data-plan>Strecke planen</button>`) : ""}</div>
     </div>`.s;
@@ -125,13 +139,14 @@ export function createMap(container, ctx) {
       if (!route) continue;
       const p = ac.status === "check" ? { phase: "ground", lat: AIRPORT_BY_IATA[route.from].lat, lon: AIRPORT_BY_IATA[route.from].lon, heading: 0 } : positionAt(ac, route, now);
       const t = typeOf(ac);
-      feats.push(pt([p.lon, p.lat], { id: ac.id, reg: ac.reg, hdg: p.heading, kind: t.art.deck2 || t.art.engines === 4 ? "jumbo" : t.size, air: p.phase === "air", sel: ac.id === selected }));
+      feats.push(pt([p.lon, p.lat], { id: ac.id, reg: ac.reg + (ac.ops.delay ? ` +${ac.ops.delay.min}'` : ""), hdg: p.heading, kind: t.art.deck2 || t.art.engines === 4 ? "jumbo" : t.size, air: p.phase === "air", sel: ac.id === selected, delayed: !!ac.ops.delay }));
       if (ac.id === selected && p.phase === "air") {
         const full = arc(p.from, p.to, 96), cut = Math.max(1, Math.round(p.progress * 96));
         track = fc([line(full.slice(0, cut + 1), { done: true }), line(full.slice(cut), { done: false })]);
       }
     }
     map.getSource("planes").setData(fc(feats));
+    if (now - lastWx > 60_000) { lastWx = now; map.getSource("weather").setData(fc(severeWeather(AIRPORTS, now).map(({ a, w }) => pt([a.lon, a.lat], { kind: w.kind, sev: w.sev })))); }
     map.getSource("track").setData(track);
   }
 
@@ -148,6 +163,18 @@ export function createMap(container, ctx) {
     /** Auswahlmodus für Flughäfen (Onboarding: Drehkreuz wählen). fn = null beendet ihn. */
     pickAirport(fn) { pickMode = fn; popup?.remove(); }
   };
+}
+
+/** Kleine Wetter- und Verspätungssymbole für die Karte */
+function wxIcon(kind) {
+  const c = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(48, 48) : Object.assign(document.createElement("canvas"), { width: 48, height: 48 });
+  const g = c.getContext("2d");
+  const cloud = (col) => { g.fillStyle = col; g.beginPath(); g.arc(17, 22, 9, 0, 7); g.arc(28, 18, 11, 0, 7); g.arc(36, 25, 7, 0, 7); g.fill(); g.fillRect(17, 22, 20, 10); };
+  if (kind === "storm") { cloud("#5a6578"); g.fillStyle = "#ffd23f"; g.beginPath(); g.moveTo(27, 26); g.lineTo(19, 40); g.lineTo(25, 39); g.lineTo(22, 47); g.lineTo(33, 32); g.lineTo(27, 33); g.lineTo(31, 26); g.closePath(); g.fill(); }
+  if (kind === "snow") { g.strokeStyle = "#e6f3ff"; g.lineWidth = 3.5; g.lineCap = "round"; for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; g.beginPath(); g.moveTo(24 + 15 * Math.cos(a), 24 + 15 * Math.sin(a)); g.lineTo(24 - 15 * Math.cos(a), 24 - 15 * Math.sin(a)); g.stroke(); } }
+  if (kind === "fog") { g.strokeStyle = "#c3cad6"; g.lineWidth = 4; g.lineCap = "round"; for (const [y, x0, x1] of [[14, 8, 34], [24, 14, 40], [34, 6, 30]]) { g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); } }
+  if (kind === "delay") { g.fillStyle = "#ff4d5e"; g.beginPath(); g.arc(24, 24, 18, 0, 7); g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 3.5; g.lineCap = "round"; g.beginPath(); g.arc(24, 24, 10, 0, 7); g.stroke(); g.beginPath(); g.moveTo(24, 17); g.lineTo(24, 24); g.lineTo(29, 27); g.stroke(); }
+  return g.getImageData(0, 0, 48, 48);
 }
 
 const empty = () => ({ type: "FeatureCollection", features: [] });

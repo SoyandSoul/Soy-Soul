@@ -112,4 +112,19 @@ const fresh = newGame({ name: "W", iata: "WW", hub: "FRA", player: { code: "c", 
 assert.equal(fresh.airline.livery.items.length, 0, "neue Airline ist komplett weiß");
 assert.ok(Object.values(fresh.airline.livery.base).every(c => c === "#ffffff"));
 
+test("Erste 5 Flugzeuge sofort, danach Lieferzeit", () => {
+  const g = newGame({ name: "D", iata: "DD", hub: "FRA", player: { code: "c", secret: "s" }, now: T0 });
+  g.cash = 2e9;
+  act.orderNew(g, "a320neo", 4, T0); act.orderNew(g, "a320neo", 3, T0);
+  assert.deepEqual(g.fleet.map(a => a.status), ["idle", "idle", "idle", "idle", "idle", "delivery", "delivery"]);
+  assert.ok(g.fleet[6].availableAt > g.fleet[5].availableAt, "zweites spätes Flugzeug derselben Bestellung kommt später");
+});
+
+test("Wetter deterministisch, Verspätungen kommen vor", async () => {});
+const { weatherAt, weatherDelay } = await import("../js/sim/weather.js");
+assert.deepEqual(weatherAt("OSL", T0), weatherAt("OSL", T0));
+let delays = 0;
+for (let h = 0; h < 24 * 60; h++) if (weatherDelay("OSL", Date.UTC(2026, 0, 1) + h * H, "k" + h)) delays++;
+assert.ok(delays > 20 && delays < 24 * 60 * 0.5, "Oslo im Winter: " + delays);
+
 console.log(`\n${pass} Tests bestanden`);

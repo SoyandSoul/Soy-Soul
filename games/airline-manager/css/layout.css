@@ -12,7 +12,7 @@
 .hud { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 20; display: flex; gap: 8px; align-items: stretch; pointer-events: none; }
 .hud > * { pointer-events: auto; }
 .glass { background: var(--panel); backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
-.hud .brand { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; }
+.hud .brand { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 8px; }
 .hud .brand a { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--raise2); color: var(--ink2); text-decoration: none; }
 .hud .brand .tail { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font: 800 13px var(--display); }
 .hud .brand b { display: block; font: 650 15px var(--display); line-height: 1.1; }
@@ -96,3 +96,33 @@
   .win { left: 8px !important; right: 8px; top: auto !important; bottom: 86px; width: auto !important; max-height: 70vh; }
   .flightcard { left: 12px; right: 12px; width: auto; top: auto; bottom: 86px; }
 }
+
+/* ---------- Airline-Dropdown */
+.am-btn { display: flex; align-items: center; gap: 10px; padding: 3px 8px 3px 3px; border-radius: 11px; text-align: left; transition: background .15s; }
+.am-btn:hover, .am-btn[aria-expanded="true"] { background: rgba(255,255,255,.06); }
+.am-btn .am-name b { display: block; font: 650 15px var(--display); line-height: 1.1; }
+.am-btn .am-name small { color: var(--ink3); font: 12px var(--mono); }
+.am-btn .chev { color: var(--ink3); transition: transform .2s var(--ease); }
+.am-btn[aria-expanded="true"] .chev { transform: rotate(180deg); color: var(--accent); }
+.airmenu { position: fixed; top: 74px; left: 12px; z-index: 70; width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 170px); overflow: auto; padding: 14px; border-color: var(--line2); animation: menuIn .2s var(--ease); transform-origin: top left; }
+@keyframes menuIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+.am-head { display: grid; grid-template-columns: 170px 1fr; gap: 14px; align-items: center; }
+.am-head b { display: block; font: 700 22px var(--display); letter-spacing: -.01em; }
+.am-art { background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,.1), transparent 70%); border-radius: 12px; padding: 4px; }
+.am-art svg { width: 100%; height: auto; display: block; }
+.am-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0; }
+.am-stats div { background: var(--raise); border-radius: 10px; padding: 7px 10px; }
+.am-stats span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink3); }
+.am-stats b { font: 650 15px var(--display); }
+.am-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.am-grid button { display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border-radius: 12px; background: var(--raise); border: 1px solid transparent; transition: border-color .15s, background .15s; }
+.am-grid button:hover, .am-grid button:focus-visible { border-color: rgba(255,176,0,.45); background: var(--raise2); }
+.am-grid svg { width: 26px; height: 26px; color: var(--accent); flex: none; }
+.am-grid b { display: block; font-size: 14px; }
+.am-grid small { color: var(--ink3); font-size: 12px; }
+.am-foot { margin-top: 10px; text-align: right; }
+.dock .badge.info { background: var(--info); }
+@media (max-width: 720px) { .am-grid { grid-template-columns: 1fr; } .am-stats { grid-template-columns: 1fr 1fr; } .am-head { grid-template-columns: 110px 1fr; } }
+.fc-delay { margin: 0 14px 8px; padding: 6px 10px; border-radius: 9px; background: color-mix(in srgb, var(--bad) 16%, transparent); color: #ffb3bb; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.fc-clock { width: 14px; height: 14px; border-radius: 50%; background: var(--bad); position: relative; flex: none; }
+.fc-clock::after { content: ""; position: absolute; left: 6px; top: 3px; width: 2px; height: 5px; background: #fff; box-shadow: 2px 3px 0 -0px #fff; }
