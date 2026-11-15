@@ -8,18 +8,23 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg transform='translate(20 20)'%3E%3Cellipse rx='9.5' ry='6' transform='rotate(-45) translate(0 -8.5)' fill='%23ff6a3d'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(45) translate(0 -8.5)' fill='%232f7bff'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(135) translate(0 -8.5)' fill='%2334c27a'/%3E%3Cellipse rx='9.5' ry='6' transform='rotate(225) translate(0 -8.5)' fill='%238b5cf6'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="lib/maplibre-gl.css">
 <style>
+@font-face { font-family: "Bricolage"; src: url("../../assets/fonts/bricolage-latin.woff2") format("woff2"); font-weight: 200 800; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Bricolage"; src: url("../../assets/fonts/bricolage-latin-ext.woff2") format("woff2"); font-weight: 200 800; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0; }
 :root {
-  --bg: #fbfbfd; --bg2: #f2f2f6; --card: #ffffff; --ink: #1d1d1f; --ink2: #5e5e66; --ink3: #8a8a93;
+  --bg: #fbfbfd; --bg2: #f2f2f6; --card: #ffffff; --ink: #1d1d1f; --ink2: #55555d; --ink3: #6f6f78;
   --line: rgba(0,0,0,.08); --glass: rgba(255,255,255,.78); --shadow: 0 2px 6px rgba(0,0,0,.06), 0 18px 40px -14px rgba(0,0,0,.22);
   --c: #22b06b; --hot: #ff4d2e; --hot2: #ff9a1f; --games: #ff6a3d; --tools: #2f7bff; --life: #22b06b; --org: #8b5cf6;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --pw: 380px;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --bg: #0b0b0d; --bg2: #232328; --card: #18181b; --ink: #f5f5f7; --ink2: #a8a8b0; --ink3: #77777f; --line: rgba(255,255,255,.1); --glass: rgba(24,24,27,.8); --shadow: 0 2px 6px rgba(0,0,0,.4), 0 18px 40px -14px rgba(0,0,0,.7); }
+  :root:not([data-theme="light"]) { --bg: #0b0b0d; --bg2: #232328; --card: #18181b; --ink: #f5f5f7; --ink2: #b0b0b8; --ink3: #8e8e97; --line: rgba(255,255,255,.1); --glass: rgba(24,24,27,.8); --shadow: 0 2px 6px rgba(0,0,0,.4), 0 18px 40px -14px rgba(0,0,0,.7); }
 }
-:root[data-theme="dark"] { --bg: #0b0b0d; --bg2: #232328; --card: #18181b; --ink: #f5f5f7; --ink2: #a8a8b0; --ink3: #77777f; --line: rgba(255,255,255,.1); --glass: rgba(24,24,27,.8); --shadow: 0 2px 6px rgba(0,0,0,.4), 0 18px 40px -14px rgba(0,0,0,.7); }
+:root[data-theme="dark"] { --bg: #0b0b0d; --bg2: #232328; --card: #18181b; --ink: #f5f5f7; --ink2: #b0b0b8; --ink3: #8e8e97; --line: rgba(255,255,255,.1); --glass: rgba(24,24,27,.8); --shadow: 0 2px 6px rgba(0,0,0,.4), 0 18px 40px -14px rgba(0,0,0,.7); }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+::selection { background: color-mix(in srgb, var(--games) 28%, transparent); }
+:focus-visible { outline: 2px solid var(--c); outline-offset: 3px; border-radius: 6px; }
+h1, h2, .logo, .brand h1 { font-family: "Bricolage", var(--font); }
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
 a { color: inherit; text-decoration: none; }
@@ -38,7 +43,7 @@ button { background: none; border: 0; cursor: pointer; }
 .brand a.logo:hover svg { transform: rotate(90deg); }
 .brand .sep { color: var(--ink3); }
 .brand h1 { font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
-.brand h1 i { font-style: normal; background: linear-gradient(120deg, var(--hot), var(--hot2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand h1 i { font-style: normal; color: var(--hot); }
 .tog { display: flex; gap: 2px; background: var(--bg2); border-radius: 99px; padding: 3px; margin-left: auto; }
 .tog button { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; color: var(--ink3); }
 .tog button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
