@@ -2,15 +2,17 @@
 import { html } from "./dom.js";
 import { fmt } from "../core/util.js";
 import { fuelPrice } from "../sim/fuel.js";
+import { normalizeLivery } from "../art/livery.js";
 
 let lastFuel = 0, lastShare = 0;
 
 export function renderHud(el, ctx) {
-  const s = ctx.state, lv = s.airline.livery;
+  const s = ctx.state, lv = normalizeLivery(s.airline.livery);
+  const tail = lv.base.fin, tailTxt = lv.items.find(i => i.t === "text" && i.z === "fin");
   el.innerHTML = html`
     <div class="brand glass">
       <a href="../../" title="Zurück zu Soy & Soul" aria-label="Zurück zur Startseite"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></a>
-      <div class="tail" style="background:${lv.tail};color:${lv.logo}">${s.airline.iata}</div>
+      <button class="tail" data-paint title="Lackiererei öffnen" style="background:${tail};color:${tailTxt?.c || "#1b2230"};box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)">${s.airline.iata}</button>
       <div><b>${s.airline.name}</b><small>${s.player.code}</small></div>
     </div>
     <div class="stats glass">
@@ -22,6 +24,7 @@ export function renderHud(el, ctx) {
     </div>
     <div class="clock glass"><b data-h="time"></b><span data-h="date"></span></div>`.s;
   el.querySelectorAll("[data-hud-open]").forEach(d => d.onclick = () => ctx.openApp(d.dataset.hudOpen));
+  el.querySelector("[data-paint]").onclick = () => ctx.openPainter();
   tickHud(el, ctx);
 }
 

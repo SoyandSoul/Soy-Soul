@@ -3,6 +3,7 @@
 // Für Gerätewechsel gibt es Export/Import als Text (ui/apps/airline.js) und optional Cloud-Save (net/backend.js).
 
 import { GAME, FUEL, REPUTATION, CATERING, BAGS } from "./config.js";
+import { whiteLivery, normalizeLivery } from "../art/livery.js";
 
 const mem = new Map(); // Fallback, falls localStorage fehlt (Node-Tests, privater Modus)
 const storage = {
@@ -18,7 +19,7 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
     player,                                   // { code, secret } aus net/player.js
     airline: {
       name, iata, hubs: [hub],
-      livery: { body: "#ffffff", belly: "#d9dde3", tail: "#1f4fd8", stripe: "#1f4fd8", engine: "#c8ced6", logo: "#ffffff", text: iata },
+      livery: whiteLivery(),                  // komplett weiß – bemalt wird in der Lackiererei (ui/painter.js)
       contract: null,                         // { maker, since }
       catering: CATERING.defaultMode,
       bagFee: BAGS.defaultFee,
@@ -47,6 +48,7 @@ export function migrate(s) {
   // Beispiel für spätere Versionen:
   // if (s.v === 1) { s.airline.newField = default; s.v = 2; }
   if (s.v !== GAME.version) return null;
+  s.airline.livery = normalizeLivery(s.airline.livery); // alte Farbflächen-Livery → Malformat
   return s;
 }
 

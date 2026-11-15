@@ -96,7 +96,7 @@ function used(ctx, v) {
     const t = AIRCRAFT_BY_ID[l.typeId], sold = s.market.boughtUsed.includes(l.id);
     const cRem = CHECKS.C.fh - l.maint.C.fh, dRem = CHECKS.D.fh - l.maint.D.fh;
     return html`<article class="shop-item">
-      <div class="art">${raw(sideView(t, { body: "#f2f2f2", belly: "#f2f2f2", tail: "#c9ced6", stripe: "#c9ced6", engine: "#c8ced6", text: "" }))}</div>
+      <div class="art">${raw(sideView(t, null))}</div>
       <div class="info">
         <h3>${t.name}<small>${t.maker} · ${l.seller}</small></h3>
         <div class="specs">

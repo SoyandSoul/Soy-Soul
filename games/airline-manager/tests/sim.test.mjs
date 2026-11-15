@@ -103,4 +103,13 @@ test("Bahnlänge wird geprüft", () => {
   assert.equal(res.ok, false);
 });
 
+test("Alle Typen zeichenbar, Livery passt auf jeden Typ", async () => {});
+const { renderAircraft } = await import("../js/art/render.js");
+const { normalizeLivery } = await import("../js/art/livery.js");
+const lv = normalizeLivery({ body: "#fff", belly: "#123", tail: "#e00", stripe: "#e00", engine: "#123", text: "AB" });
+for (const t of AIRCRAFT) { const svg = renderAircraft(t, lv); assert.ok(!/NaN|undefined/.test(svg), t.id); }
+const fresh = newGame({ name: "W", iata: "WW", hub: "FRA", player: { code: "c", secret: "s" }, now: T0 });
+assert.equal(fresh.airline.livery.items.length, 0, "neue Airline ist komplett weiß");
+assert.ok(Object.values(fresh.airline.livery.base).every(c => c === "#ffffff"));
+
 console.log(`\n${pass} Tests bestanden`);

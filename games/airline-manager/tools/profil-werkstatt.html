@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profil-Werkstatt · Airline Manager</title>
+<link rel="stylesheet" href="../css/base.css">
+<style>
+  body { overflow: hidden; display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
+  aside { overflow: auto; padding: 16px; border-right: 1px solid var(--line); background: var(--panel-solid); display: flex; flex-direction: column; gap: 12px; }
+  aside h1 { font-size: 20px; }
+  .step { background: var(--raise); border-radius: 12px; padding: 10px 12px; }
+  .step > b { display: block; margin-bottom: 6px; }
+  .step.on { box-shadow: inset 0 0 0 1px var(--accent); }
+  .parts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .parts button { text-align: left; padding: 6px 8px; border-radius: 8px; background: var(--raise2); font-size: 12px; font-weight: 600; color: var(--ink2); }
+  .parts button[aria-pressed="true"] { background: rgba(255,176,0,.18); color: var(--accent); }
+  .parts button small { display: block; font-weight: 400; color: var(--ink3); }
+  main { position: relative; overflow: hidden; background: #0a0d12; }
+  #view { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #view img { display: block; user-select: none; -webkit-user-drag: none; opacity: var(--imgop, .9); }
+  #view svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .drop { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink3); text-align: center; pointer-events: none; }
+  .bar { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; gap: 8px; align-items: center; pointer-events: none; }
+  .bar > * { pointer-events: auto; }
+  #preview { background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,.08), transparent 70%); border-radius: 12px; padding: 6px; }
+  #preview svg { width: 100%; height: auto; display: block; }
+  [hidden] { display: none !important; }
+  kbd { font: 11px var(--mono); background: var(--raise2); border-radius: 4px; padding: 1px 5px; }
+  textarea { width: 100%; font: 11px var(--mono); }
+</style>
+</head>
+<body>
+<aside>
+  <div><h1>Profil-Werkstatt</h1><p class="small muted">Blaupause abpausen → Flugzeugform 1:1 im Spiel. Bild bleibt auf deinem Rechner.</p></div>
+
+  <div class="step" data-step="1"><b>1 · Blaupause laden</b>
+    <input type="file" id="file" accept="image/*" class="small">
+    <p class="small muted" style="margin-top:6px">Oder Screenshot mit <kbd>Strg</kbd>+<kbd>V</kbd> einfügen. Gut geeignet: Seitenansicht aus den Aircraft-Characteristics-PDFs (Airbus) bzw. Airport-Planning-Dokumenten (Boeing), Kapitel „General Airplane Dimensions“.</p>
+    <label class="row small" style="margin-top:6px">Bild-Deckkraft <input type="range" id="imgop" min="10" max="100" value="90"></label>
+  </div>
+
+  <div class="step" data-step="2"><b>2 · Flugzeugtyp</b>
+    <select id="type" class="in" style="width:100%"></select>
+    <p class="small muted" style="margin-top:6px" id="typeinfo"></p>
+  </div>
+
+  <div class="step" data-step="3"><b>3 · Maßstab</b>
+    <p class="small muted">Klicke die <b>vorderste</b> Stelle (Nasenspitze) und dann die <b>hinterste</b> Stelle des Flugzeugs. Die Gesamtlänge kommt aus den Daten. Nase rechts? Kein Problem, wird automatisch gespiegelt.</p>
+    <div class="row" style="margin-top:6px"><button class="btn sm" id="calib">Maßstab setzen</button><span class="small" id="calibinfo"></span></div>
+  </div>
+
+  <div class="step" data-step="4"><b>4 · Bauteile abpausen</b>
+    <div class="parts" id="parts"></div>
+    <p class="small muted" style="margin-top:8px">Klicken = Punkt setzen · Punkt ziehen = verschieben · <kbd>Alt</kbd>+Klick auf Punkt = Ecke/rund · <kbd>⌫</kbd> letzter Punkt · <kbd>Enter</kbd> Teil fertig (nächstes Teil derselben Art) · Mausrad = Zoom · <kbd>Leertaste</kbd>+Ziehen = verschieben</p>
+    <div id="partlist" class="small" style="margin-top:6px"></div>
+  </div>
+
+  <div class="step"><b>5 · Vorschau im Spiel-Look</b>
+    <div id="preview"></div>
+    <label class="row small" style="margin-top:6px"><input type="checkbox" id="testlv"> mit Test-Livery</label>
+  </div>
+
+  <div class="step"><b>6 · Speichern</b>
+    <p class="small muted">Alle abgepausten Typen liegen in <code>data/profiles.json</code>. Bestehende Datei laden, Typ abpausen, neue Datei herunterladen und im Ordner <code>games/airline-manager/data/</code> ersetzen.</p>
+    <div class="row wrap" style="margin-top:6px">
+      <label class="btn sm">profiles.json laden<input type="file" id="loadjson" accept=".json,application/json" hidden></label>
+      <button class="btn sm p" id="download">profiles.json herunterladen</button>
+      <button class="btn sm danger" id="clear">Typ verwerfen</button>
+    </div>
+    <p class="small muted" id="stored" style="margin-top:6px"></p>
+  </div>
+</aside>
+<main id="main">
+  <div class="drop" id="drop">Blaupause hierher ziehen, einfügen oder links laden</div>
+  <div id="view"><img id="img" alt=""><svg id="ov"></svg></div>
+  <div class="bar"><span class="pill info" id="mode"></span><span class="grow"></span><button class="btn sm" id="fit">Einpassen</button></div>
+</main>
+<script type="module" src="werkstatt.js"></script>
+</body>
+</html>

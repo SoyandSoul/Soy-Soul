@@ -1,0 +1,1516 @@
+From 301d835c31940300fdc3da46f6df5c80648e9ebd Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 15 Nov 2026 20:29:04 +0100
+Subject: [PATCH] =?UTF-8?q?Airline=20Manager:=20Blaupausen-Profile,=20Lack?=
+ =?UTF-8?q?iererei,=20wei=C3=9Fe=20Flugzeuge?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Neue Profile aus echten Maßen pro Baureihe (js/art/geometry.js)
+- Profil-Werkstatt zum Abpausen von Blaupausen → data/profiles.json (1:1-Form)
+- Lackiererei: Pinsel, Linie, Band, Füllen, Text, Radierer; Livery pro Bauteil, passt auf jeden Typ
+- Neue Airlines starten komplett weiß, alte Liverys werden übernommen
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NQCrhPYKgBdc6nKYNTae7E
+---
+ games/airline-manager/README.md               |  59 +++--
+ games/airline-manager/css/apps.css            |  33 +++
+ games/airline-manager/data/profiles.json      |   1 +
+ games/airline-manager/js/art/geometry.js      | 243 ++++++++++++++++++
+ games/airline-manager/js/art/livery.js        |  49 ++++
+ games/airline-manager/js/art/path.js          |  71 +++++
+ games/airline-manager/js/art/render.js        | 102 ++++++++
+ games/airline-manager/js/core/store.js        |   4 +-
+ games/airline-manager/js/main.js              |  12 +-
+ games/airline-manager/js/sim/actions.js       |   8 +-
+ games/airline-manager/js/ui/aircraftArt.js    |  99 +------
+ games/airline-manager/js/ui/apps/airline.js   |  14 +-
+ games/airline-manager/js/ui/apps/shop.js      |   2 +-
+ games/airline-manager/js/ui/hud.js            |   7 +-
+ games/airline-manager/js/ui/painter.js        | 210 +++++++++++++++
+ games/airline-manager/tests/sim.test.mjs      |   9 +
+ .../tools/profil-werkstatt.html               |  81 ++++++
+ games/airline-manager/tools/werkstatt.js      | 214 +++++++++++++++
+ 18 files changed, 1088 insertions(+), 130 deletions(-)
+ create mode 100644 games/airline-manager/data/profiles.json
+ create mode 100644 games/airline-manager/js/art/geometry.js
+ create mode 100644 games/airline-manager/js/art/livery.js
+ create mode 100644 games/airline-manager/js/art/path.js
+ create mode 100644 games/airline-manager/js/art/render.js
+ create mode 100644 games/airline-manager/js/ui/painter.js
+ create mode 100644 games/airline-manager/tools/profil-werkstatt.html
+ create mode 100644 games/airline-manager/tools/werkstatt.js
+
+diff --git a/games/airline-manager/README.md b/games/airline-manager/README.md
+index 489a303..a014f49 100644
+--- a/games/airline-manager/README.md
++++ b/games/airline-manager/README.md
+@@ -61,10 +61,19 @@ games/airline-manager/
+ │     ├─ map.js            MapLibre-Karte im Flightradar-Stil
+ │     ├─ windows.js        Fenstermanager (Apps über der Karte)
+ │     ├─ hud.js, flightcard.js, onboarding.js, toast.js, dom.js, icons.js
+-│     ├─ aircraftArt.js    einheitliche Flugzeuggrafiken aus echten Maßen (Livery-fähig)
++│     ├─ aircraftArt.js    Einstieg für Grafiken (Seitenansicht + Karten-Icon)
++│     ├─ painter.js        Lackiererei: eigene Livery malen
++│  ├─ art/                 Flugzeugformen und Lackierung, ohne DOM
++│  │  ├─ geometry.js       Seitenprofile: abgepaust (data/profiles.json) oder aus echten Maßen
++│  │  ├─ render.js         Zeichentrick-Renderer (Konturen, Glanz, Fenster, Livery pro Bauteil)
++│  │  ├─ livery.js         Livery-Format (Bauteil-Koordinaten → passt auf jeden Typ)
++│  │  └─ path.js           geglättete Konturen, Pinselstriche, Vereinfachung
+ │     └─ apps/             hangar, shop, routes, maint, fuel, airline, stocks, leaderboard, logbook
+ ├─ lib/                    MapLibre GL (Kopie aus history-shots)
+-├─ tools/dxf_to_svg.py     Herstellerzeichnungen (DXF) → SVG
++├─ data/profiles.json      abgepauste Blaupausen-Profile (anfangs leer)
++├─ tools/
++│  ├─ profil-werkstatt.html  Blaupausen abpausen → profiles.json (im Browser öffnen)
++│  └─ dxf_to_svg.py          Herstellerzeichnungen (DXF) → SVG
+ └─ tests/sim.test.mjs      Simulationstests
+ ```
+ 
+@@ -173,29 +182,41 @@ Spielstand manipulieren. Der Schlüssel verhindert nur, dass jemand **fremde** A
+ Freundes-Spiel reicht das; für Ranglisten mit Preisen bräuchte es serverseitige Plausibilitätsprüfungen
+ (z. B. maximaler Kurssprung pro Stunde in `publish_airline`).
+ 
+-## Flugzeugbilder von Airbus und Boeing
++## Flugzeugformen, Blaupausen und Lackiererei
+ 
+-Die Herstellerseiten liefern CAD-Dateien, keine fertigen Bilder:
++**Alle Flugzeuge sind ab Werk komplett weiß.** In der Lackiererei (Klick auf das Kürzel oben links oder
++Airline → Livery) malt man die eigene Livery: Pinsel, Linie, Band (waagerechte Fläche, ideal für Bauch und
++Zierstreifen), Füllen, Text, Radierer, Rückgängig. Gespeichert wird pro Bauteil (Rumpf, Seitenleitwerk,
++Höhenleitwerk, Flügel, Triebwerke) in relativen Koordinaten – deshalb passt dieselbe Livery auf jeden Typ.
+ 
+-- Airbus: AutoCAD 3-View Drawings + Aircraft Characteristics (PDF, Maße und Leistungsdaten)
+-  https://www.aircraft.airbus.com/en/customer-care/fleet-wide-care/airport-operations-and-aircraft-characteristics/autocad-3-view-aircraft-drawings
+-- Boeing: 3-View (ZIP mit .dwg/.dxf, z. B. `…/airports/dwgs/7878.zip`) https://www.boeing.com/commercial/airports/3-view
++**Woher die Formen kommen** (`js/art/geometry.js`):
+ 
+-Das Spiel zeichnet deshalb **jedes Modell aus seinen echten Maßen** (`ui/aircraftArt.js`: Länge, Spannweite,
+-Rumpfhöhe, Triebwerksanzahl, Doppeldeck, 747-Buckel …). Alle Typen haben dieselben Livery-Flächen
+-(Rumpf, Bauch, Zierlinie, Leitwerk, Logo, Triebwerke) und denselben Maßstab – eine Livery passt auf alles.
++1. **Abgepauste Blaupausen** aus `data/profiles.json` – haben Vorrang und übernehmen die Form 1:1.
++2. Solange ein Typ nicht abgepaust ist: Profil aus echten Maßen pro Baureihe (Länge, Rumpfhöhe,
++   Nasen- und Heckform, Leitwerkshöhe und -pfeilung, Flügel mit V-Stellung, Winglet-Art, Triebwerksgröße und -lage).
+ 
+-Echte Umrisse übernehmen:
++**Einen Typ abpausen** (ca. 10–15 Minuten pro Typ):
+ 
+-```bash
+-python3 tools/dxf_to_svg.py 7878.dxf --info                         # Layer + Ausdehnung
+-python3 tools/dxf_to_svg.py 7878.dxf -o 787-8-side.svg --bbox …     # nur die Seitenansicht
+-```
++1. `tools/profil-werkstatt.html` im Browser öffnen (über den lokalen Webserver, siehe „Starten“).
++2. Blaupause laden oder Screenshot einfügen. Gute Quellen: die Seitenansicht in den
++   Aircraft-Characteristics-PDFs von Airbus bzw. den Airport-Planning-Dokumenten von Boeing
++   (Kapitel „General Airplane Dimensions“).
++3. Typ wählen, Maßstab setzen (Nasenspitze, dann hinterste Stelle).
++4. Rumpf, Seitenleitwerk, Höhenleitwerk, Flügelteile, Triebwerke, Cockpitfenster als Punkte abklicken;
++   Fensterreihen und Türen mit zwei Klicks. Die Konturen werden automatisch weich geglättet
++   (Zeichentrick-Look), Alt+Klick macht einen Punkt zur harten Ecke (z. B. Leitwerksspitze).
++5. Rechts die Vorschau im Spiel-Look prüfen, dann `profiles.json` herunterladen und
++   `games/airline-manager/data/profiles.json` damit ersetzen. Fertig – das Spiel nutzt die neue Form sofort.
++
++Der Arbeitsstand bleibt im Browser gespeichert; das Bild selbst wird nirgends hochgeladen und landet nicht im Repo –
++im Spiel steckt nur die abgepauste Kontur.
++
++**Rechtliches:** Nur die Form wird übernommen, keine Grafik. Trotzdem: Boeing vermerkt bei den Zeichnungen
++„All Rights Reserved“ (Zweck: Gate-Planung), Airbus verweist auf eigene Nutzungsbedingungen. Für ein öffentliches
++Spiel lieber kurz klären bzw. eigene Vorlagen nutzen.
+ 
+-**Rechtliches vorher klären:** Boeing vermerkt „Copyright © Boeing. All Rights Reserved“ und nennt als Zweck
+-Gate-Planung; Airbus verweist auf eigene Nutzungsbedingungen. Ob abgeleitete Grafiken öffentlich in einem Spiel
+-gezeigt werden dürfen, ist damit nicht geklärt. Im Zweifel bei airport.compatibility@airbus.com bzw. Boeing nachfragen
+-oder bei den eigenen, parametrischen Grafiken bleiben.
++`tools/dxf_to_svg.py` wandelt die AutoCAD-Zeichnungen der Hersteller (DXF) in SVG um – praktisch, um daraus ein
++sauberes Bild für die Profil-Werkstatt zu machen.
+ 
+ ## Daten prüfen
+ 
+diff --git a/games/airline-manager/css/apps.css b/games/airline-manager/css/apps.css
+index 9b27f8f..c113bfc 100644
+--- a/games/airline-manager/css/apps.css
++++ b/games/airline-manager/css/apps.css
+@@ -57,3 +57,36 @@
+   .cabin-edit { grid-template-columns: 1fr 64px; } .cabin-edit .muted { display: none; }
+   .checks { grid-template-columns: 1fr 1fr; }
+ }
++
++/* ---------- Lackiererei */
++.painter { position: fixed; inset: 0; z-index: 90; background: radial-gradient(ellipse at 55% 40%, #1d2531, #0b0e13 70%); display: grid; grid-template-columns: 250px 1fr; grid-template-rows: auto 1fr auto auto; animation: winIn .2s var(--ease); }
++.pt-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: rgba(13,16,22,.8); }
++.pt-head h2 { font-size: 20px; display: inline; margin-right: 10px; }
++.pt-head select { margin-left: 4px; padding: 4px 8px; }
++.pt-tools { grid-row: 2 / 5; padding: 14px; border-right: 1px solid var(--line); overflow: auto; background: rgba(13,16,22,.6); display: flex; flex-direction: column; gap: 8px; }
++.pt-toolgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
++.pt-toolgrid button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; border-radius: 10px; background: var(--raise); color: var(--ink2); font-size: 11px; font-weight: 600; }
++.pt-toolgrid button svg { width: 22px; height: 22px; }
++.pt-toolgrid button[aria-pressed="true"] { background: rgba(255,176,0,.16); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(255,176,0,.5); }
++.pt-label { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink3); font-weight: 600; margin-top: 6px; }
++.pt-palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
++.pt-palette button { aspect-ratio: 1; border-radius: 7px; border: 1px solid rgba(255,255,255,.18); }
++.pt-palette button:hover { transform: scale(1.1); }
++.pt-foot { margin-top: auto; }
++.pt-stage { overflow: auto; display: grid; place-items: center; padding: 30px; }
++.pt-canvas { min-width: 100%; }
++.pt-canvas svg { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: none; filter: drop-shadow(0 30px 40px rgba(0,0,0,.45)); }
++.pt-status { padding: 0 20px 4px; color: var(--accent); min-height: 20px; }
++.pt-previews { display: flex; gap: 8px; padding: 10px 16px 14px; overflow-x: auto; border-top: 1px solid var(--line); background: rgba(13,16,22,.6); }
++.pt-previews button { flex: 0 0 150px; background: var(--raise); border-radius: 10px; padding: 6px; border: 1px solid transparent; display: flex; flex-direction: column; gap: 2px; }
++.pt-previews button.on { border-color: var(--accent); }
++.pt-previews svg { width: 100%; height: 46px; }
++.pt-previews span { font-size: 11px; color: var(--ink3); }
++@media (max-width: 760px) {
++  .painter { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto auto; }
++  .pt-tools { grid-row: 4; border-right: 0; border-top: 1px solid var(--line); max-height: 34vh; }
++  .pt-head { flex-wrap: wrap; }
++  .pt-toolgrid { grid-template-columns: repeat(6, 1fr); }
++  .pt-palette { grid-template-columns: repeat(9, 1fr); }
++  .pt-foot { display: none; }
++}
+diff --git a/games/airline-manager/data/profiles.json b/games/airline-manager/data/profiles.json
+new file mode 100644
+index 0000000..0967ef4
+--- /dev/null
++++ b/games/airline-manager/data/profiles.json
+@@ -0,0 +1 @@
++{}
+diff --git a/games/airline-manager/js/art/geometry.js b/games/airline-manager/js/art/geometry.js
+new file mode 100644
+index 0000000..6537c18
+--- /dev/null
++++ b/games/airline-manager/js/art/geometry.js
+@@ -0,0 +1,243 @@
++// Seitenprofil-Geometrie der Flugzeuge (linke Seite, Nase links), in Metern.
++// Koordinaten: x = 0 an der Nasenspitze, nach hinten positiv. y = 0 auf der Rumpfmitte, nach UNTEN positiv (SVG).
++//
++// Zwei Quellen:
++//   1. Abgepauste Profile aus der Profil-Werkstatt (tools/profil-werkstatt.html) → data/profiles.json.
++//      Diese übernehmen die Form 1:1 von einer Blaupause und haben Vorrang.
++//   2. Parametrische Profile aus echten Maßen (Länge, Rumpfhöhe, Leitwerkshöhe, Flügel, Triebwerke) pro Baureihe.
++//      Sie sind die Rückfallebene, solange ein Typ noch nicht abgepaust ist.
++//
++// Ergebnis ist immer dasselbe Format, damit Renderer, Lackiererei und Trefferprüfung nicht wissen müssen, woher es kommt:
++//   { id, L, D, zones: { fin, fuselage, stab, wing, engine }, deco: { windows, doors, cockpit }, bbox, source }
++//   zone = Liste von Polygonen { pts: [[x, y, ecke?], …], smooth: bool }
++
++import { AIRCRAFT_BY_ID } from "../data/aircraft.js";
++import { samplePoly } from "./path.js";
++
++// ---------- Baureihen-Parameter (Meter bzw. Vielfache der Rumpfhöhe D)
++// D Rumpfhöhe · nose: Länge (×D), Stumpfheit n, Absenkung der Spitze (×D) · tail: Heckkonuslänge (×D), Höhe der Spitze (×D)
++// fin: Höhe über Rumpf, Wurzeltiefe, Spitzentiefe, Pfeilung° · wing: Wurzeltiefe, Spitzentiefe, Pfeilung°, V-Stellung°, Winglet-Typ
++// eng: Gondellänge, Durchmesser, Abstand(e) von der Rumpfmitte (m)
++const FAM = {
++  A220: { D: 3.7, nose: [1.8, 2.3, .09], tail: [2.6, -.24], fin: [5.6, 5.0, 2.4, 38], wing: [5.5, 1.5, 24, 5, null], eng: [3.9, 2.1, [4.9]] },
++  A320: { D: 4.14, nose: [1.75, 2.35, .08], tail: [2.6, -.24], fin: [5.9, 5.6, 2.3, 38], wing: [6.1, 1.5, 27, 5, "sharklet"], eng: [4.3, 2.35, [5.75]] },
++  737:  { D: 4.01, nose: [2.15, 2.05, .11], tail: [3.0, -.22], fin: [6.6, 6.0, 1.9, 38], wing: [6.5, 1.3, 28, 6, "blended"], eng: [4.0, 2.0, [4.9]], dorsal: 3.8 },
++  757:  { D: 4.1, nose: [2.05, 2.15, .11], tail: [2.9, -.22], fin: [7.0, 6.6, 2.2, 38], wing: [8.0, 2.0, 28, 6, null], eng: [5.0, 2.45, [7.3]] },
++  767:  { D: 5.41, nose: [1.8, 2.3, .09], tail: [2.6, -.23], fin: [8.1, 8.0, 2.9, 40], wing: [9.0, 2.4, 34, 6, null], eng: [5.0, 2.8, [7.6]] },
++  A330: { D: 5.64, nose: [1.75, 2.35, .08], tail: [2.6, -.24], fin: [8.6, 8.8, 3.2, 42], wing: [10.0, 2.5, 33, 6, "fence"], eng: [5.6, 3.0, [9.4]] },
++  A340: { D: 5.64, nose: [1.75, 2.35, .08], tail: [2.6, -.24], fin: [8.6, 8.8, 3.2, 42], wing: [10.0, 2.5, 33, 6, "fence"], eng: [4.9, 2.4, [9.9, 19.6]] },
++  A350: { D: 6.09, nose: [1.95, 2.2, .06], tail: [2.4, -.25], fin: [9.0, 9.4, 3.4, 40], wing: [11.0, 2.4, 35, 6, "curved"], eng: [6.0, 3.4, [9.5]] },
++  A380: { D: 8.41, nose: [1.3, 2.7, .04], tail: [2.0, -.26], fin: [12.0, 15.0, 4.6, 43], wing: [17.0, 4.0, 35, 6, "fence"], eng: [6.0, 3.4, [15.4, 25.7]] },
++  777:  { D: 6.2, nose: [1.75, 2.4, .06], tail: [2.6, -.24], fin: [9.2, 10.0, 3.5, 40], wing: [12.0, 2.5, 34, 6, null], eng: [6.4, 3.8, [9.6]] },
++  "777X": { D: 6.2, nose: [1.75, 2.4, .06], tail: [2.6, -.24], fin: [9.2, 10.0, 3.5, 40], wing: [12.0, 2.3, 34, 6, null], eng: [6.8, 4.1, [9.8]] },
++  787:  { D: 5.91, nose: [1.95, 2.1, .03], tail: [2.5, -.25], fin: [8.8, 9.2, 3.2, 40], wing: [11.0, 2.0, 35, 6, null], eng: [5.8, 3.3, [9.8]] },
++  747:  { D: 6.5, nose: [1.6, 2.5, .12], tail: [2.6, -.24], fin: [10.2, 11.5, 4.2, 46], wing: [14.0, 4.0, 40, 7, "blended"], eng: [5.0, 2.7, [11.9, 21.3]] }
++};
++// Abweichungen einzelner Typen von ihrer Baureihe
++const TYPE = {
++  "a320ceo": { eng: [4.0, 2.05, [5.75]], wingTip: "fence" },
++  "a330-200": {}, "a330-300": {},
++  "a330-900": { eng: [6.0, 3.4, [9.4]], wingTip: "sharklet" },
++  "b737-700": { eng: [3.9, 1.9, [4.9]] }, "b737-800": { eng: [3.9, 1.9, [4.9]] },
++  "b737-max7": { eng: [4.3, 2.1, [4.9]], wingTip: "split" }, "b737-max8": { eng: [4.3, 2.1, [4.9]], wingTip: "split" },
++  "b737-max9": { eng: [4.3, 2.1, [4.9]], wingTip: "split" }, "b737-max10": { eng: [4.3, 2.1, [4.9]], wingTip: "split" },
++  "b757-200": { wingTip: "blended" }, "b767-300er": { wingTip: "blended" },
++  "b747-400": { hump: [2.5, .375] }, "b747-8i": { hump: [2.5, .405], eng: [5.6, 3.1, [11.9, 21.3]], wingTip: null }
++};
++
++// ---------- Registry für abgepauste Profile
++let traced = {};
++export function setTracedProfiles(obj) { traced = obj || {}; cache.clear(); }
++export const tracedIds = () => Object.keys(traced);
++
++const cache = new Map();
++
++export function getProfile(typeOrId) {
++  const t = typeof typeOrId === "string" ? AIRCRAFT_BY_ID[typeOrId] : typeOrId;
++  if (cache.has(t.id)) return cache.get(t.id);
++  const p = traced[t.id] ? fromTraced(t, traced[t.id]) : parametric(t);
++  finalize(p);
++  cache.set(t.id, p);
++  return p;
++}
++
++// ---------- Abgepaust → Standardformat
++function fromTraced(t, tr) {
++  const zones = {};
++  for (const z of ["fin", "fuselage", "stab", "wing", "engine"]) zones[z] = (tr.zones?.[z] || []).map(poly => ({ pts: poly.pts, smooth: poly.smooth !== false }));
++  return { id: t.id, L: tr.L || t.art.lengthM, D: tr.D, zones, deco: tr.deco || { windows: [], doors: [], cockpit: [] }, source: "blueprint" };
++}
++
++// ---------- Parametrisch
++function parametric(t) {
++  const famKey = t.family === "777X" ? "777X" : t.family;
++  const f = { ...FAM[famKey], ...(TYPE[t.id] || {}) };
++  const L = t.art.lengthM, D = f.D, top = -D / 2, bot = D / 2;
++  const [noseK, nExp, drop] = f.nose, nl = noseK * D;
++  const [tailK, tipK] = f.tail, tl = tailK * D;
++  const tipY = tipK * D, tipH = 0.14 * D;
++  const hump = f.hump;
++
++  // Rumpf: Oberseite (Nase → Heck), dann Unterseite zurück
++  const upper = [], lower = [];
++  const noseY = D * drop;
++  const N = 18;
++  for (let i = 0; i <= N; i++) { // Nase oben: Superellipse
++    const th = (i / N) * Math.PI / 2;
++    upper.push([nl * (1 - Math.pow(Math.cos(th), 2 / nExp)), noseY + (top - noseY) * Math.pow(Math.sin(th), 2 / nExp)]);
++  }
++  if (hump) { // 747: Oberdeck-Buckel
++    const [hh, endF] = hump, x0 = nl * 0.55, xEnd = endF * L;
++    upper.length = Math.floor(N * 0.55);
++    const hTop = top - hh, steps = 14;
++    for (let i = 0; i <= steps; i++) { const k = i / steps; upper.push([x0 + (nl * 1.4 - x0) * k, upper[upper.length - 1][1] + (hTop - upper[upper.length - 1][1]) * Math.sin(k * Math.PI / 2) * 0.5]); }
++    upper.push([nl * 1.6, hTop], [xEnd - 0.06 * L, hTop]);
++    for (let i = 1; i <= steps; i++) { const k = i / steps; upper.push([xEnd - 0.06 * L + k * 0.09 * L, hTop + (top - hTop) * (1 - Math.cos(k * Math.PI)) / 2]); }
++  }
++  const tailStart = L - tl;
++  upper.push([tailStart, top]);
++  for (let i = 1; i <= N; i++) { // Heck oben: sanft auf die APU-Spitze
++    const k = i / N;
++    upper.push([tailStart + tl * k, top + (tipY - tipH / 2 - top) * (1 - Math.cos(k * Math.PI / 2))]);
++  }
++  const sweepStart = L - tl * 1.35;
++  for (let i = 0; i <= N; i++) { // Heck unten: Aufwärtsschwung
++    const k = i / N;
++    lower.push([L - (L - sweepStart) * k, tipY + tipH / 2 + (bot - tipY - tipH / 2) * Math.pow(Math.sin(k * Math.PI / 2), 1.6)]);
++  }
++  const nlb = nl * 0.6;
++  for (let i = N; i >= 0; i--) { // Nase unten
++    const th = (i / N) * Math.PI / 2;
++    lower.push([nlb * (1 - Math.cos(th)), noseY + (bot - noseY) * Math.pow(Math.sin(th), 0.85)]);
++  }
++  const fuselage = [{ pts: [...upper, ...lower], smooth: false }];
++
++  // Seitenleitwerk
++  const [fh, fr, ft, fs] = f.fin;
++  const finTE = L - 0.035 * L, finLE = finTE - fr, finTop = top - fh;
++  const tipLE = finLE + fh * Math.tan(fs * Math.PI / 180);
++  const finTopFus = yTopAt(upper, finLE);
++  const dl = f.dorsal || 0.8; // Rückenflosse (737 lang, sonst kurzer Übergang)
++  const fin = [{ pts: [[finLE - dl, yTopAt(upper, finLE - dl) + 0.25], [finLE + 0.25, finTopFus - (f.dorsal ? 1.1 : 0.5)], [tipLE, finTop], [tipLE + ft, finTop], [finTE + 0.25, yTopAt(upper, finTE) + 0.3]], smooth: false }];
++
++  // Höhenleitwerk (nahe Seite, leicht V-gestellt)
++  const sChord = fr * 0.62, sSpan = Math.max(5, t.art.spanM * 0.17), sSweep = sSpan * 0.55;
++  const sRoot = L - 0.02 * L - sSweep - sChord * 0.4, sY = tipY * 0.15;
++  const stab = [{ pts: [[sRoot, sY], [sRoot + sSweep, sY - sSpan * 0.1], [sRoot + sSweep + sChord * 0.4, sY - sSpan * 0.1 + 0.12], [sRoot + sChord, sY + 0.4]], smooth: false }];
++
++  // Flügel (nahe Seite): Wurzel unten am Rumpf, Spitze höher (V-Stellung) und weiter hinten (Pfeilung)
++  const [wr, wt, ws, wd, tipDefault] = f.wing;
++  const wingTip = "wingTip" in f ? f.wingTip : tipDefault;
++  const half = t.art.spanM / 2 - D / 2;
++  const tanS = Math.tan(ws * Math.PI / 180), tanD = Math.tan(wd * Math.PI / 180);
++  const wRootLE = 0.43 * L - wr * 0.55, wY = bot * 0.42;
++  const wTipLE = wRootLE + half * tanS, wTipY = wY - half * tanD;
++  const wing = [{ pts: [[wRootLE, wY], [wTipLE, wTipY], [wTipLE + wt, wTipY + 0.12], [wRootLE + wr, wY + 0.55]], smooth: false }];
++  if (wingTip) {
++    const h = { sharklet: 2.4, blended: 2.5, split: 2.1, curved: 2.0, fence: 1.1 }[wingTip];
++    const back = wingTip === "curved" ? 0.9 : 0.6;
++    wing.push({ pts: [[wTipLE + 0.1, wTipY + 0.05], [wTipLE + wt * back, wTipY - h], [wTipLE + wt * back + wt * 0.35, wTipY - h], [wTipLE + wt, wTipY + 0.1]], smooth: false });
++    if (wingTip === "split" || wingTip === "fence") wing.push({ pts: [[wTipLE + wt * 0.3, wTipY + 0.1], [wTipLE + wt * 0.7, wTipY + 0.9], [wTipLE + wt, wTipY + 0.9], [wTipLE + wt, wTipY + 0.1]], smooth: false });
++  }
++
++  // Triebwerke + Pylone (Pylone gehören zur Flügelzone)
++  const [enl, end, spans] = f.eng;
++  const engine = [];
++  for (const sp of [...spans].reverse()) { // äußeres zuerst (liegt optisch dahinter)
++    const s = sp - D / 2;
++    const wingYAt = wY - s * tanD, leAt = wRootLE + s * tanS;
++    const ex = leAt - enl * 0.62, cy = wingYAt + end * 0.62;
++    engine.push({ pts: nacelle(ex, cy, enl, end), smooth: false });
++    wing.push({ pts: [[ex + enl * 0.45, cy - end * 0.42], [leAt - 0.2, wingYAt + 0.05], [leAt + wr * 0.45, wingYAt + 0.3], [ex + enl * 0.98, cy - end * 0.28]], smooth: false });
++  }
++
++  // Deko: Fenster, Türen, Cockpit
++  const rows = [];
++  const doorsX = [];
++  const winY = t.art.deck2 ? [D * 0.12, -D * 0.25] : [-D * 0.13];
++  const x0 = nl * 1.12, x1 = tailStart - D * 0.15;
++  for (const y of winY) rows.push({ y, x0, x1, pitch: 0.53, w: 0.24, h: 0.36 });
++  if (hump) rows.push({ y: top - hump[0] * 0.45, x0: nl * 1.0, x1: hump[1] * L - 0.08 * L, pitch: 0.53, w: 0.24, h: 0.34 });
++  doorsX.push(nl * 0.93, x1 + 0.3);
++  if (t.size !== "narrow") doorsX.push(L * 0.33, L * 0.55);
++  else if (L > 42) doorsX.push(L * 0.40, L * 0.62);
++  const dw = t.size === "narrow" ? 0.82 : 1.05, dh = t.size === "narrow" ? 1.85 : 1.93;
++  const doors = doorsX.map(x => ({ x, y: winY[0] - 0.55, w: dw, h: dh }));
++  const ck = cockpit(nl, noseY, top, D, t.family);
++  return { id: t.id, L, D, zones: { fin, fuselage, stab, wing, engine }, deco: { windows: rows, doors, cockpit: [ck] }, source: "parametric" };
++}
++
++function nacelle(x, cy, l, d) {
++  const r = d / 2, pts = [];
++  for (let i = 0; i <= 10; i++) { const a = Math.PI / 2 + (i / 10) * Math.PI; pts.push([x + r * 0.22 * (1 + Math.cos(a)), cy - r * Math.sin(a)]); } // Einlauflippe
++  pts.reverse();
++  // pts verläuft von unten nach oben über die Front; jetzt oben nach hinten, Düse, unten zurück
++  return [...pts, [x + l * 0.72, cy - r], [x + l, cy - r * 0.62], [x + l * 1.08, cy - r * 0.15], [x + l, cy + r * 0.5], [x + l * 0.72, cy + r * 0.95]];
++}
++
++function cockpit(nl, noseY, top, D, fam) {
++  const sleek = fam === "787" || fam === "A350";
++  const x0 = nl * (sleek ? 0.42 : 0.5), x1 = nl * (sleek ? 0.8 : 0.78);
++  const y0 = top + D * (sleek ? 0.2 : 0.24), y1 = top + D * 0.37;
++  return { pts: [[x0, y1], [x0 + (x1 - x0) * 0.35, y0], [x1, y0 - D * 0.02], [x1, y1 - D * 0.01]], smooth: false };
++}
++
++function yTopAt(upper, x) {
++  for (let i = 1; i < upper.length; i++) if (upper[i][0] >= x) {
++    const [ax, ay] = upper[i - 1], [bx, by] = upper[i];
++    return ay + (by - ay) * ((x - ax) / ((bx - ax) || 1));
++  }
++  return upper[upper.length - 1][1];
++}
++
++/** Bounding-Boxen pro Polygon/Zone + Gesamtbox (inkl. Bodenschatten) */
++function finalize(p) {
++  p.sampled = {};
++  p.zoneBox = {};
++  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
++  for (const [z, polys] of Object.entries(p.zones)) {
++    p.sampled[z] = polys.map(poly => samplePoly(poly.pts, poly.smooth));
++    const boxes = p.sampled[z].map(bboxOf);
++    polys.forEach((poly, i) => (poly.box = boxes[i]));
++    if (boxes.length) {
++      const zb = boxes.reduce((a, b) => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) }));
++      p.zoneBox[z] = zb;
++      minX = Math.min(minX, zb.x0); minY = Math.min(minY, zb.y0); maxX = Math.max(maxX, zb.x1); maxY = Math.max(maxY, zb.y1);
++    }
++  }
++  p.bbox = { x0: minX, y0: minY, x1: maxX, y1: maxY };
++  // Leitwerks-Box ohne Rückenflosse/Übergang: nur der obere Teil zählt für Logos
++  const fb = p.zoneBox.fin;
++  if (fb) {
++    const lim = fb.y0 + 0.85 * (fb.y1 - fb.y0);
++    const xs = p.sampled.fin.flat().filter(([, y]) => y <= lim).map(([x]) => x);
++    if (xs.length) p.zoneBox.fin = { ...fb, x0: Math.min(...xs) };
++  }
++}
++
++export function bboxOf(pts) {
++  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
++  for (const [x, y] of pts) { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; }
++  return { x0, y0, x1, y1 };
++}
++
++/** Welche Zone liegt an Punkt (x, y)? Reihenfolge = was oben gezeichnet ist. Gibt { zone, index } oder null. */
++export const HIT_ORDER = ["engine", "wing", "stab", "fuselage", "fin"];
++export function hitZone(p, x, y) {
++  for (const z of HIT_ORDER) {
++    const list = p.sampled[z] || [];
++    for (let i = list.length - 1; i >= 0; i--) if (inside(list[i], x, y)) return { zone: z, index: i };
++  }
++  return null;
++}
++
++function inside(pts, x, y) {
++  let c = false;
++  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
++    const [xi, yi] = pts[i], [xj, yj] = pts[j];
++    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
++  }
++  return c;
++}
++
++export const FAMILY_PARAMS = FAM;
+diff --git a/games/airline-manager/js/art/livery.js b/games/airline-manager/js/art/livery.js
+new file mode 100644
+index 0000000..2d42c67
+--- /dev/null
++++ b/games/airline-manager/js/art/livery.js
+@@ -0,0 +1,49 @@
++// Livery-Datenmodell. Eine Livery gilt für JEDEN Flugzeugtyp:
++// Alles, was gemalt wird, speichern wir pro Bauteil (Zone) in relativen Koordinaten u/v (0..1) der Bauteil-Box.
++// Auf einem anderen Typ wird es in dessen Bauteil-Box zurückgerechnet – ein Streifen am Rumpf bleibt am Rumpf,
++// das Logo auf dem Leitwerk bleibt auf dem Leitwerk, egal ob A220 oder A380.
++//
++// {
++//   v: 2,
++//   base:  { fuselage, fin, stab, wing, engine }      Grundfarbe pro Bauteil
++//   items: [                                           in Malreihenfolge
++//     { t: "brush" | "erase" | "line", z, c, w, p: [[u, v], …] }   w = Strichbreite relativ zur Bauteilhöhe
++//     { t: "band", z, c, v0, v1 }                                   waagerechtes Band über das ganze Bauteil
++//     { t: "text", z, c, u, v, s, txt, b, i }                        Schrift (s = Größe relativ zur Höhe)
++//   ]
++// }
++
++export const ZONES = ["fuselage", "fin", "stab", "wing", "engine"];
++export const ZONE_NAMES = { fuselage: "Rumpf", fin: "Seitenleitwerk", stab: "Höhenleitwerk", wing: "Flügel", engine: "Triebwerke" };
++export const MAX_ITEMS = 600;
++
++export function whiteLivery() {
++  return { v: 2, base: { fuselage: "#ffffff", fin: "#ffffff", stab: "#ffffff", wing: "#ffffff", engine: "#ffffff" }, items: [] };
++}
++
++/** Alte Livery (v1: feste Farbflächen) in das neue Format übertragen. */
++export function normalizeLivery(lv) {
++  if (lv && lv.v === 2) return lv;
++  const out = whiteLivery();
++  if (!lv) return out;
++  out.base.fuselage = lv.body || "#ffffff";
++  out.base.fin = lv.tail || "#ffffff";
++  out.base.engine = lv.engine || "#ffffff";
++  if (lv.belly && lv.belly !== lv.body) out.items.push({ t: "band", z: "fuselage", c: lv.belly, v0: 0.64, v1: 1.01 });
++  if (lv.stripe && lv.stripe !== lv.body) out.items.push({ t: "band", z: "fuselage", c: lv.stripe, v0: 0.52, v1: 0.6 });
++  if (lv.text) out.items.push({ t: "text", z: "fin", c: lv.logo || "#ffffff", u: 0.62, v: 0.5, s: 0.22, txt: lv.text, b: 1, i: 1 });
++  return out;
++}
++
++/** Bauteil-Boxen, in die gemalt wird. Triebwerke: jede Gondel eigene Box (alle bekommen dasselbe Motiv). */
++export function frames(profile, zone) {
++  if (zone === "engine") return (profile.zones.engine || []).map(p => p.box);
++  return profile.zoneBox[zone] ? [profile.zoneBox[zone]] : [];
++}
++
++export const toUV = (box, x, y) => [(x - box.x0) / (box.x1 - box.x0 || 1), (y - box.y0) / (box.y1 - box.y0 || 1)];
++export const fromUV = (box, u, v) => [box.x0 + u * (box.x1 - box.x0), box.y0 + v * (box.y1 - box.y0)];
++export const boxH = box => box.y1 - box.y0;
++
++/** Grobe Größe für die Speicherung/Veröffentlichung (Zeichen) */
++export const liverySize = lv => JSON.stringify(lv).length;
+diff --git a/games/airline-manager/js/art/path.js b/games/airline-manager/js/art/path.js
+new file mode 100644
+index 0000000..939e898
+--- /dev/null
++++ b/games/airline-manager/js/art/path.js
+@@ -0,0 +1,71 @@
++// Pfad-Helfer: geglättete geschlossene Konturen (Catmull-Rom) für den weichen Zeichentrick-Look.
++// Punkte: [x, y, ecke]. ecke = 1 → harter Knick (z. B. Leitwerksspitze), sonst rund.
++
++const f = n => +n.toFixed(3);
++
++/** Bézier-Segmente einer geschlossenen Kontur. smooth = false → Polygon. */
++function segments(pts, smooth) {
++  const n = pts.length, segs = [];
++  for (let i = 0; i < n; i++) {
++    const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
++    if (!smooth) { segs.push([p1, p1, p2, p2]); continue; }
++    const t1 = p1[2] ? 0 : 1 / 6, t2 = p2[2] ? 0 : 1 / 6;
++    const c1 = [p1[0] + (p2[0] - p0[0]) * t1, p1[1] + (p2[1] - p0[1]) * t1];
++    const c2 = [p2[0] - (p3[0] - p1[0]) * t2, p2[1] - (p3[1] - p1[1]) * t2];
++    segs.push([p1, c1, c2, p2]);
++  }
++  return segs;
++}
++
++export function pathD(pts, smooth = false) {
++  if (!pts.length) return "";
++  if (!smooth) return "M" + pts.map(p => f(p[0]) + "," + f(p[1])).join(" L") + " Z";
++  const segs = segments(pts, true);
++  return "M" + f(pts[0][0]) + "," + f(pts[0][1]) + segs.map(([, c1, c2, p]) => ` C${f(c1[0])},${f(c1[1])} ${f(c2[0])},${f(c2[1])} ${f(p[0])},${f(p[1])}`).join("") + " Z";
++}
++
++/** Dichte Punktliste für Trefferprüfung und Bounding-Box */
++export function samplePoly(pts, smooth = false, steps = 8) {
++  if (!smooth) return pts.map(p => [p[0], p[1]]);
++  const out = [];
++  for (const [a, b, c, d] of segments(pts, true)) {
++    for (let i = 0; i < steps; i++) {
++      const t = i / steps, u = 1 - t;
++      out.push([u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0], u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1]]);
++    }
++  }
++  return out;
++}
++
++/** Offene Linie (Pinselstrich) als geglätteter Pfad */
++export function strokeD(pts) {
++  if (!pts.length) return "";
++  if (pts.length < 3) return "M" + pts.map(p => f(p[0]) + "," + f(p[1])).join(" L") + (pts.length === 1 ? ` l0.001,0` : "");
++  let d = "M" + f(pts[0][0]) + "," + f(pts[0][1]);
++  for (let i = 1; i < pts.length - 1; i++) {
++    const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2;
++    d += ` Q${f(pts[i][0])},${f(pts[i][1])} ${f(mx)},${f(my)}`;
++  }
++  const l = pts[pts.length - 1];
++  return d + ` L${f(l[0])},${f(l[1])}`;
++}
++
++/** Ramer-Douglas-Peucker: Pinselstriche verkleinern, bevor sie gespeichert werden */
++export function simplify(pts, tol) {
++  if (pts.length < 3) return pts;
++  const sq = tol * tol;
++  const rec = (a, b, out) => {
++    let max = 0, idx = -1;
++    const [ax, ay] = pts[a], [bx, by] = pts[b], dx = bx - ax, dy = by - ay, len = dx * dx + dy * dy || 1;
++    for (let i = a + 1; i < b; i++) {
++      const t = Math.max(0, Math.min(1, ((pts[i][0] - ax) * dx + (pts[i][1] - ay) * dy) / len));
++      const ex = ax + t * dx - pts[i][0], ey = ay + t * dy - pts[i][1], d = ex * ex + ey * ey;
++      if (d > max) { max = d; idx = i; }
++    }
++    if (max > sq) { rec(a, idx, out); out.push(pts[idx]); rec(idx, b, out); }
++  };
++  const out = [pts[0]];
++  rec(0, pts.length - 1, out);
++  out.push(pts[pts.length - 1]);
++  return out;
++}
+diff --git a/games/airline-manager/js/art/render.js b/games/airline-manager/js/art/render.js
+new file mode 100644
+index 0000000..0347f88
+--- /dev/null
++++ b/games/airline-manager/js/art/render.js
+@@ -0,0 +1,102 @@
++// Zeichnet ein Flugzeug im Zeichentrick-Look: weiche Konturen, kräftige Umrisslinie, Glanzverlauf, dunkle Fenster.
++// Die Lackierung (Livery) wird pro Bauteil in die Bauteil-Box gerechnet und auf die Kontur zugeschnitten.
++
++import { getProfile } from "./geometry.js";
++import { pathD, strokeD } from "./path.js";
++import { normalizeLivery, frames, fromUV, boxH, ZONES } from "./livery.js";
++
++let seq = 0;
++const UNIFORM_W = 82, UNIFORM_H = 28; // einheitlicher Maßstab in Metern: Größenvergleich zwischen Typen stimmt
++
++/**
++ * @param typeOrId  Flugzeugtyp oder ID
++ * @param livery    Livery (v1 oder v2) – leer = komplett weiß
++ * @param opts      { fit: Flugzeug füllt die Fläche, prefix, outline: px, shadow: bool, overlay: zusätzliches SVG }
++ */
++export function renderAircraft(typeOrId, livery, opts = {}) {
++  const p = getProfile(typeOrId), lv = normalizeLivery(livery);
++  const id = opts.prefix || "ac" + (++seq);
++  const ow = opts.outline ?? 1.2;
++  const bb = p.bbox;
++
++  const defs = [], body = [];
++  // Clip-Pfade pro Bauteil (Triebwerke einzeln)
++  for (const z of ZONES) {
++    const polys = p.zones[z] || [];
++    if (z === "engine") polys.forEach((poly, i) => defs.push(`<clipPath id="${id}-engine-${i}"><path d="${pathD(poly.pts, poly.smooth)}"/></clipPath>`));
++    else if (polys.length) defs.push(`<clipPath id="${id}-${z}">${polys.map(poly => `<path d="${pathD(poly.pts, poly.smooth)}"/>`).join("")}</clipPath>`);
++  }
++  defs.push(`<linearGradient id="${id}-sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".28" stop-color="#fff" stop-opacity="0"/><stop offset=".72" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0b1a33" stop-opacity=".22"/></linearGradient>`);
++  defs.push(`<linearGradient id="${id}-eng" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#0b1a33" stop-opacity=".3"/></linearGradient>`);
++
++  const outline = (polys, extra = "") => polys.map(poly => `<path d="${pathD(poly.pts, poly.smooth)}" fill="none" stroke="#1b2230" stroke-opacity=".75" stroke-width="${ow}" stroke-linejoin="round" vector-effect="non-scaling-stroke" ${extra}/>`).join("");
++
++  if (opts.shadow !== false) body.push(`<ellipse cx="${(bb.x0 + bb.x1) / 2}" cy="${bb.y1 + 1.6}" rx="${(bb.x1 - bb.x0) * 0.42}" ry="${0.45}" fill="#000" opacity=".22"/>`);
++
++  // Malreihenfolge: Leitwerk (hinter dem Rumpf), Rumpf + Deko, Höhenleitwerk, Flügel, Triebwerke
++  body.push(zoneLayer(p, lv, "fin", id), outline(p.zones.fin));
++  body.push(zoneLayer(p, lv, "fuselage", id));
++  body.push(deco(p, id));
++  body.push(`<rect x="${bb.x0 - 1}" y="${p.zoneBox.fuselage.y0}" width="${bb.x1 - bb.x0 + 2}" height="${boxH(p.zoneBox.fuselage)}" fill="url(#${id}-sheen)" clip-path="url(#${id}-fuselage)"/>`);
++  body.push(outline(p.zones.fuselage));
++  body.push(zoneLayer(p, lv, "stab", id), outline(p.zones.stab));
++  body.push(zoneLayer(p, lv, "wing", id), `<g clip-path="url(#${id}-wing)"><rect x="${bb.x0}" y="${bb.y0}" width="${bb.x1 - bb.x0}" height="${bb.y1 - bb.y0}" fill="#0b1a33" opacity=".07"/></g>`, outline(p.zones.wing));
++  (p.zones.engine || []).forEach((poly, i) => {
++    body.push(zoneLayer(p, lv, "engine", id, i));
++    const b = poly.box, h = b.y1 - b.y0;
++    body.push(`<rect x="${b.x0}" y="${b.y0}" width="${b.x1 - b.x0}" height="${h}" fill="url(#${id}-eng)" clip-path="url(#${id}-engine-${i})"/>`);
++    body.push(`<ellipse cx="${b.x0 + h * 0.06}" cy="${(b.y0 + b.y1) / 2}" rx="${h * 0.07}" ry="${h * 0.4}" fill="#1b2230" opacity=".85"/>`);
++    body.push(outline([poly]));
++  });
++  if (opts.overlay) body.push(opts.overlay);
++
++  const vb = opts.fit
++    ? `${bb.x0 - 1} ${bb.y0 - 1} ${bb.x1 - bb.x0 + 2} ${bb.y1 - bb.y0 + 3}`
++    : `${(bb.x0 + bb.x1) / 2 - UNIFORM_W / 2} ${bb.y1 + 2.4 - UNIFORM_H} ${UNIFORM_W} ${UNIFORM_H}`;
++  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" role="img" aria-label="${esc(opts.label || p.id)}" data-type="${p.id}"><defs>${defs.join("")}</defs>${body.join("")}</svg>`;
++}
++
++/** Ein Bauteil: Grundfarbe + alle Livery-Elemente dieses Bauteils, auf die Kontur zugeschnitten */
++function zoneLayer(p, lv, z, id, engineIdx = null) {
++  const fr = frames(p, z);
++  const list = z === "engine" ? [[fr[engineIdx], `${id}-engine-${engineIdx}`]] : fr.map(b => [b, `${id}-${z}`]);
++  return list.map(([box, clip]) => {
++    if (!box) return "";
++    const out = [`<rect x="${box.x0 - 1}" y="${box.y0 - 1}" width="${box.x1 - box.x0 + 2}" height="${boxH(box) + 2}" fill="${lv.base[z]}"/>`];
++    for (const it of lv.items) if (it.z === z) out.push(item(it, box, lv.base[z]));
++    return `<g clip-path="url(#${clip})">${out.join("")}</g>`;
++  }).join("");
++}
++
++export function item(it, box, baseColor) {
++  const h = boxH(box);
++  switch (it.t) {
++    case "band": {
++      const y0 = box.y0 + it.v0 * h, y1 = box.y0 + it.v1 * h;
++      return `<rect x="${box.x0 - 1}" y="${Math.min(y0, y1)}" width="${box.x1 - box.x0 + 2}" height="${Math.abs(y1 - y0)}" fill="${it.c}"/>`;
++    }
++    case "text": {
++      const [x, y] = fromUV(box, it.u, it.v), s = it.s * h;
++      const tr = it.i ? ` transform="skewX(-12)" transform-origin="${x} ${y}"` : "";
++      return `<text x="${x}" y="${y}" font-size="${s}" font-family="Bricolage, system-ui, sans-serif" font-weight="${it.b ? 800 : 500}" fill="${it.c}" text-anchor="middle" dominant-baseline="central"${tr}>${esc(it.txt)}</text>`;
++    }
++    default: {
++      const pts = it.p.map(([u, v]) => fromUV(box, u, v));
++      const col = it.t === "erase" ? baseColor : it.c;
++      return `<path d="${strokeD(pts)}" fill="none" stroke="${col}" stroke-width="${it.w * h}" stroke-linecap="round" stroke-linejoin="round"/>`;
++    }
++  }
++}
++
++function deco(p) {
++  const out = [];
++  for (const r of p.deco.windows || []) {
++    for (let x = r.x0; x <= r.x1; x += r.pitch) out.push(`<rect x="${(x - r.w / 2).toFixed(2)}" y="${(r.y - r.h / 2).toFixed(2)}" width="${r.w}" height="${r.h}" rx="${r.w / 2}"/>`);
++  }
++  const win = `<g fill="#1b2a3f" opacity=".9">${out.join("")}</g>`;
++  const doors = (p.deco.doors || []).map(d => `<rect x="${d.x - d.w / 2}" y="${d.y}" width="${d.w}" height="${d.h}" rx="${d.w * 0.3}" fill="none" stroke="#1b2230" stroke-opacity=".35" stroke-width=".7" vector-effect="non-scaling-stroke"/>`).join("");
++  const ck = (p.deco.cockpit || []).map(c => `<path d="${pathD(c.pts, c.smooth)}" fill="#14202f"/>`).join("");
++  return win + doors + ck;
++}
++
++const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+diff --git a/games/airline-manager/js/core/store.js b/games/airline-manager/js/core/store.js
+index 1f59d59..6b70eff 100644
+--- a/games/airline-manager/js/core/store.js
++++ b/games/airline-manager/js/core/store.js
+@@ -3,6 +3,7 @@
+ // Für Gerätewechsel gibt es Export/Import als Text (ui/apps/airline.js) und optional Cloud-Save (net/backend.js).
+ 
+ import { GAME, FUEL, REPUTATION, CATERING, BAGS } from "./config.js";
++import { whiteLivery, normalizeLivery } from "../art/livery.js";
+ 
+ const mem = new Map(); // Fallback, falls localStorage fehlt (Node-Tests, privater Modus)
+ const storage = {
+@@ -18,7 +19,7 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
+     player,                                   // { code, secret } aus net/player.js
+     airline: {
+       name, iata, hubs: [hub],
+-      livery: { body: "#ffffff", belly: "#d9dde3", tail: "#1f4fd8", stripe: "#1f4fd8", engine: "#c8ced6", logo: "#ffffff", text: iata },
++      livery: whiteLivery(),                  // komplett weiß – bemalt wird in der Lackiererei (ui/painter.js)
+       contract: null,                         // { maker, since }
+       catering: CATERING.defaultMode,
+       bagFee: BAGS.defaultFee,
+@@ -47,6 +48,7 @@ export function migrate(s) {
+   // Beispiel für spätere Versionen:
+   // if (s.v === 1) { s.airline.newField = default; s.v = 2; }
+   if (s.v !== GAME.version) return null;
++  s.airline.livery = normalizeLivery(s.airline.livery); // alte Farbflächen-Livery → Malformat
+   return s;
+ }
+ 
+diff --git a/games/airline-manager/js/main.js b/games/airline-manager/js/main.js
+index c69b57a..3420fcf 100644
+--- a/games/airline-manager/js/main.js
++++ b/games/airline-manager/js/main.js
+@@ -17,6 +17,8 @@ import { toast } from "./ui/toast.js";
+ import { showOnboarding } from "./ui/onboarding.js";
+ import { ICONS } from "./ui/icons.js";
+ import { esc } from "./ui/dom.js";
++import { openPainter } from "./ui/painter.js";
++import { setTracedProfiles } from "./art/geometry.js";
+ 
+ import hangar from "./ui/apps/hangar.js";
+ import shop from "./ui/apps/shop.js";
+@@ -39,6 +41,7 @@ const ctx = {
+   map: null,
+   toast,
+   openApp: (id, params) => openApp(id, params),
++  openPainter: () => openPainter(ctx),
+ 
+   /** Aktion ausführen: bei Erfolg speichern und UI aktualisieren, sonst Meldung zeigen. */
+   run(fn, ...args) {
+@@ -74,7 +77,8 @@ function commit() {
+   ctx.map.updateStatic();
+   ctx.map.updatePlanes();
+   updateDock();
+-  tickHud(document.getElementById("hud"), ctx);
++  renderHud(document.getElementById("hud"), ctx);
++  renderFlightCard(document.getElementById("flightcard"), ctx, ctx.map.selected);
+ }
+ 
+ // ---------- Dock
+@@ -154,7 +158,9 @@ function start() {
+   }
+ }
+ 
+-function boot() {
++async function boot() {
++  // Abgepauste Blaupausen-Profile (tools/profil-werkstatt.html) laden – fehlen sie, gelten die Maß-Profile.
++  try { setTracedProfiles(await (await fetch("data/profiles.json", { cache: "no-cache" })).json()); } catch { /* optional */ }
+   initWindows(ctx);
+   for (const [app] of DOCK) register(app);
+   ctx.map = createMap(document.getElementById("map"), ctx);
+@@ -164,7 +170,7 @@ function boot() {
+     ctx.state = newGame({ name, iata, hub, player: newPlayer(), now: ctx.now() });
+     save(ctx.state);
+     start();
+-    toast(`${name} ist gegründet! Kauf jetzt dein erstes Flugzeug.`, "good", 6000);
++    toast(`${name} ist gegründet! Deine Flugzeuge sind noch weiß – in der Lackiererei (Klick auf dein Kürzel oben links) malst du deine Livery.`, "good", 8000);
+   });
+ }
+ 
+diff --git a/games/airline-manager/js/sim/actions.js b/games/airline-manager/js/sim/actions.js
+index 79816da..15c7451 100644
+--- a/games/airline-manager/js/sim/actions.js
++++ b/games/airline-manager/js/sim/actions.js
+@@ -12,6 +12,7 @@ import { refFare } from "./demand.js";
+ import { routeDistance } from "./flight.js";
+ import { startCheck, checkCost } from "./maintenance.js";
+ import { headcount } from "./economy.js";
++import { normalizeLivery, liverySize } from "../art/livery.js";
+ 
+ const ok = (extra = {}) => ({ ok: true, ...extra });
+ const fail = msg => ({ ok: false, msg });
+@@ -192,6 +193,11 @@ export function addHub(state, iata, now) {
+   return ok({ cost: p });
+ }
+ 
+-export function setLivery(state, livery) { Object.assign(state.airline.livery, livery); return ok(); }
++export function setLivery(state, livery) {
++  const lv = normalizeLivery(livery);
++  if (liverySize(lv) > 200_000) return fail("Livery ist zu groß – bitte weniger Einzelstriche verwenden.");
++  state.airline.livery = lv;
++  return ok();
++}
+ export function renameAircraft(state, acId, name) { state.fleet.find(a => a.id === acId).name = String(name).slice(0, 24); return ok(); }
+ 
+diff --git a/games/airline-manager/js/ui/aircraftArt.js b/games/airline-manager/js/ui/aircraftArt.js
+index 642dfb3..c4baa66 100644
+--- a/games/airline-manager/js/ui/aircraftArt.js
++++ b/games/airline-manager/js/ui/aircraftArt.js
+@@ -1,98 +1,11 @@
+-// Einheitliche Flugzeug-Grafiken.
+-// Jeder Typ wird aus seinen echten Maßen gezeichnet (Länge, Spannweite, Rumpfhöhe, Triebwerke, Besonderheiten).
+-// Alle Typen teilen dieselbe Zeichnung und dieselben Livery-Flächen → eine Livery passt auf jedes Flugzeug.
+-//
+-// Echte Herstellerzeichnungen einbinden: tools/dxf_to_svg.py erzeugt aus den Airbus-/Boeing-DXF-Dateien
+-// Umriss-Pfade. Liegt für einen Typ eine Datei in assets/outlines/<id>.json, kann sideView() später diese
+-// Umrisse statt der parametrischen Form nutzen (Livery-Flächen bleiben gleich).
++// Flugzeug-Grafiken für die UI.
++// Seitenansicht: js/art/render.js (Profile aus js/art/geometry.js, Livery aus js/art/livery.js).
++// Draufsicht: einfaches Karten-Icon unten.
+ 
+-import { AIRCRAFT_BY_ID } from "../data/aircraft.js";
++import { renderAircraft } from "../art/render.js";
+ 
+-const FUSE_D = { narrow: 4.0, wide: 5.8, jumbo: 6.6 };
+-const TAIL_H = { narrow: 6.3, wide: 9.2, jumbo: 10.6 };
+-const NAC = { narrow: [4.6, 2.1], wide: [7.0, 3.4], jumbo: [6.4, 3.0] };
+-const VIEW_W = 82, VIEW_H = 26; // einheitlicher Maßstab in Metern: alle Bilder sind vergleichbar groß
+-
+-let n = 0;
+-
+-/**
+- * Seitenansicht als SVG-String.
+- * opts.fit = true: Flugzeug füllt die Breite (für kleine Kacheln); sonst einheitlicher Maßstab.
+- */
+-export function sideView(typeOrId, livery, opts = {}) {
+-  const t = typeof typeOrId === "string" ? AIRCRAFT_BY_ID[typeOrId] : typeOrId;
+-  const a = t.art, L = a.lengthM, size = a.deck2 ? "jumbo" : t.size;
+-  const D = a.deck2 ? 8.4 : FUSE_D[size], tailH = TAIL_H[size];
+-  const hump = a.hump ? 2.4 * a.hump : 0;
+-  const id = "ac" + (++n);
+-  const lv = { body: "#ffffff", belly: "#d9dde3", tail: "#1f4fd8", stripe: "#1f4fd8", engine: "#c8ced6", logo: "#ffffff", text: "", ...livery };
+-
+-  const top = -D / 2, bot = D / 2;
+-  const x = f => (f * L).toFixed(2);
+-  // Rumpf-Umriss (Nase links)
+-  let topPath;
+-  if (hump) {
+-    topPath = `C0,${top * 0.6} ${x(0.02)},${top - hump * 0.7} ${x(0.07)},${top - hump} L${x(0.30)},${top - hump} C${x(0.36)},${top - hump} ${x(0.38)},${top} ${x(0.44)},${top}`;
+-  } else {
+-    topPath = `C0,${top * 0.55} ${x(0.025)},${top} ${x(0.075)},${top}`;
+-  }
+-  const fuse = `M0,${(D * 0.08).toFixed(2)} ${topPath} L${x(0.80)},${top} C${x(0.9)},${top} ${x(0.97)},${(top * 0.75).toFixed(2)} ${x(1)},${(top * 0.55).toFixed(2)} L${x(1)},${(top * 0.3).toFixed(2)} C${x(0.9)},${(bot * 0.35).toFixed(2)} ${x(0.8)},${bot} ${x(0.7)},${bot} L${x(0.09)},${bot} C${x(0.03)},${bot} 0,${(D * 0.3).toFixed(2)} 0,${(D * 0.08).toFixed(2)} Z`;
+-
+-  // Seitenleitwerk
+-  const fin = `M${x(0.79)},${top + 0.3} L${x(0.885)},${top - tailH} L${x(0.945)},${top - tailH} L${x(0.99)},${(top * 0.55).toFixed(2)} Z`;
+-  // Höhenleitwerk
+-  const stab = `M${x(0.86)},${(top * 0.3).toFixed(2)} L${x(0.955)},${(top * 0.55).toFixed(2)} L${x(0.985)},${(top * 0.48).toFixed(2)} L${x(0.9)},${(top * 0.05).toFixed(2)} Z`;
+-  // Flügel (in Seitenansicht flach, nach hinten versetzt)
+-  const wy = bot * 0.55, wingTipX = 0.38 + (a.spanM / L) * 0.24;
+-  const wing = `M${x(0.33)},${wy} L${x(0.55)},${wy - 0.3} L${x(Math.min(0.74, wingTipX))},${wy + 0.15} L${x(0.37)},${wy + 1.1} Z`;
+-  // Triebwerke
+-  const [nl, nd] = NAC[size];
+-  const eng = [];
+-  const engines = a.engines === 4 ? [[0.30, 0.55], [0.43, 0.25]] : [[0.34, 0.6]];
+-  for (const [fx, drop] of engines.reverse()) {
+-    const ex = fx * L, ey = bot + nd * drop - nd / 2;
+-    eng.push(`<rect x="${ex.toFixed(2)}" y="${ey.toFixed(2)}" width="${nl}" height="${nd}" rx="${nd / 2}" fill="${lv.engine}" stroke="rgba(0,0,0,.25)" stroke-width=".08"/>`,
+-      `<rect x="${(ex + 0.15).toFixed(2)}" y="${(ey + nd * 0.15).toFixed(2)}" width=".35" height="${(nd * 0.7).toFixed(2)}" rx=".17" fill="#2a2f38"/>`,
+-      `<path d="M${(ex + nl * 0.55).toFixed(2)},${ey} L${(ex + nl * 0.8).toFixed(2)},${wy + 0.4} L${(ex + nl * 1.0).toFixed(2)},${wy + 0.4} L${(ex + nl).toFixed(2)},${ey + nd * 0.3} Z" fill="#9aa1ac"/>`);
+-  }
+-
+-  // Fenster
+-  const win = [];
+-  const wyRow = a.deck2 ? [-D * 0.27, D * 0.06] : [-D * 0.12];
+-  for (const ry of wyRow) for (let px = L * 0.11; px < L * 0.77; px += 0.55) win.push(`<circle cx="${px.toFixed(2)}" cy="${ry.toFixed(2)}" r=".17"/>`);
+-  if (hump) for (let px = L * 0.09; px < L * 0.30; px += 0.55) win.push(`<circle cx="${px.toFixed(2)}" cy="${(top - hump * 0.45).toFixed(2)}" r=".17"/>`);
+-  // Türen
+-  const doors = [0.09, 0.36, 0.76].map(f => `<rect x="${x(f)}" y="${(top * 0.55).toFixed(2)}" width="1" height="${(D * 0.48).toFixed(2)}" rx=".25" fill="none" stroke="rgba(0,0,0,.28)" stroke-width=".07"/>`);
+-  // Cockpit
+-  const ck = `M${x(0.022)},${(top * 0.35).toFixed(2)} L${x(0.05)},${(top * (hump ? 0.6 : 0.55)).toFixed(2)} L${x(0.058)},${(top * 0.32).toFixed(2)} Z`;
+-
+-  const minY = top - Math.max(tailH, hump) - 0.8, h = bot + 3.6 - minY;
+-  const vb = opts.fit ? `-1 ${minY.toFixed(2)} ${(L + 2).toFixed(2)} ${h.toFixed(2)}` : `${((L - VIEW_W) / 2).toFixed(2)} ${(bot + 3.6 - VIEW_H).toFixed(2)} ${VIEW_W} ${VIEW_H}`;
+-  const finText = lv.text ? `<text x="${x(0.905)}" y="${(top - tailH * 0.42).toFixed(2)}" font-size="${(tailH * 0.32).toFixed(2)}" font-family="Bricolage, sans-serif" font-weight="800" fill="${lv.logo}" text-anchor="middle" transform="skewX(-12)" transform-origin="${x(0.905)} ${(top - tailH * 0.42).toFixed(2)}">${esc(lv.text.slice(0, 3))}</text>` : "";
+-
+-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" role="img" aria-label="${esc(t.name)}">
+-  <defs><clipPath id="${id}c"><path d="${fuse}"/></clipPath>
+-  <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient></defs>
+-  <ellipse cx="${x(0.5)}" cy="${(bot + 3.1).toFixed(2)}" rx="${(L * 0.45).toFixed(2)}" ry=".45" fill="#000" opacity=".25"/>
+-  <path d="${stab}" fill="${lv.tail}" opacity=".85"/>
+-  <path d="${fin}" fill="${lv.tail}"/>
+-  ${finText}
+-  <g clip-path="url(#${id}c)">
+-    <rect x="-1" y="${top - hump - 1}" width="${L + 2}" height="${D + hump + 2}" fill="${lv.body}"/>
+-    <rect x="-1" y="${(D * 0.14).toFixed(2)}" width="${L + 2}" height="${D}" fill="${lv.belly}"/>
+-    <rect x="-1" y="${(D * 0.02).toFixed(2)}" width="${L + 2}" height="${(D * 0.09).toFixed(2)}" fill="${lv.stripe}"/>
+-    <rect x="-1" y="${top - hump - 1}" width="${L + 2}" height="${D + hump + 2}" fill="url(#${id}g)"/>
+-  </g>
+-  <path d="${fuse}" fill="none" stroke="rgba(0,0,0,.35)" stroke-width=".08"/>
+-  <g fill="#1d2633">${win.join("")}</g>
+-  ${doors.join("")}
+-  <path d="${ck}" fill="#141a24"/>
+-  <path d="${wing}" fill="#aeb5bf" stroke="rgba(0,0,0,.3)" stroke-width=".06"/>
+-  ${eng.join("")}
+-</svg>`;
+-}
+-
+-const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
++/** Seitenansicht als SVG-String. opts.fit = true: füllt die Fläche; sonst einheitlicher Maßstab. */
++export const sideView = (type, livery, opts = {}) => renderAircraft(type, livery, { label: typeof type === "string" ? type : type.name, ...opts });
+ 
+ /**
+  * Draufsicht als weiße Silhouette für die Karte (MapLibre SDF-Icon → einfärbbar).
+diff --git a/games/airline-manager/js/ui/apps/airline.js b/games/airline-manager/js/ui/apps/airline.js
+index dcc1491..81344a5 100644
+--- a/games/airline-manager/js/ui/apps/airline.js
++++ b/games/airline-manager/js/ui/apps/airline.js
+@@ -30,6 +30,7 @@ export default {
+       training: () => { const r = ctx.run(act.upgradeTraining, ctx.now()); if (r) ctx.toast(`Schulung abgeschlossen: ${STAFF.training.levels[r.level]} für ${fmt.int(r.staff)} Mitarbeiter.`, "good"); },
+       sign: el => { if (window.confirm(`Exklusivvertrag mit ${el.dataset.maker} unterschreiben? Neubestellungen beim anderen Hersteller sind dann gesperrt. Kündigung kostet ${fmt.money(CONTRACT.cancelFee)}.`)) ctx.run(act.signContract, el.dataset.maker, ctx.now()) && ctx.toast("Vertrag unterschrieben.", "good"); },
+       cancel: () => { if (window.confirm(`Vertrag für ${fmt.money(CONTRACT.cancelFee)} kündigen?`)) ctx.run(act.cancelContract, ctx.now()); },
++      paint: () => ctx.openPainter(),
+       nextPreview: () => { v.preview = (v.preview + 1) % PREVIEW_TYPES.length; api.rerender(); },
+       addHub: el => { const r = ctx.run(act.addHub, el.dataset.iata, ctx.now()); if (r) { ctx.toast(`${el.dataset.iata} ist jetzt Drehkreuz.`, "good"); v.q = ""; } },
+       export: async el => {
+@@ -52,18 +53,12 @@ export default {
+     return {
+       catering: el => ctx.run(act.setCatering, el.value),
+       bag: el => ctx.run(act.setBagFee, el.value),
+-      lv: el => ctx.run(act.setLivery, { [el.name]: el.value }),
+-      lvText: el => ctx.run(act.setLivery, { text: el.value.toUpperCase().slice(0, 3) })
+     };
+   },
+ 
+   input(ctx, v) {
+     return {
+       bag: el => { el.closest(".card").querySelector("[data-bag]").textContent = "$" + el.value; },
+-      lv: el => {
+-        const prev = el.closest(".body").querySelector("[data-preview]");
+-        prev.innerHTML = sideView(PREVIEW_TYPES[v.preview], { ...ctx.state.airline.livery, [el.name]: el.value });
+-      },
+       q: el => { v.q = el.value; el.closest(".body").querySelector("[data-results]").innerHTML = hubResults(ctx, v).s; }
+     };
+   }
+@@ -130,11 +125,10 @@ function staff(ctx) {
+ 
+ function livery(ctx, v) {
+   const lv = ctx.state.airline.livery;
+-  const fields = [["body", "Rumpf"], ["belly", "Bauch"], ["stripe", "Zierlinie"], ["tail", "Leitwerk"], ["logo", "Logo"], ["engine", "Triebwerke"]];
+   return html`<div class="preview-art" data-preview>${raw(sideView(PREVIEW_TYPES[v.preview], lv))}</div>
+-    <div class="row" style="margin:6px 0 10px"><span class="small muted grow">Vorschau: ${AIRCRAFT_BY_ID[PREVIEW_TYPES[v.preview]].name} – die Livery gilt für jeden Flugzeugtyp.</span><button class="btn sm" data-act="nextPreview">Anderer Typ</button></div>
+-    <div class="livery-grid">${fields.map(([k, l]) => html`<label>${l}<input type="color" name="${k}" value="${lv[k]}" data-act="lv"></label>`)}
+-      <label>Leitwerk-Text<input class="in" name="text" value="${lv.text}" maxlength="3" data-act="lvText" style="width:64px;text-transform:uppercase"></label></div>`;
++    <div class="row" style="margin:6px 0 12px"><span class="small muted grow">Vorschau: ${AIRCRAFT_BY_ID[PREVIEW_TYPES[v.preview]].name} – deine Livery gilt für jeden Flugzeugtyp.</span><button class="btn sm" data-act="nextPreview">Anderer Typ</button></div>
++    <div class="card row"><div class="grow"><b>Lackiererei</b><div class="small muted">Male deine eigene Livery auf ein weißes Flugzeug: Pinsel, Linien, Bänder, Füllen, Text. Sie wird automatisch auf alle Typen übertragen.</div></div>
++      <button class="btn p" data-act="paint">Lackiererei öffnen</button></div>`;
+ }
+ 
+ function contract(ctx) {
+diff --git a/games/airline-manager/js/ui/apps/shop.js b/games/airline-manager/js/ui/apps/shop.js
+index 1183f97..5ca924d 100644
+--- a/games/airline-manager/js/ui/apps/shop.js
++++ b/games/airline-manager/js/ui/apps/shop.js
+@@ -96,7 +96,7 @@ function used(ctx, v) {
+     const t = AIRCRAFT_BY_ID[l.typeId], sold = s.market.boughtUsed.includes(l.id);
+     const cRem = CHECKS.C.fh - l.maint.C.fh, dRem = CHECKS.D.fh - l.maint.D.fh;
+     return html`<article class="shop-item">
+-      <div class="art">${raw(sideView(t, { body: "#f2f2f2", belly: "#f2f2f2", tail: "#c9ced6", stripe: "#c9ced6", engine: "#c8ced6", text: "" }))}</div>
++      <div class="art">${raw(sideView(t, null))}</div>
+       <div class="info">
+         <h3>${t.name}<small>${t.maker} · ${l.seller}</small></h3>
+         <div class="specs">
+diff --git a/games/airline-manager/js/ui/hud.js b/games/airline-manager/js/ui/hud.js
+index ca69a46..ac135b9 100644
+--- a/games/airline-manager/js/ui/hud.js
++++ b/games/airline-manager/js/ui/hud.js
+@@ -2,15 +2,17 @@
+ import { html } from "./dom.js";
+ import { fmt } from "../core/util.js";
+ import { fuelPrice } from "../sim/fuel.js";
++import { normalizeLivery } from "../art/livery.js";
+ 
+ let lastFuel = 0, lastShare = 0;
+ 
+ export function renderHud(el, ctx) {
+-  const s = ctx.state, lv = s.airline.livery;
++  const s = ctx.state, lv = normalizeLivery(s.airline.livery);
++  const tail = lv.base.fin, tailTxt = lv.items.find(i => i.t === "text" && i.z === "fin");
+   el.innerHTML = html`
+     <div class="brand glass">
+       <a href="../../" title="Zurück zu Soy & Soul" aria-label="Zurück zur Startseite"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></a>
+-      <div class="tail" style="background:${lv.tail};color:${lv.logo}">${s.airline.iata}</div>
++      <button class="tail" data-paint title="Lackiererei öffnen" style="background:${tail};color:${tailTxt?.c || "#1b2230"};box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)">${s.airline.iata}</button>
+       <div><b>${s.airline.name}</b><small>${s.player.code}</small></div>
+     </div>
+     <div class="stats glass">
+@@ -22,6 +24,7 @@ export function renderHud(el, ctx) {
+     </div>
+     <div class="clock glass"><b data-h="time"></b><span data-h="date"></span></div>`.s;
+   el.querySelectorAll("[data-hud-open]").forEach(d => d.onclick = () => ctx.openApp(d.dataset.hudOpen));
++  el.querySelector("[data-paint]").onclick = () => ctx.openPainter();
+   tickHud(el, ctx);
+ }
+ 
+diff --git a/games/airline-manager/js/ui/painter.js b/games/airline-manager/js/ui/painter.js
+new file mode 100644
+index 0000000..8ad81cf
+--- /dev/null
++++ b/games/airline-manager/js/ui/painter.js
+@@ -0,0 +1,210 @@
++// Lackiererei (Painter-Modus): eigene Livery auf ein weißes Flugzeug malen. Das Ergebnis gilt für die ganze Flotte.
++//
++// Werkzeuge: Pinsel, Linie, Band (waagerechte Fläche über das ganze Bauteil, ideal für Bauch und Zierlinien),
++// Füllen (ganzes Bauteil), Text (Name, Logo), Radierer. Gemalt wird immer innerhalb des Bauteils, auf dem der Strich
++// beginnt – so läuft nichts über die Kontur, und die Livery lässt sich auf jeden Typ übertragen.
++
++import { renderAircraft, item } from "../art/render.js";
++import { getProfile, hitZone } from "../art/geometry.js";
++import { normalizeLivery, whiteLivery, frames, toUV, boxH, ZONE_NAMES, MAX_ITEMS } from "../art/livery.js";
++import { strokeD, simplify } from "../art/path.js";
++import { AIRCRAFT, AIRCRAFT_BY_ID } from "../data/aircraft.js";
++import { esc } from "./dom.js";
++import * as act from "../sim/actions.js";
++
++const TOOLS = [
++  ["brush", "Pinsel", "B", '<path d="M4 20c2 0 4-1 4-4l9-9 3 3-9 9c-3 0-4 2-4 4"/><path d="M14 6l4 4"/>', "Freihand malen. Bleibt im Bauteil, auf dem du beginnst."],
++  ["line", "Linie", "L", '<path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="5" r="1.5"/>', "Gerade Linie ziehen – mit Umschalt waagerecht."],
++  ["band", "Band", "G", '<rect x="3" y="9" width="18" height="6" rx="1"/>', "Senkrecht ziehen: farbiges Band über die ganze Länge des Bauteils (Bauch, Zierstreifen)."],
++  ["fill", "Füllen", "F", '<path d="M6 11l6-6 7 7-6 6z"/><path d="M19 15s2 2.2 2 3.5a2 2 0 0 1-4 0c0-1.3 2-3.5 2-3.5z"/>', "Ganzes Bauteil in einer Farbe (Rumpf, Leitwerk, Triebwerke …)."],
++  ["text", "Text", "T", '<path d="M5 6V4h14v2"/><path d="M12 4v16"/><path d="M9 20h6"/>', "Klicken, um Text zu setzen – z. B. Airline-Name am Rumpf oder Kürzel am Leitwerk."],
++  ["erase", "Radierer", "E", '<path d="M8 20h12"/><path d="M4 16l9-9 6 6-5 5H8z"/>', "Übermalt mit der Grundfarbe des Bauteils."]
++];
++const PALETTE = ["#ffffff", "#e9ecf1", "#b9c0ca", "#5b6472", "#16191f", "#0b2a5b", "#1f4fd8", "#4fb3ff", "#0aa39b", "#1f9d55", "#a4d233", "#ffc400", "#ff7a00", "#e0262d", "#7a1631", "#ff4f9a", "#6b3fa0", "#c9a227"];
++const PREVIEWS = ["a220-300", "b737-max8", "a321neo", "b787-9", "a350-900", "b777-9", "b747-8i", "a380-800"];
++
++export function openPainter(ctx) {
++  if (document.querySelector(".painter")) return;
++  const s = ctx.state;
++  let lv = structuredClone(normalizeLivery(s.airline.livery));
++  const undo = [], redo = [];
++  let dirty = false;
++  const ui = {
++    tool: "brush", color: "#e0262d", size: 0.12, txt: s.airline.name, bold: true, italic: false, zoom: 1,
++    type: s.fleet.find(a => a.status !== "crashed")?.typeId || "a320neo"
++  };
++
++  const el = document.createElement("div");
++  el.className = "painter";
++  el.innerHTML = `
++    <header class="pt-head">
++      <div class="grow"><h2>Lackiererei</h2><span class="muted small">Deine Livery für alle Flugzeuge – gemalt auf <select class="in" data-k="type">${AIRCRAFT.map(t => `<option value="${t.id}" ${t.id === ui.type ? "selected" : ""}>${esc(t.maker + " " + t.name)}</option>`).join("")}</select></span></div>
++      <div class="row">
++        <button class="btn sm" data-a="undo" title="Rückgängig (Strg+Z)">↶</button><button class="btn sm" data-a="redo" title="Wiederholen (Strg+Y)">↷</button>
++        <button class="btn sm" data-a="zoom" title="Zoom">1×</button>
++        <button class="btn sm" data-a="white">Alles weiß</button>
++        <button class="btn sm" data-a="cancel">Abbrechen</button>
++        <button class="btn sm p" data-a="save">Speichern</button>
++      </div>
++    </header>
++    <aside class="pt-tools">
++      <div class="pt-toolgrid">${TOOLS.map(([id, label, key, icon]) => `<button data-tool="${id}" title="${label} (${key})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><span>${label}</span></button>`).join("")}</div>
++      <p class="small muted" data-k="hint"></p>
++      <label class="pt-label">Farbe</label>
++      <div class="row"><input type="color" data-k="color" value="${ui.color}"><span class="mono small" data-k="hex">${ui.color}</span></div>
++      <div class="pt-palette">${PALETTE.map(c => `<button data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join("")}</div>
++      <label class="pt-label">Größe</label>
++      <input type="range" min="1" max="60" value="${Math.round(ui.size * 100)}" data-k="size">
++      <div data-k="textopts" hidden>
++        <label class="pt-label">Text</label>
++        <input class="in" data-k="txt" maxlength="40" value="${esc(ui.txt)}" style="width:100%">
++        <div class="row" style="margin-top:6px"><label class="row small"><input type="checkbox" data-k="bold" checked> Fett</label><label class="row small"><input type="checkbox" data-k="italic"> Kursiv</label></div>
++      </div>
++      <p class="small muted pt-foot">Tipp: Zum Lackieren beginnt jeder Strich in einem Bauteil und bleibt dort. Die Vorschau unten zeigt deine Livery auf anderen Typen.</p>
++    </aside>
++    <main class="pt-stage" data-k="stage"></main>
++    <div class="pt-status small" data-k="status"></div>
++    <footer class="pt-previews" data-k="previews"></footer>`;
++  document.body.appendChild(el);
++  const $ = k => el.querySelector(`[data-k="${k}"]`);
++
++  // ---------- Darstellung
++  let svg, profile;
++  function draw() {
++    profile = getProfile(ui.type);
++    $("stage").innerHTML = `<div class="pt-canvas" style="width:${ui.zoom * 100}%">${renderAircraft(ui.type, lv, { fit: true, prefix: "pt", outline: 1.6, shadow: false, overlay: '<g id="pt-live"></g><circle id="pt-cursor" r="0" fill="none" stroke="#ffb000" stroke-width="1.5" vector-effect="non-scaling-stroke" pointer-events="none"/>' })}</div>`;
++    svg = $("stage").querySelector("svg");
++    bindStage();
++  }
++  function drawPreviews() {
++    $("previews").innerHTML = PREVIEWS.map(id => `<button data-prev="${id}" class="${id === ui.type ? "on" : ""}" title="${esc(AIRCRAFT_BY_ID[id].name)}">${renderAircraft(id, lv, { fit: true, outline: 0.8, shadow: false })}<span>${esc(AIRCRAFT_BY_ID[id].name)}</span></button>`).join("");
++  }
++  function syncTools() {
++    el.querySelectorAll("[data-tool]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tool === ui.tool)));
++    $("hint").textContent = TOOLS.find(t => t[0] === ui.tool)[4];
++    $("textopts").hidden = ui.tool !== "text";
++    $("hex").textContent = ui.color;
++    $("color").value = ui.color;
++    el.querySelector('[data-a="zoom"]').textContent = ui.zoom + "×";
++  }
++
++  function change(fn) {
++    if (lv.items.length >= MAX_ITEMS && fn.adds) { ctx.toast("Maximale Anzahl an Elementen erreicht – fasse Flächen mit „Band“ oder „Füllen“ zusammen.", "warn"); return; }
++    undo.push(JSON.stringify(lv)); if (undo.length > 80) undo.shift();
++    redo.length = 0;
++    fn();
++    dirty = true;
++    draw(); drawPreviews();
++  }
++
++  // ---------- Malen
++  const svgPoint = e => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
++  let stroke = null;
++
++  function bindStage() {
++    const live = svg.querySelector("#pt-live"), cursor = svg.querySelector("#pt-cursor");
++    svg.addEventListener("pointermove", e => {
++      const { x, y } = svgPoint(e), hit = hitZone(profile, x, y);
++      $("status").textContent = hit ? ZONE_NAMES[hit.zone] : "";
++      const box = hit && frames(profile, hit.zone)[hit.zone === "engine" ? hit.index : 0];
++      const r = (stroke ? stroke.r : box && (ui.tool === "brush" || ui.tool === "erase" || ui.tool === "line") ? ui.size * boxH(box) / 2 : 0);
++      cursor.setAttribute("cx", x); cursor.setAttribute("cy", y); cursor.setAttribute("r", r);
++      if (!stroke) return;
++      if (stroke.kind === "brush" || stroke.kind === "erase") stroke.pts.push([x, y]);
++      else if (stroke.kind === "line") stroke.pts[1] = e.shiftKey ? [x, stroke.pts[0][1]] : [x, y];
++      else if (stroke.kind === "band") stroke.y1 = y;
++      paintLive(live);
++    });
++    svg.addEventListener("pointerdown", e => {
++      if (e.button !== 0) return;
++      const { x, y } = svgPoint(e), hit = hitZone(profile, x, y);
++      if (!hit) return;
++      const box = frames(profile, hit.zone)[hit.zone === "engine" ? hit.index : 0];
++      const clip = hit.zone === "engine" ? `pt-engine-${hit.index}` : `pt-${hit.zone}`;
++      if (ui.tool === "fill") return change(() => { lv.base[hit.zone] = ui.color; });
++      if (ui.tool === "text") {
++        const txt = $("txt").value.trim();
++        if (!txt) return ctx.toast("Erst Text eingeben.", "warn");
++        const [u, v] = toUV(box, x, y);
++        const f = Object.assign(() => lv.items.push({ t: "text", z: hit.zone, c: ui.color, u: r3(u), v: r3(v), s: r3(ui.size * 1.6), txt, b: ui.bold ? 1 : 0, i: ui.italic ? 1 : 0 }), { adds: true });
++        return change(f);
++      }
++      svg.setPointerCapture(e.pointerId);
++      stroke = { kind: ui.tool, zone: hit.zone, box, clip, pts: [[x, y], [x, y]], y0: y, y1: y, r: ui.size * boxH(box) / 2 };
++      paintLive(live);
++    });
++    const end = () => {
++      if (!stroke) return;
++      const st = stroke; stroke = null;
++      live.innerHTML = "";
++      const h = boxH(st.box);
++      if (st.kind === "band") {
++        const v0 = (Math.min(st.y0, st.y1) - st.box.y0) / h, v1 = (Math.max(st.y0, st.y1) - st.box.y0) / h;
++        if (v1 - v0 < 0.005) return;
++        return change(Object.assign(() => lv.items.push({ t: "band", z: st.zone, c: ui.color, v0: r3(v0), v1: r3(v1) }), { adds: true }));
++      }
++      const pts = st.kind === "line" ? [st.pts[0], st.pts[1]] : simplify(st.pts, ui.size * h * 0.12);
++      change(Object.assign(() => lv.items.push({ t: st.kind === "erase" ? "erase" : st.kind === "line" ? "line" : "brush", z: st.zone, c: ui.color, w: r3(ui.size), p: pts.map(([x, y]) => toUV(st.box, x, y).map(r3)) }), { adds: true }));
++    };
++    svg.addEventListener("pointerup", end);
++    svg.addEventListener("pointercancel", () => { stroke = null; live.innerHTML = ""; });
++    svg.addEventListener("pointerleave", () => { $("status").textContent = ""; });
++  }
++
++  function paintLive(live) {
++    const st = stroke, base = lv.base[st.zone];
++    let it;
++    if (st.kind === "band") it = { t: "band", c: ui.color, v0: (Math.min(st.y0, st.y1) - st.box.y0) / boxH(st.box), v1: (Math.max(st.y0, st.y1) - st.box.y0) / boxH(st.box) };
++    else {
++      const pts = st.kind === "line" ? [st.pts[0], st.pts[1]] : st.pts;
++      live.innerHTML = `<g clip-path="url(#${st.clip})"><path d="${strokeD(pts)}" fill="none" stroke="${st.kind === "erase" ? base : ui.color}" stroke-width="${ui.size * boxH(st.box)}" stroke-linecap="round" stroke-linejoin="round"/></g>`;
++      return;
++    }
++    live.innerHTML = `<g clip-path="url(#${st.clip})">${item(it, st.box, base)}</g>`;
++  }
++
++  // ---------- Bedienung
++  el.addEventListener("click", e => {
++    const t = e.target.closest("[data-tool]"); if (t) { ui.tool = t.dataset.tool; syncTools(); return; }
++    const c = e.target.closest("[data-c]"); if (c) { ui.color = c.dataset.c; syncTools(); return; }
++    const p = e.target.closest("[data-prev]"); if (p) { ui.type = p.dataset.prev; $("type").value = ui.type; draw(); drawPreviews(); return; }
++    const a = e.target.closest("[data-a]")?.dataset.a;
++    if (a === "undo") doUndo();
++    if (a === "redo") doRedo();
++    if (a === "zoom") { ui.zoom = ui.zoom >= 3 ? 1 : ui.zoom + 1; syncTools(); draw(); }
++    if (a === "white" && confirm("Alles entfernen und wieder komplett weiß lackieren?")) change(() => { lv = whiteLivery(); });
++    if (a === "cancel") close();
++    if (a === "save") {
++      if (ctx.run(act.setLivery, lv)) { dirty = false; ctx.toast("Neue Livery ist auf allen Flugzeugen.", "good"); close(); }
++    }
++  });
++  $("type").addEventListener("change", e => { ui.type = e.target.value; draw(); drawPreviews(); });
++  $("color").addEventListener("input", e => { ui.color = e.target.value; $("hex").textContent = ui.color; });
++  $("size").addEventListener("input", e => { ui.size = +e.target.value / 100; });
++  $("txt").addEventListener("input", e => { ui.txt = e.target.value; });
++  $("bold").addEventListener("change", e => { ui.bold = e.target.checked; });
++  $("italic").addEventListener("change", e => { ui.italic = e.target.checked; });
++
++  function doUndo() { if (!undo.length) return; redo.push(JSON.stringify(lv)); lv = JSON.parse(undo.pop()); dirty = true; draw(); drawPreviews(); }
++  function doRedo() { if (!redo.length) return; undo.push(JSON.stringify(lv)); lv = JSON.parse(redo.pop()); dirty = true; draw(); drawPreviews(); }
++
++  const keys = e => {
++    if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName) && e.key !== "Escape") return;
++    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
++    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); return; }
++    if (e.key === "Escape") { close(); return; }
++    const t = TOOLS.find(x => x[2].toLowerCase() === e.key.toLowerCase());
++    if (t && !e.ctrlKey && !e.metaKey) { ui.tool = t[0]; syncTools(); }
++  };
++  document.addEventListener("keydown", keys);
++
++  function close() {
++    if (dirty && !confirm("Änderungen verwerfen?")) return;
++    document.removeEventListener("keydown", keys);
++    el.remove();
++  }
++
++  syncTools(); draw(); drawPreviews();
++}
++
++const r3 = n => Math.round(n * 1000) / 1000;
+diff --git a/games/airline-manager/tests/sim.test.mjs b/games/airline-manager/tests/sim.test.mjs
+index 2fd6cfe..b6aa7b5 100644
+--- a/games/airline-manager/tests/sim.test.mjs
++++ b/games/airline-manager/tests/sim.test.mjs
+@@ -103,4 +103,13 @@ test("Bahnlänge wird geprüft", () => {
+   assert.equal(res.ok, false);
+ });
+ 
++test("Alle Typen zeichenbar, Livery passt auf jeden Typ", async () => {});
++const { renderAircraft } = await import("../js/art/render.js");
++const { normalizeLivery } = await import("../js/art/livery.js");
++const lv = normalizeLivery({ body: "#fff", belly: "#123", tail: "#e00", stripe: "#e00", engine: "#123", text: "AB" });
++for (const t of AIRCRAFT) { const svg = renderAircraft(t, lv); assert.ok(!/NaN|undefined/.test(svg), t.id); }
++const fresh = newGame({ name: "W", iata: "WW", hub: "FRA", player: { code: "c", secret: "s" }, now: T0 });
++assert.equal(fresh.airline.livery.items.length, 0, "neue Airline ist komplett weiß");
++assert.ok(Object.values(fresh.airline.livery.base).every(c => c === "#ffffff"));
++
+ console.log(`\n${pass} Tests bestanden`);
+diff --git a/games/airline-manager/tools/profil-werkstatt.html b/games/airline-manager/tools/profil-werkstatt.html
+new file mode 100644
+index 0000000..ac888fc
+--- /dev/null
++++ b/games/airline-manager/tools/profil-werkstatt.html
+@@ -0,0 +1,81 @@
++<!doctype html>
++<html lang="de">
++<head>
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>Profil-Werkstatt · Airline Manager</title>
++<link rel="stylesheet" href="../css/base.css">
++<style>
++  body { overflow: hidden; display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
++  aside { overflow: auto; padding: 16px; border-right: 1px solid var(--line); background: var(--panel-solid); display: flex; flex-direction: column; gap: 12px; }
++  aside h1 { font-size: 20px; }
++  .step { background: var(--raise); border-radius: 12px; padding: 10px 12px; }
++  .step > b { display: block; margin-bottom: 6px; }
++  .step.on { box-shadow: inset 0 0 0 1px var(--accent); }
++  .parts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
++  .parts button { text-align: left; padding: 6px 8px; border-radius: 8px; background: var(--raise2); font-size: 12px; font-weight: 600; color: var(--ink2); }
++  .parts button[aria-pressed="true"] { background: rgba(255,176,0,.18); color: var(--accent); }
++  .parts button small { display: block; font-weight: 400; color: var(--ink3); }
++  main { position: relative; overflow: hidden; background: #0a0d12; }
++  #view { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
++  #view img { display: block; user-select: none; -webkit-user-drag: none; opacity: var(--imgop, .9); }
++  #view svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
++  .drop { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink3); text-align: center; pointer-events: none; }
++  .bar { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; gap: 8px; align-items: center; pointer-events: none; }
++  .bar > * { pointer-events: auto; }
++  #preview { background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,.08), transparent 70%); border-radius: 12px; padding: 6px; }
++  #preview svg { width: 100%; height: auto; display: block; }
++  [hidden] { display: none !important; }
++  kbd { font: 11px var(--mono); background: var(--raise2); border-radius: 4px; padding: 1px 5px; }
++  textarea { width: 100%; font: 11px var(--mono); }
++</style>
++</head>
++<body>
++<aside>
++  <div><h1>Profil-Werkstatt</h1><p class="small muted">Blaupause abpausen → Flugzeugform 1:1 im Spiel. Bild bleibt auf deinem Rechner.</p></div>
++
++  <div class="step" data-step="1"><b>1 · Blaupause laden</b>
++    <input type="file" id="file" accept="image/*" class="small">
++    <p class="small muted" style="margin-top:6px">Oder Screenshot mit <kbd>Strg</kbd>+<kbd>V</kbd> einfügen. Gut geeignet: Seitenansicht aus den Aircraft-Characteristics-PDFs (Airbus) bzw. Airport-Planning-Dokumenten (Boeing), Kapitel „General Airplane Dimensions“.</p>
++    <label class="row small" style="margin-top:6px">Bild-Deckkraft <input type="range" id="imgop" min="10" max="100" value="90"></label>
++  </div>
++
++  <div class="step" data-step="2"><b>2 · Flugzeugtyp</b>
++    <select id="type" class="in" style="width:100%"></select>
++    <p class="small muted" style="margin-top:6px" id="typeinfo"></p>
++  </div>
++
++  <div class="step" data-step="3"><b>3 · Maßstab</b>
++    <p class="small muted">Klicke die <b>vorderste</b> Stelle (Nasenspitze) und dann die <b>hinterste</b> Stelle des Flugzeugs. Die Gesamtlänge kommt aus den Daten. Nase rechts? Kein Problem, wird automatisch gespiegelt.</p>
++    <div class="row" style="margin-top:6px"><button class="btn sm" id="calib">Maßstab setzen</button><span class="small" id="calibinfo"></span></div>
++  </div>
++
++  <div class="step" data-step="4"><b>4 · Bauteile abpausen</b>
++    <div class="parts" id="parts"></div>
++    <p class="small muted" style="margin-top:8px">Klicken = Punkt setzen · Punkt ziehen = verschieben · <kbd>Alt</kbd>+Klick auf Punkt = Ecke/rund · <kbd>⌫</kbd> letzter Punkt · <kbd>Enter</kbd> Teil fertig (nächstes Teil derselben Art) · Mausrad = Zoom · <kbd>Leertaste</kbd>+Ziehen = verschieben</p>
++    <div id="partlist" class="small" style="margin-top:6px"></div>
++  </div>
++
++  <div class="step"><b>5 · Vorschau im Spiel-Look</b>
++    <div id="preview"></div>
++    <label class="row small" style="margin-top:6px"><input type="checkbox" id="testlv"> mit Test-Livery</label>
++  </div>
++
++  <div class="step"><b>6 · Speichern</b>
++    <p class="small muted">Alle abgepausten Typen liegen in <code>data/profiles.json</code>. Bestehende Datei laden, Typ abpausen, neue Datei herunterladen und im Ordner <code>games/airline-manager/data/</code> ersetzen.</p>
++    <div class="row wrap" style="margin-top:6px">
++      <label class="btn sm">profiles.json laden<input type="file" id="loadjson" accept=".json,application/json" hidden></label>
++      <button class="btn sm p" id="download">profiles.json herunterladen</button>
++      <button class="btn sm danger" id="clear">Typ verwerfen</button>
++    </div>
++    <p class="small muted" id="stored" style="margin-top:6px"></p>
++  </div>
++</aside>
++<main id="main">
++  <div class="drop" id="drop">Blaupause hierher ziehen, einfügen oder links laden</div>
++  <div id="view"><img id="img" alt=""><svg id="ov"></svg></div>
++  <div class="bar"><span class="pill info" id="mode"></span><span class="grow"></span><button class="btn sm" id="fit">Einpassen</button></div>
++</main>
++<script type="module" src="werkstatt.js"></script>
++</body>
++</html>
+diff --git a/games/airline-manager/tools/werkstatt.js b/games/airline-manager/tools/werkstatt.js
+new file mode 100644
+index 0000000..d2749c9
+--- /dev/null
++++ b/games/airline-manager/tools/werkstatt.js
+@@ -0,0 +1,214 @@
++// Profil-Werkstatt: Seitenansichten von Blaupausen abpausen und als Profil für das Spiel speichern.
++// Gearbeitet wird in Bildpixeln; erst beim Export wird mit dem Maßstab (Nase → Heck = echte Länge) in Meter umgerechnet.
++
++import { AIRCRAFT, AIRCRAFT_BY_ID } from "../js/data/aircraft.js";
++import { setTracedProfiles } from "../js/art/geometry.js";
++import { renderAircraft } from "../js/art/render.js";
++import { pathD, samplePoly } from "../js/art/path.js";
++import { bboxOf } from "../js/art/geometry.js";
++
++const PARTS = [
++  ["fuselage", "Rumpf", "Kontur einmal rundherum"],
++  ["fin", "Seitenleitwerk", "inkl. Rückenflosse"],
++  ["stab", "Höhenleitwerk", "nahe Seite"],
++  ["wing", "Flügel", "Flügel, Winglet, Pylon – je ein Teil"],
++  ["engine", "Triebwerk", "jede Gondel ein Teil"],
++  ["cockpit", "Cockpitfenster", "als Fläche"],
++  ["windows", "Fensterreihe", "Mitte erstes + letztes Fenster"],
++  ["doors", "Türen", "Ecke oben links + unten rechts"]
++];
++const COLORS = { fuselage: "#4fb3ff", fin: "#ff7a00", stab: "#ffc400", wing: "#a4d233", engine: "#ff4f9a", cockpit: "#ffffff", windows: "#7ef0ff", doors: "#c9a227" };
++const TEST_LV = { v: 2, base: { fuselage: "#ffffff", fin: "#0b2a5b", stab: "#ffffff", wing: "#ffffff", engine: "#0b2a5b" }, items: [{ t: "band", z: "fuselage", c: "#0b2a5b", v0: .62, v1: 1.1 }, { t: "band", z: "fuselage", c: "#e0262d", v0: .53, v1: .6 }, { t: "text", z: "fin", c: "#ffffff", u: .6, v: .5, s: .25, txt: "AM", b: 1, i: 1 }] };
++
++const $ = id => document.getElementById(id);
++const LS = "am-werkstatt";
++const store = load();
++let typeId = store.lastType || "a320neo";
++let mode = "calib", scale = 1, tx = 0, ty = 0, space = false, drag = null, pending = null;
++
++function load() { try { return JSON.parse(localStorage.getItem(LS)) || { wip: {}, profiles: {} }; } catch { return { wip: {}, profiles: {} }; } }
++function persist() { store.lastType = typeId; localStorage.setItem(LS, JSON.stringify(store)); }
++const wip = () => (store.wip[typeId] ||= { calib: null, zones: {}, windows: [], doors: [], cockpit: [] });
++
++// ---------- Typauswahl + Teile
++$("type").innerHTML = AIRCRAFT.map(t => `<option value="${t.id}">${t.maker} ${t.name}</option>`).join("");
++$("type").value = typeId;
++$("type").onchange = e => { typeId = e.target.value; pending = null; persist(); refresh(); };
++$("parts").innerHTML = PARTS.map(([id, name, hint]) => `<button data-part="${id}">${name}<small>${hint}</small></button>`).join("");
++$("parts").onclick = e => { const b = e.target.closest("[data-part]"); if (b) setMode(b.dataset.part); };
++$("calib").onclick = () => { wip().calib = null; setMode("calib"); refresh(); };
++
++function setMode(m) { mode = m; pending = null; refresh(); }
++
++// ---------- Bild laden
++function showImage(src) {
++  $("img").onload = () => { $("drop").hidden = true; const { naturalWidth: w, naturalHeight: h } = $("img"); $("ov").setAttribute("viewBox", `0 0 ${w} ${h}`); $("view").style.width = w + "px"; $("view").style.height = h + "px"; fit(); refresh(); };
++  $("img").src = src;
++}
++$("file").onchange = e => { const f = e.target.files[0]; if (f) showImage(URL.createObjectURL(f)); };
++addEventListener("paste", e => { const f = [...e.clipboardData.items].find(i => i.type.startsWith("image/"))?.getAsFile(); if (f) showImage(URL.createObjectURL(f)); });
++$("main").addEventListener("dragover", e => e.preventDefault());
++$("main").addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) showImage(URL.createObjectURL(f)); });
++$("imgop").oninput = e => $("view").style.setProperty("--imgop", e.target.value / 100);
++
++// ---------- Zoom & Verschieben
++function applyView() { $("view").style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`; }
++function fit() {
++  const r = $("main").getBoundingClientRect(), w = $("img").naturalWidth || 1, h = $("img").naturalHeight || 1;
++  scale = Math.min((r.width - 40) / w, (r.height - 80) / h); tx = (r.width - w * scale) / 2; ty = (r.height - h * scale) / 2; applyView();
++}
++$("fit").onclick = fit;
++$("main").addEventListener("wheel", e => {
++  e.preventDefault();
++  const r = $("main").getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, k = Math.exp(-e.deltaY * 0.0015);
++  tx = mx - (mx - tx) * k; ty = my - (my - ty) * k; scale *= k; applyView(); refresh();
++}, { passive: false });
++addEventListener("keydown", e => { if (e.code === "Space" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { space = true; e.preventDefault(); } });
++addEventListener("keyup", e => { if (e.code === "Space") space = false; });
++
++const toImg = e => { const r = $("main").getBoundingClientRect(); return [(e.clientX - r.left - tx) / scale, (e.clientY - r.top - ty) / scale]; };
++
++// ---------- Klicken & Ziehen
++$("main").addEventListener("pointerdown", e => {
++  if (!$("img").src) return;
++  if (space || e.button === 1) { drag = { pan: true, x: e.clientX, y: e.clientY, tx, ty }; $("main").setPointerCapture(e.pointerId); return; }
++  if (e.button !== 0) return;
++  const p = toImg(e), w = wip();
++  if (mode === "calib") {
++    if (!w.calib || w.calib.t) w.calib = { n: p, t: null };
++    else { w.calib.t = p; mode = "fuselage"; }
++    persist(); refresh(); return;
++  }
++  if (mode === "windows" || mode === "doors") {
++    if (!pending) pending = p;
++    else { (mode === "windows" ? w.windows : w.doors).push(mode === "windows" ? { a: pending, b: p, pitch: 0.53, w: 0.24, h: 0.36 } : { a: pending, b: p }); pending = null; persist(); }
++    refresh(); return;
++  }
++  // Polygon-Teile: vorhandenen Punkt greifen?
++  const hit = nearestPoint(p);
++  if (hit) {
++    if (e.altKey) { hit.pt[2] = hit.pt[2] ? 0 : 1; persist(); refresh(); return; }
++    drag = { point: hit.pt }; $("main").setPointerCapture(e.pointerId); return;
++  }
++  const poly = activePoly(true);
++  poly.pts.push([p[0], p[1], 0]);
++  persist(); refresh();
++});
++$("main").addEventListener("pointermove", e => {
++  if (!drag) return;
++  if (drag.pan) { tx = drag.tx + e.clientX - drag.x; ty = drag.ty + e.clientY - drag.y; applyView(); return; }
++  const p = toImg(e); drag.point[0] = p[0]; drag.point[1] = p[1]; refresh(true);
++});
++$("main").addEventListener("pointerup", () => { if (drag && !drag.pan) { persist(); refresh(); } drag = null; });
++
++addEventListener("keydown", e => {
++  if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
++  if (e.key === "Backspace") { e.preventDefault(); const poly = activePoly(false); if (poly) { poly.pts.pop(); if (!poly.pts.length) removePoly(poly); } else pending = null; persist(); refresh(); }
++  if (e.key === "Enter") { const poly = activePoly(false); if (poly) { poly.done = true; persist(); refresh(); } }
++});
++
++function list(zone) { const w = wip(); return zone === "cockpit" ? w.cockpit : (w.zones[zone] ||= []); }
++function activePoly(create) {
++  if (!PARTS.some(([id]) => id === mode) || mode === "windows" || mode === "doors") return null;
++  const l = list(mode), last = l[l.length - 1];
++  if (last && !last.done) return last;
++  if (!create) return null;
++  const poly = { pts: [], done: false }; l.push(poly); return poly;
++}
++function removePoly(poly) { const l = list(mode), i = l.indexOf(poly); if (i >= 0) l.splice(i, 1); }
++function nearestPoint(p) {
++  const tol = 9 / scale; let best = null;
++  for (const [z] of PARTS) for (const poly of (z === "windows" || z === "doors") ? [] : list(z)) for (const pt of poly.pts) {
++    const d = Math.hypot(pt[0] - p[0], pt[1] - p[1]); if (d < tol && (!best || d < best.d)) best = { pt, d };
++  }
++  return best;
++}
++
++// ---------- Umrechnung Pixel → Meter
++function frame(w) {
++  const t = AIRCRAFT_BY_ID[typeId], { n, t: tl } = w.calib;
++  const dx = tl[0] - n[0], dy = tl[1] - n[1], len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
++  const [px, py] = ux >= 0 ? [-uy, ux] : [uy, -ux]; // senkrecht, "unten" im Bild = positiv
++  const m = t.art.lengthM / len;
++  return ([x, y]) => [((x - n[0]) * ux + (y - n[1]) * uy) * m, ((x - n[0]) * px + (y - n[1]) * py) * m];
++}
++const r3 = v => Math.round(v * 1000) / 1000;
++
++function toProfile(id = typeId) {
++  const w = store.wip[id];
++  if (!w?.calib?.t || !(w.zones.fuselage || []).some(p => p.pts.length > 2)) return null;
++  const prevType = typeId; typeId = id; const conv = frame(w); typeId = prevType;
++  const polys = l => (l || []).filter(p => p.pts.length > 2).map(p => ({ pts: p.pts.map(pt => { const [x, y] = conv(pt); return pt[2] ? [x, y, 1] : [x, y]; }), smooth: true }));
++  const zones = {}; for (const z of ["fuselage", "fin", "stab", "wing", "engine"]) zones[z] = polys(w.zones[z]);
++  const fb = bboxOf(zones.fuselage.flatMap(p => samplePoly(p.pts, true)));
++  const cy = (fb.y0 + fb.y1) / 2, shift = pts => pts.map(p => [r3(p[0]), r3(p[1] - cy), ...(p[2] ? [1] : [])]);
++  for (const z in zones) zones[z] = zones[z].map(p => ({ pts: shift(p.pts), smooth: true }));
++  const windows = w.windows.map(r => { const a = conv(r.a), b = conv(r.b); return { y: r3((a[1] + b[1]) / 2 - cy), x0: r3(Math.min(a[0], b[0])), x1: r3(Math.max(a[0], b[0])), pitch: r.pitch, w: r.w, h: r.h }; });
++  const doors = w.doors.map(d => { const a = conv(d.a), b = conv(d.b); return { x: r3((a[0] + b[0]) / 2), y: r3(Math.min(a[1], b[1]) - cy), w: r3(Math.abs(b[0] - a[0])), h: r3(Math.abs(b[1] - a[1])) }; });
++  const cockpit = polys(w.cockpit).map(p => ({ pts: shift(p.pts), smooth: true }));
++  return { L: AIRCRAFT_BY_ID[id].art.lengthM, D: r3(fb.y1 - fb.y0), zones, deco: { windows, doors, cockpit }, traced: new Date().toISOString().slice(0, 10) };
++}
++
++// ---------- Anzeige
++function refresh(fast = false) {
++  const w = wip(), sw = 1.5 / scale, out = [];
++  if (w.calib) {
++    const { n, t } = w.calib;
++    out.push(`<circle cx="${n[0]}" cy="${n[1]}" r="${6 / scale}" fill="#ffb000"/>`);
++    if (t) out.push(`<circle cx="${t[0]}" cy="${t[1]}" r="${6 / scale}" fill="#ffb000"/><line x1="${n[0]}" y1="${n[1]}" x2="${t[0]}" y2="${t[1]}" stroke="#ffb000" stroke-width="${sw}" stroke-dasharray="${8 / scale}"/>`);
++  }
++  for (const [z] of PARTS) {
++    if (z === "windows") { for (const r of w.windows) out.push(`<line x1="${r.a[0]}" y1="${r.a[1]}" x2="${r.b[0]}" y2="${r.b[1]}" stroke="${COLORS[z]}" stroke-width="${sw * 2}"/>`); continue; }
++    if (z === "doors") { for (const d of w.doors) out.push(`<rect x="${Math.min(d.a[0], d.b[0])}" y="${Math.min(d.a[1], d.b[1])}" width="${Math.abs(d.b[0] - d.a[0])}" height="${Math.abs(d.b[1] - d.a[1])}" fill="none" stroke="${COLORS[z]}" stroke-width="${sw}"/>`); continue; }
++    for (const poly of list(z)) {
++      const c = COLORS[z], active = z === mode && !poly.done;
++      if (poly.pts.length > 2) out.push(`<path d="${pathD(poly.pts, true)}" fill="${c}" fill-opacity="${active ? .12 : .22}" stroke="${c}" stroke-width="${sw}"/>`);
++      else if (poly.pts.length === 2) out.push(`<line x1="${poly.pts[0][0]}" y1="${poly.pts[0][1]}" x2="${poly.pts[1][0]}" y2="${poly.pts[1][1]}" stroke="${c}" stroke-width="${sw}"/>`);
++      if (z === mode || active) for (const pt of poly.pts) out.push(pt[2] ? `<rect x="${pt[0] - 4 / scale}" y="${pt[1] - 4 / scale}" width="${8 / scale}" height="${8 / scale}" fill="${c}" stroke="#000" stroke-width="${1 / scale}"/>` : `<circle cx="${pt[0]}" cy="${pt[1]}" r="${4 / scale}" fill="${c}" stroke="#000" stroke-width="${1 / scale}"/>`);
++    }
++  }
++  if (pending) out.push(`<circle cx="${pending[0]}" cy="${pending[1]}" r="${5 / scale}" fill="${COLORS[mode]}"/>`);
++  $("ov").innerHTML = out.join("");
++  if (fast) return;
++
++  const t = AIRCRAFT_BY_ID[typeId];
++  $("typeinfo").textContent = `Länge ${t.art.lengthM} m · Spannweite ${t.art.spanM} m · ${t.art.engines} Triebwerke`;
++  $("calibinfo").textContent = w.calib?.t ? "✓ gesetzt" : w.calib ? "jetzt Heckende klicken" : "";
++  document.querySelectorAll("[data-part]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.part === mode)));
++  document.querySelectorAll(".step").forEach(s => s.classList.toggle("on", (mode === "calib" && s.dataset.step === "3") || (mode !== "calib" && s.dataset.step === "4")));
++  $("mode").textContent = mode === "calib" ? (w.calib && !w.calib.t ? "Maßstab: jetzt hinterste Stelle klicken" : "Maßstab: Nasenspitze klicken") : `${PARTS.find(p => p[0] === mode)[1]} – ${mode === "windows" || mode === "doors" ? (pending ? "zweiten Punkt klicken" : "ersten Punkt klicken") : "Punkte setzen, Enter = Teil fertig"}`;
++  $("partlist").innerHTML = PARTS.map(([z, name]) => {
++    const n = z === "windows" ? w.windows.length : z === "doors" ? w.doors.length : list(z).filter(p => p.pts.length).length;
++    return n ? `<div class="row"><span class="grow" style="color:${COLORS[z]}">${name}: ${n}</span><button class="btn sm" data-del="${z}">letztes löschen</button></div>` : "";
++  }).join("");
++  // Vorschau
++  const prof = toProfile();
++  setTracedProfiles({ ...store.profiles, ...(prof ? { [typeId]: prof } : {}) });
++  $("preview").innerHTML = renderAircraft(typeId, $("testlv").checked ? TEST_LV : null, { fit: true });
++  const done = Object.keys({ ...store.profiles, ...Object.fromEntries(Object.keys(store.wip).filter(id => toProfile(id)).map(id => [id, 1])) });
++  $("stored").textContent = done.length ? `Abgepaust: ${done.map(id => AIRCRAFT_BY_ID[id]?.name || id).join(", ")}` : "Noch kein Typ abgepaust.";
++}
++$("partlist").onclick = e => {
++  const z = e.target.closest("[data-del]")?.dataset.del; if (!z) return;
++  const w = wip(); (z === "windows" ? w.windows : z === "doors" ? w.doors : list(z)).pop(); persist(); refresh();
++};
++$("testlv").onchange = () => refresh();
++
++// ---------- Speichern
++$("download").onclick = () => {
++  const all = { ...store.profiles };
++  for (const id of Object.keys(store.wip)) { const p = toProfile(id); if (p) all[id] = p; }
++  const blob = new Blob([JSON.stringify(all, null, 1)], { type: "application/json" });
++  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "profiles.json" });
++  a.click();
++};
++$("loadjson").onchange = async e => {
++  const f = e.target.files[0]; if (!f) return;
++  try { Object.assign(store.profiles, JSON.parse(await f.text())); persist(); refresh(); } catch { alert("Datei ist kein gültiges profiles.json"); }
++};
++$("clear").onclick = () => { if (confirm("Abgepauste Punkte für diesen Typ löschen?")) { delete store.wip[typeId]; delete store.profiles[typeId]; persist(); refresh(); } };
++
++// Vorhandene Profile aus dem Spiel übernehmen
++fetch("../data/profiles.json", { cache: "no-cache" }).then(r => r.json()).then(p => { store.profiles = { ...p, ...store.profiles }; refresh(); }).catch(() => {});
++setMode(wip().calib?.t ? "fuselage" : "calib");
++addEventListener("resize", () => $("img").src && fit());
+-- 
+2.43.0
+

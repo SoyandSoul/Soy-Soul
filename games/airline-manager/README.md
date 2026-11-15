@@ -61,10 +61,19 @@ games/airline-manager/
 │     ├─ map.js            MapLibre-Karte im Flightradar-Stil
 │     ├─ windows.js        Fenstermanager (Apps über der Karte)
 │     ├─ hud.js, flightcard.js, onboarding.js, toast.js, dom.js, icons.js
-│     ├─ aircraftArt.js    einheitliche Flugzeuggrafiken aus echten Maßen (Livery-fähig)
+│     ├─ aircraftArt.js    Einstieg für Grafiken (Seitenansicht + Karten-Icon)
+│     ├─ painter.js        Lackiererei: eigene Livery malen
+│  ├─ art/                 Flugzeugformen und Lackierung, ohne DOM
+│  │  ├─ geometry.js       Seitenprofile: abgepaust (data/profiles.json) oder aus echten Maßen
+│  │  ├─ render.js         Zeichentrick-Renderer (Konturen, Glanz, Fenster, Livery pro Bauteil)
+│  │  ├─ livery.js         Livery-Format (Bauteil-Koordinaten → passt auf jeden Typ)
+│  │  └─ path.js           geglättete Konturen, Pinselstriche, Vereinfachung
 │     └─ apps/             hangar, shop, routes, maint, fuel, airline, stocks, leaderboard, logbook
 ├─ lib/                    MapLibre GL (Kopie aus history-shots)
-├─ tools/dxf_to_svg.py     Herstellerzeichnungen (DXF) → SVG
+├─ data/profiles.json      abgepauste Blaupausen-Profile (anfangs leer)
+├─ tools/
+│  ├─ profil-werkstatt.html  Blaupausen abpausen → profiles.json (im Browser öffnen)
+│  └─ dxf_to_svg.py          Herstellerzeichnungen (DXF) → SVG
 └─ tests/sim.test.mjs      Simulationstests
 ```
 
@@ -173,29 +182,41 @@ Spielstand manipulieren. Der Schlüssel verhindert nur, dass jemand **fremde** A
 Freundes-Spiel reicht das; für Ranglisten mit Preisen bräuchte es serverseitige Plausibilitätsprüfungen
 (z. B. maximaler Kurssprung pro Stunde in `publish_airline`).
 
-## Flugzeugbilder von Airbus und Boeing
+## Flugzeugformen, Blaupausen und Lackiererei
 
-Die Herstellerseiten liefern CAD-Dateien, keine fertigen Bilder:
+**Alle Flugzeuge sind ab Werk komplett weiß.** In der Lackiererei (Klick auf das Kürzel oben links oder
+Airline → Livery) malt man die eigene Livery: Pinsel, Linie, Band (waagerechte Fläche, ideal für Bauch und
+Zierstreifen), Füllen, Text, Radierer, Rückgängig. Gespeichert wird pro Bauteil (Rumpf, Seitenleitwerk,
+Höhenleitwerk, Flügel, Triebwerke) in relativen Koordinaten – deshalb passt dieselbe Livery auf jeden Typ.
 
-- Airbus: AutoCAD 3-View Drawings + Aircraft Characteristics (PDF, Maße und Leistungsdaten)
-  https://www.aircraft.airbus.com/en/customer-care/fleet-wide-care/airport-operations-and-aircraft-characteristics/autocad-3-view-aircraft-drawings
-- Boeing: 3-View (ZIP mit .dwg/.dxf, z. B. `…/airports/dwgs/7878.zip`) https://www.boeing.com/commercial/airports/3-view
+**Woher die Formen kommen** (`js/art/geometry.js`):
 
-Das Spiel zeichnet deshalb **jedes Modell aus seinen echten Maßen** (`ui/aircraftArt.js`: Länge, Spannweite,
-Rumpfhöhe, Triebwerksanzahl, Doppeldeck, 747-Buckel …). Alle Typen haben dieselben Livery-Flächen
-(Rumpf, Bauch, Zierlinie, Leitwerk, Logo, Triebwerke) und denselben Maßstab – eine Livery passt auf alles.
+1. **Abgepauste Blaupausen** aus `data/profiles.json` – haben Vorrang und übernehmen die Form 1:1.
+2. Solange ein Typ nicht abgepaust ist: Profil aus echten Maßen pro Baureihe (Länge, Rumpfhöhe,
+   Nasen- und Heckform, Leitwerkshöhe und -pfeilung, Flügel mit V-Stellung, Winglet-Art, Triebwerksgröße und -lage).
 
-Echte Umrisse übernehmen:
+**Einen Typ abpausen** (ca. 10–15 Minuten pro Typ):
 
-```bash
-python3 tools/dxf_to_svg.py 7878.dxf --info                         # Layer + Ausdehnung
-python3 tools/dxf_to_svg.py 7878.dxf -o 787-8-side.svg --bbox …     # nur die Seitenansicht
-```
+1. `tools/profil-werkstatt.html` im Browser öffnen (über den lokalen Webserver, siehe „Starten“).
+2. Blaupause laden oder Screenshot einfügen. Gute Quellen: die Seitenansicht in den
+   Aircraft-Characteristics-PDFs von Airbus bzw. den Airport-Planning-Dokumenten von Boeing
+   (Kapitel „General Airplane Dimensions“).
+3. Typ wählen, Maßstab setzen (Nasenspitze, dann hinterste Stelle).
+4. Rumpf, Seitenleitwerk, Höhenleitwerk, Flügelteile, Triebwerke, Cockpitfenster als Punkte abklicken;
+   Fensterreihen und Türen mit zwei Klicks. Die Konturen werden automatisch weich geglättet
+   (Zeichentrick-Look), Alt+Klick macht einen Punkt zur harten Ecke (z. B. Leitwerksspitze).
+5. Rechts die Vorschau im Spiel-Look prüfen, dann `profiles.json` herunterladen und
+   `games/airline-manager/data/profiles.json` damit ersetzen. Fertig – das Spiel nutzt die neue Form sofort.
 
-**Rechtliches vorher klären:** Boeing vermerkt „Copyright © Boeing. All Rights Reserved“ und nennt als Zweck
-Gate-Planung; Airbus verweist auf eigene Nutzungsbedingungen. Ob abgeleitete Grafiken öffentlich in einem Spiel
-gezeigt werden dürfen, ist damit nicht geklärt. Im Zweifel bei airport.compatibility@airbus.com bzw. Boeing nachfragen
-oder bei den eigenen, parametrischen Grafiken bleiben.
+Der Arbeitsstand bleibt im Browser gespeichert; das Bild selbst wird nirgends hochgeladen und landet nicht im Repo –
+im Spiel steckt nur die abgepauste Kontur.
+
+**Rechtliches:** Nur die Form wird übernommen, keine Grafik. Trotzdem: Boeing vermerkt bei den Zeichnungen
+„All Rights Reserved“ (Zweck: Gate-Planung), Airbus verweist auf eigene Nutzungsbedingungen. Für ein öffentliches
+Spiel lieber kurz klären bzw. eigene Vorlagen nutzen.
+
+`tools/dxf_to_svg.py` wandelt die AutoCAD-Zeichnungen der Hersteller (DXF) in SVG um – praktisch, um daraus ein
+sauberes Bild für die Profil-Werkstatt zu machen.
 
 ## Daten prüfen
 

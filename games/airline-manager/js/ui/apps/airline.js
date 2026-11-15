@@ -30,6 +30,7 @@ export default {
       training: () => { const r = ctx.run(act.upgradeTraining, ctx.now()); if (r) ctx.toast(`Schulung abgeschlossen: ${STAFF.training.levels[r.level]} für ${fmt.int(r.staff)} Mitarbeiter.`, "good"); },
       sign: el => { if (window.confirm(`Exklusivvertrag mit ${el.dataset.maker} unterschreiben? Neubestellungen beim anderen Hersteller sind dann gesperrt. Kündigung kostet ${fmt.money(CONTRACT.cancelFee)}.`)) ctx.run(act.signContract, el.dataset.maker, ctx.now()) && ctx.toast("Vertrag unterschrieben.", "good"); },
       cancel: () => { if (window.confirm(`Vertrag für ${fmt.money(CONTRACT.cancelFee)} kündigen?`)) ctx.run(act.cancelContract, ctx.now()); },
+      paint: () => ctx.openPainter(),
       nextPreview: () => { v.preview = (v.preview + 1) % PREVIEW_TYPES.length; api.rerender(); },
       addHub: el => { const r = ctx.run(act.addHub, el.dataset.iata, ctx.now()); if (r) { ctx.toast(`${el.dataset.iata} ist jetzt Drehkreuz.`, "good"); v.q = ""; } },
       export: async el => {
@@ -52,18 +53,12 @@ export default {
     return {
       catering: el => ctx.run(act.setCatering, el.value),
       bag: el => ctx.run(act.setBagFee, el.value),
-      lv: el => ctx.run(act.setLivery, { [el.name]: el.value }),
-      lvText: el => ctx.run(act.setLivery, { text: el.value.toUpperCase().slice(0, 3) })
     };
   },
 
   input(ctx, v) {
     return {
       bag: el => { el.closest(".card").querySelector("[data-bag]").textContent = "$" + el.value; },
-      lv: el => {
-        const prev = el.closest(".body").querySelector("[data-preview]");
-        prev.innerHTML = sideView(PREVIEW_TYPES[v.preview], { ...ctx.state.airline.livery, [el.name]: el.value });
-      },
       q: el => { v.q = el.value; el.closest(".body").querySelector("[data-results]").innerHTML = hubResults(ctx, v).s; }
     };
   }
@@ -130,11 +125,10 @@ function staff(ctx) {
 
 function livery(ctx, v) {
   const lv = ctx.state.airline.livery;
-  const fields = [["body", "Rumpf"], ["belly", "Bauch"], ["stripe", "Zierlinie"], ["tail", "Leitwerk"], ["logo", "Logo"], ["engine", "Triebwerke"]];
   return html`<div class="preview-art" data-preview>${raw(sideView(PREVIEW_TYPES[v.preview], lv))}</div>
-    <div class="row" style="margin:6px 0 10px"><span class="small muted grow">Vorschau: ${AIRCRAFT_BY_ID[PREVIEW_TYPES[v.preview]].name} – die Livery gilt für jeden Flugzeugtyp.</span><button class="btn sm" data-act="nextPreview">Anderer Typ</button></div>
-    <div class="livery-grid">${fields.map(([k, l]) => html`<label>${l}<input type="color" name="${k}" value="${lv[k]}" data-act="lv"></label>`)}
-      <label>Leitwerk-Text<input class="in" name="text" value="${lv.text}" maxlength="3" data-act="lvText" style="width:64px;text-transform:uppercase"></label></div>`;
+    <div class="row" style="margin:6px 0 12px"><span class="small muted grow">Vorschau: ${AIRCRAFT_BY_ID[PREVIEW_TYPES[v.preview]].name} – deine Livery gilt für jeden Flugzeugtyp.</span><button class="btn sm" data-act="nextPreview">Anderer Typ</button></div>
+    <div class="card row"><div class="grow"><b>Lackiererei</b><div class="small muted">Male deine eigene Livery auf ein weißes Flugzeug: Pinsel, Linien, Bänder, Füllen, Text. Sie wird automatisch auf alle Typen übertragen.</div></div>
+      <button class="btn p" data-act="paint">Lackiererei öffnen</button></div>`;
 }
 
 function contract(ctx) {

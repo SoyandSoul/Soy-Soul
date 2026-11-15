@@ -17,6 +17,8 @@ import { toast } from "./ui/toast.js";
 import { showOnboarding } from "./ui/onboarding.js";
 import { ICONS } from "./ui/icons.js";
 import { esc } from "./ui/dom.js";
+import { openPainter } from "./ui/painter.js";
+import { setTracedProfiles } from "./art/geometry.js";
 
 import hangar from "./ui/apps/hangar.js";
 import shop from "./ui/apps/shop.js";
@@ -39,6 +41,7 @@ const ctx = {
   map: null,
   toast,
   openApp: (id, params) => openApp(id, params),
+  openPainter: () => openPainter(ctx),
 
   /** Aktion ausführen: bei Erfolg speichern und UI aktualisieren, sonst Meldung zeigen. */
   run(fn, ...args) {
@@ -74,7 +77,8 @@ function commit() {
   ctx.map.updateStatic();
   ctx.map.updatePlanes();
   updateDock();
-  tickHud(document.getElementById("hud"), ctx);
+  renderHud(document.getElementById("hud"), ctx);
+  renderFlightCard(document.getElementById("flightcard"), ctx, ctx.map.selected);
 }
 
 // ---------- Dock
@@ -154,7 +158,9 @@ function start() {
   }
 }
 
-function boot() {
+async function boot() {
+  // Abgepauste Blaupausen-Profile (tools/profil-werkstatt.html) laden – fehlen sie, gelten die Maß-Profile.
+  try { setTracedProfiles(await (await fetch("data/profiles.json", { cache: "no-cache" })).json()); } catch { /* optional */ }
   initWindows(ctx);
   for (const [app] of DOCK) register(app);
   ctx.map = createMap(document.getElementById("map"), ctx);
@@ -164,7 +170,7 @@ function boot() {
     ctx.state = newGame({ name, iata, hub, player: newPlayer(), now: ctx.now() });
     save(ctx.state);
     start();
-    toast(`${name} ist gegründet! Kauf jetzt dein erstes Flugzeug.`, "good", 6000);
+    toast(`${name} ist gegründet! Deine Flugzeuge sind noch weiß – in der Lackiererei (Klick auf dein Kürzel oben links) malst du deine Livery.`, "good", 8000);
   });
 }
 

@@ -12,6 +12,7 @@ import { refFare } from "./demand.js";
 import { routeDistance } from "./flight.js";
 import { startCheck, checkCost } from "./maintenance.js";
 import { headcount } from "./economy.js";
+import { normalizeLivery, liverySize } from "../art/livery.js";
 
 const ok = (extra = {}) => ({ ok: true, ...extra });
 const fail = msg => ({ ok: false, msg });
@@ -192,6 +193,11 @@ export function addHub(state, iata, now) {
   return ok({ cost: p });
 }
 
-export function setLivery(state, livery) { Object.assign(state.airline.livery, livery); return ok(); }
+export function setLivery(state, livery) {
+  const lv = normalizeLivery(livery);
+  if (liverySize(lv) > 200_000) return fail("Livery ist zu groß – bitte weniger Einzelstriche verwenden.");
+  state.airline.livery = lv;
+  return ok();
+}
 export function renameAircraft(state, acId, name) { state.fleet.find(a => a.id === acId).name = String(name).slice(0, 24); return ok(); }
 
