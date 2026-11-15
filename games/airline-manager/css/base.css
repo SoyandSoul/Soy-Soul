@@ -1,0 +1,79 @@
+/* Grundlagen: Schrift und Farben passend zu Soy & Soul, Spiel standardmäßig dunkel (Karte im Flightradar-Stil). */
+@font-face { font-family: "Bricolage"; src: url("../../../assets/fonts/bricolage-latin.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "Bricolage"; src: url("../../../assets/fonts/bricolage-latin-ext.woff2") format("woff2"); font-weight: 200 800; font-display: swap; unicode-range: U+0100-02BA, U+1E00-1EFF, U+20A0-20C0; }
+
+:root {
+  --bg: #0d1016; --panel: rgba(20, 24, 32, .92); --panel-solid: #141820; --raise: #1c212b; --raise2: #252b37;
+  --ink: #eef1f6; --ink2: #aab2c0; --ink3: #7c8595; --line: rgba(255, 255, 255, .08); --line2: rgba(255, 255, 255, .14);
+  --accent: #ffb000;            /* Flugzeug-Gelb */
+  --brand: #ff6a3d;             /* Soy & Soul Games-Orange */
+  --good: #34c27a; --warn: #f5a524; --bad: #ff4d5e; --info: #4c8dff;
+  --r: 14px; --r-sm: 9px;
+  --shadow: 0 20px 50px -18px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .04) inset;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --display: "Bricolage", var(--font);
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; }
+a { color: var(--accent); }
+h1, h2, h3 { font-family: var(--display); letter-spacing: -.01em; font-weight: 650; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent; }
+
+/* ---------- Bausteine */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: var(--r-sm); background: var(--raise2); font-weight: 600; font-size: 13px; transition: background .15s, transform .15s var(--ease); white-space: nowrap; }
+.btn:hover { background: color-mix(in srgb, var(--ink) 14%, var(--raise2)); }
+.btn:active { transform: scale(.97); }
+.btn.p { background: var(--accent); color: #1a1300; }
+.btn.p:hover { background: #ffc233; }
+.btn.danger { background: color-mix(in srgb, var(--bad) 22%, var(--raise2)); color: #ffd6da; }
+.btn.sm { padding: 5px 10px; font-size: 12px; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+
+.in { background: var(--raise); border: 1px solid var(--line2); border-radius: var(--r-sm); padding: 7px 10px; min-width: 0; }
+.in:focus { outline: none; border-color: var(--accent); }
+input[type="range"] { accent-color: var(--accent); width: 100%; }
+input[type="color"] { width: 38px; height: 30px; border: 1px solid var(--line2); border-radius: 8px; background: none; padding: 2px; cursor: pointer; }
+input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.muted { color: var(--ink3); }
+.small { font-size: 12px; }
+.mono { font-family: var(--mono); }
+.good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); } .acc { color: var(--accent); }
+.row { display: flex; align-items: center; gap: 10px; }
+.row.wrap { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.stack > * + * { margin-top: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.card { background: var(--raise); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 650; background: var(--raise2); color: var(--ink2); }
+.pill.good { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.pill.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.pill.bad { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+.pill.info { background: color-mix(in srgb, var(--info) 18%, transparent); color: #9dc0ff; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: 13px; }
+.kv dt { color: var(--ink3); } .kv dd { text-align: right; }
+.stat { display: flex; flex-direction: column; } .stat b { font-size: 18px; font-family: var(--display); } .stat span { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: .06em; }
+.bar { height: 6px; border-radius: 99px; background: var(--raise2); overflow: hidden; } .bar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+
+table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.t th { text-align: left; font-weight: 600; color: var(--ink3); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel-solid); }
+table.t td.mono, table.t td.r { white-space: nowrap; }
+table.t td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.t tr:hover td { background: rgba(255,255,255,.025); }
+table.t .r { text-align: right; }
+
+.tabs { display: flex; gap: 2px; background: var(--raise); padding: 3px; border-radius: 10px; margin-bottom: 12px; overflow-x: auto; }
+.tabs button { padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink3); white-space: nowrap; }
+.tabs button[aria-selected="true"] { background: var(--raise2); color: var(--ink); }
+.empty { text-align: center; padding: 30px 10px; color: var(--ink3); }
+.empty b { display: block; color: var(--ink); font-size: 15px; margin-bottom: 4px; }

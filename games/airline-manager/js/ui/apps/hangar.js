@@ -1,0 +1,126 @@
+// Hangar: Flotte im Überblick, Detailansicht mit Kabinen-Konfiguration, Zusatztank, Strecke, Verkauf.
+import { html, raw } from "../dom.js";
+import { fmt } from "../../core/util.js";
+import { CABIN, FLIGHT, CHECKS } from "../../core/config.js";
+import { typeOf, seatUnits, totalSeats, effectiveRange, routeProblems, routeDistance } from "../../sim/flight.js";
+import { checkStatus, condition } from "../../sim/maintenance.js";
+import { aircraftValue } from "../../sim/market.js";
+import { sideView } from "../aircraftArt.js";
+import * as act from "../../sim/actions.js";
+
+export const STATUS = {
+  idle: ["Am Boden", "info"], active: ["Im Liniendienst", "good"], check: ["In Wartung", "warn"],
+  delivery: ["Auslieferung", "info"], crashed: ["Totalverlust", "bad"]
+};
+
+export default {
+  id: "hangar", title: "Hangar · Flotte", icon: "hangar", width: 620,
+  initialView: () => ({ detail: null }),
+
+  render(ctx, v) {
+    const s = ctx.state;
+    if (v.detail && s.fleet.some(a => a.id === v.detail)) return detail(ctx, s.fleet.find(a => a.id === v.detail));
+    if (!s.fleet.length) return html`<div class="empty"><b>Noch keine Flugzeuge</b>Im Flugzeugmarkt kannst du neu bestellen oder gebraucht kaufen.<div style="margin-top:12px"><button class="btn p" data-act="shop">Zum Flugzeugmarkt</button></div></div>`;
+    const now = ctx.now();
+    return html`<div class="row" style="margin-bottom:10px"><span class="muted small grow">${s.fleet.length} Flugzeuge · Flottenwert ${fmt.money(s.fleet.reduce((x, a) => x + (a.status === "crashed" ? 0 : aircraftValue(a, now)), 0))}</span><button class="btn sm" data-act="shop">Flugzeug kaufen</button></div>
+      ${s.fleet.map(ac => {
+        const t = typeOf(ac), st = STATUS[ac.status], r = ac.ops && s.routes.find(x => x.id === ac.ops.routeId);
+        const cs = checkStatus(ac, now), worst = CHECKS.order.find(k => cs[k].state === "overdue") || CHECKS.order.find(k => cs[k].state === "due");
+        return html`<div class="ac-card" data-act="open" data-id="${ac.id}">
+          ${raw(sideView(t, s.airline.livery, { fit: true }))}
+          <div><h3>${ac.reg} <span class="muted small">${t.name}</span></h3>
+            <div class="meta">${r ? `${r.from} ⇄ ${r.to}` : "keine Strecke"} · ${totalSeats(ac.cfg)} Sitze · Zustand ${condition(ac, now)} %</div></div>
+          <div style="text-align:right" class="stack"><span class="pill ${st[1]}">${st[0]}</span>${worst ? html`<span class="pill ${cs[worst].state === "overdue" ? "bad" : "warn"}">${worst}-Check ${fmt.fh(cs[worst].rem)}</span>` : ""}</div>
+        </div>`;
+      })}`;
+  },
+
+  click(ctx, v, api) {
+    const id = () => v.detail;
+    return {
+      shop: () => api.open("shop"),
+      open: el => { v.detail = el.dataset.id; api.rerender(); },
+      back: () => { v.detail = null; api.rerender(); },
+      saveCabin: el => {
+        const box = el.closest(".body"), cfg = {};
+        for (const c of CABIN.classes) cfg[c] = box.querySelector(`[name="cab-${c}"]`).value;
+        ctx.run(act.setCabin, id(), cfg) && ctx.toast("Kabine umgebaut.", "good");
+      },
+      aux: () => ctx.run(act.addAuxTank, id(), ctx.now()) && ctx.toast("Zusatztank eingebaut.", "good"),
+      assign: el => {
+        const rid = el.closest(".body").querySelector("[name=route]").value;
+        if (rid && ctx.run(act.assign, id(), rid, ctx.now())) { ctx.toast("Flugzeug startet auf der Strecke.", "good"); ctx.map.focusAircraft(id()); }
+      },
+      unassign: () => { const r = ctx.run(act.unassign, id(), ctx.now()); if (r) ctx.toast(r.now ? "Von der Strecke genommen." : "Wird nach Rückkehr zum Drehkreuz abgezogen.", "info"); },
+      sell: () => {
+        const ac = ctx.state.fleet.find(a => a.id === id());
+        if (!confirmSell(ac, ctx)) return;
+        const r = ctx.run(act.sellAircraft, id(), ctx.now());
+        if (r) { ctx.toast(`Verkauft für ${fmt.money(r.value)}.`, "good"); v.detail = null; api.rerender(); }
+      },
+      locate: () => ctx.map.focusAircraft(id()),
+      maint: () => api.open("maint", { focus: id() })
+    };
+  },
+
+  change(ctx, v) {
+    return { rename: el => ctx.run(act.renameAircraft, v.detail, el.value) };
+  },
+
+  input(ctx, v) {
+    return {
+      cab: el => {
+        const box = el.closest(".body"), ac = ctx.state.fleet.find(a => a.id === v.detail), cfg = {};
+        for (const c of CABIN.classes) cfg[c] = +box.querySelector(`[name="cab-${c}"]`).value || 0;
+        const u = seatUnits(cfg), max = typeOf(ac).seatsMax;
+        const out = box.querySelector("[data-units]");
+        out.textContent = `${Math.round(u)} / ${max} Einheiten · ${totalSeats(cfg)} Sitze`;
+        out.className = u > max ? "bad small" : u / max > 0.93 ? "warn small" : "muted small";
+      }
+    };
+  }
+};
+
+function confirmSell(ac, ctx) {
+  // Eigener Bestätigungsdialog wäre schöner; confirm() reicht fürs Fundament.
+  return window.confirm(`${ac.reg} für ca. ${fmt.money(aircraftValue(ac, ctx.now()) * 0.95)} verkaufen?`);
+}
+
+function detail(ctx, ac) {
+  const s = ctx.state, t = typeOf(ac), now = ctx.now();
+  const route = ac.ops && s.routes.find(r => r.id === ac.ops.routeId);
+  const units = seatUnits(ac.cfg), cs = checkStatus(ac, now), canEdit = ac.status !== "active";
+  const usable = s.routes.filter(r => !routeProblems(ac, r).length);
+  return html`
+    <div class="row" style="margin-bottom:8px"><button class="btn sm" data-act="back">← Flotte</button><span class="grow"></span>
+      ${route ? html`<button class="btn sm" data-act="locate">Auf Karte zeigen</button>` : ""}<button class="btn sm" data-act="maint">Wartung</button></div>
+    <div class="preview-art">${raw(sideView(t, s.airline.livery))}</div>
+    <div class="row" style="margin:10px 0"><div class="grow"><h3 style="font-size:20px">${ac.reg} · ${t.maker} ${t.name}</h3>
+      <div class="muted small">Gekauft ${new Date(ac.bought).toLocaleDateString("de-DE")} · ${fmt.int(ac.hours)} Flugstunden · ${fmt.int(ac.cycles)} Zyklen · Baujahr-Alter ${ac.ageYears} J.</div></div>
+      <span class="pill ${STATUS[ac.status][1]}">${STATUS[ac.status][0]}</span></div>
+    <input class="in" style="width:100%" name="rename" data-act="rename" placeholder="Taufname (optional)" value="${ac.name}" maxlength="24">
+
+    <h3 style="margin:16px 0 8px;font-size:15px">Einsatz</h3>
+    <div class="card">${route
+      ? html`<div class="row"><div class="grow"><b>${route.from} ⇄ ${route.to}</b> <span class="muted small">${fmt.km(routeDistance(route))}</span>${ac.unassign ? html` <span class="pill warn">wird abgezogen</span>` : ""}</div><button class="btn sm" data-act="unassign">Von Strecke nehmen</button></div>`
+      : html`<div class="row"><select class="in grow" name="route" ${ac.status !== "idle" ? "disabled" : ""}><option value="">Strecke wählen …</option>${usable.map(r => html`<option value="${r.id}">${r.from} → ${r.to} (${fmt.km(routeDistance(r))})</option>`)}</select><button class="btn sm p" data-act="assign" ${ac.status !== "idle" ? "disabled" : ""}>Starten</button></div>
+        <p class="small muted" style="margin-top:6px">${s.routes.length - usable.length ? `${s.routes.length - usable.length} Strecke(n) ausgeblendet: Reichweite oder Bahnlänge passt nicht.` : "Fliegt im Pendel: Hinflug, Turnaround, Rückflug – rund um die Uhr in Echtzeit."}</p>`}</div>
+
+    <h3 style="margin:16px 0 8px;font-size:15px">Kabine</h3>
+    <div class="card"><div class="cabin-edit">
+      ${CABIN.classes.map(c => html`<span>${CABIN.names[c]}</span><span class="muted small">${CABIN.units[c]} Einheit${CABIN.units[c] === 1 ? "" : "en"} pro Sitz</span><input class="in" type="number" min="0" step="1" name="cab-${c}" value="${ac.cfg[c] || 0}" data-act="cab" ${canEdit ? "" : "disabled"}>`)}
+    </div>
+    <div class="row" style="margin-top:10px"><span data-units class="muted small grow">${Math.round(units)} / ${t.seatsMax} Einheiten · ${totalSeats(ac.cfg)} Sitze</span><button class="btn sm p" data-act="saveCabin" ${canEdit ? "" : "disabled"}>Umbauen</button></div>
+    <p class="small muted" style="margin-top:6px">Über ${Math.round(93)} % Auslastung des Budgets gilt die Kabine als eng (Reputation −). Umbau nur ohne Strecke.</p></div>
+
+    <h3 style="margin:16px 0 8px;font-size:15px">Technik</h3>
+    <div class="grid2">
+      <dl class="kv card"><dt>Reichweite</dt><dd>${fmt.km(effectiveRange(ac))}</dd><dt>Zusatztanks</dt><dd>${ac.aux || 0} / ${FLIGHT.aux.maxTanks}</dd><dt>Startstrecke</dt><dd>${fmt.int(t.runwayM)} m</dd><dt>Verbrauch</dt><dd>${fmt.int(t.fuelKgH)} kg/h</dd></dl>
+      <dl class="kv card"><dt>Cockpit</dt><dd>${t.crew.pilots} Piloten</dd><dt>Kabine (min.)</dt><dd>${t.crew.cabin}</dd><dt>Techniker</dt><dd>${t.crew.techs}</dd><dt>Restwert</dt><dd>${fmt.money(aircraftValue(ac, now))}</dd></dl>
+    </div>
+    <div class="row wrap" style="margin-top:10px">
+      <button class="btn sm" data-act="aux" ${canEdit && (ac.aux || 0) < FLIGHT.aux.maxTanks ? "" : "disabled"}>Zusatztank einbauen (${fmt.money(FLIGHT.aux.priceM * 1e6)}, +${FLIGHT.aux.rangeBonus * 100} % Reichweite, −${fmt.int(FLIGHT.aux.payloadCostKg)} kg Nutzlast)</button>
+    </div>
+    <div class="checks" style="margin-top:10px">${CHECKS.order.map(k => html`<div class="${cs[k].state}">${k}-Check<b>${fmt.fh(cs[k].rem)}</b></div>`)}</div>
+    <div class="row" style="margin-top:16px"><span class="grow"></span><button class="btn sm danger" data-act="sell" ${ac.status === "active" || ac.status === "check" ? "disabled" : ""}>Verkaufen</button></div>`;
+}

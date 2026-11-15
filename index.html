@@ -319,6 +319,8 @@ footer .priv b { color: var(--ink2); }
     games: [
       { id: "history-shots", href: "games/history-shots/", size: "big", ver: "v0.1", name: { de: "History Shots", en: "History Shots" }, art: "shots",
         d: { de: "Wann und wo wurde dieses Foto aufgenommen? Fünf historische Bilder, Jahr tippen, Pin auf die Karte setzen. Drei Modi, Themen wie Flugzeuge, Autos oder Städte, Highscore ohne Anmeldung.", en: "When and where was this photo taken? Five historical pictures, guess the year, drop a pin on the map. Three modes, themes like planes, cars or cities, high scores without signing up." } },
+      { id: "airline-manager", href: "games/airline-manager/", size: "big", ver: "v0.1", name: { de: "Airline Manager", en: "Airline Manager" }, art: "airline",
+        d: { de: "Gründe deine eigene Airline: Airbus- und Boeing-Flotte, Routen in Echtzeit auf der Weltkarte, A- bis D-Checks, Kerosinmarkt und eine Börse mit den Airlines aller Spieler.", en: "Found your own airline: Airbus and Boeing fleet, real-time routes on a world map, A to D checks, a fuel market and a stock exchange with every player's airline." } },
       { name: { de: "Denkspiele", en: "Puzzles" }, art: "dice",
         d: { de: "Knobeln, planen, um die Ecke denken. Partien bleiben in deinem Browser.", en: "Puzzle, plan, think around corners. Games stay in your browser." } },
       { name: { de: "Arcade", en: "Arcade" }, art: "joy",
@@ -353,6 +355,11 @@ footer .priv b { color: var(--ink2); }
   /* ---------- Grafiken (SVG, Farbe kommt über var(--c)) ---------- */
   var C = "var(--c)", INK = "var(--ink)", CARD = "var(--card)";
   var ART = {
+    airline:
+      '<svg viewBox="0 0 400 240"><rect x="36" y="30" width="328" height="180" rx="16" fill="' + CARD + '"/>' +
+      '<path d="M84 168 C150 70 250 60 318 112" fill="none" stroke="' + C + '" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round"/>' +
+      '<circle cx="84" cy="168" r="9" fill="' + C + '"/><circle cx="318" cy="112" r="9" fill="none" stroke="' + C + '" stroke-width="4"/>' +
+      '<g transform="translate(206 84) rotate(62) scale(2.1)" fill="' + INK + '"><path d="M-1.5-11.5c0-.8.7-1.5 1.5-1.5s1.5.7 1.5 1.5V-6l7 4v2l-7-2v4.5l2 1.5v1.5L0 5-3.5 6V4.5l2-1.5V-2l-7 2v-2l7-4z"/></g></svg>',
     shots:
       '<svg viewBox="0 0 400 240"><rect x="36" y="30" width="328" height="180" rx="16" fill="' + CARD + '"/>' +
       '<g transform="rotate(-4 160 120)"><rect x="58" y="52" width="200" height="140" rx="10" fill="' + INK + '" opacity=".85"/><rect x="70" y="64" width="176" height="100" rx="4" fill="' + C + '" opacity=".35"/>' +

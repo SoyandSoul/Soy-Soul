@@ -1,0 +1,59 @@
+/* Inhalte der Fenster-Apps */
+.ac-card { display: grid; grid-template-columns: 150px 1fr auto; gap: 12px; align-items: center; padding: 10px; border-radius: 12px; background: var(--raise); border: 1px solid var(--line); cursor: pointer; transition: border-color .15s; }
+.ac-card:hover { border-color: var(--line2); }
+.ac-card + .ac-card { margin-top: 8px; }
+.ac-card svg { width: 100%; height: auto; display: block; }
+.ac-card h3 { font-size: 15px; }
+.ac-card .meta { font-size: 12px; color: var(--ink3); }
+
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.shop-item { background: var(--raise); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.shop-item .art { background: radial-gradient(ellipse at 50% 80%, rgba(255,255,255,.07), transparent 70%); padding: 10px 8px 0; }
+.shop-item .art svg { width: 100%; height: auto; display: block; }
+.shop-item .info { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.shop-item h3 { font-size: 16px; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.shop-item h3 small { font: 500 11px var(--font); color: var(--ink3); }
+.specs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; font-size: 12px; }
+.specs div { display: flex; justify-content: space-between; gap: 6px; border-bottom: 1px dashed var(--line); padding: 2px 0; white-space: nowrap; }
+.specs b { font-weight: 600; }
+.specs span { color: var(--ink3); }
+.price-line { display: flex; align-items: baseline; justify-content: space-between; margin-top: auto; }
+.price-line b { font: 700 17px var(--display); }
+.price-line s { color: var(--ink3); font-size: 11px; }
+
+.cabin-edit { display: grid; grid-template-columns: 90px 1fr 64px; gap: 8px 10px; align-items: center; }
+.cabin-edit .in { width: 64px; text-align: right; padding: 5px 6px; }
+
+.checks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.checks div { background: var(--raise2); border-radius: 8px; padding: 6px 8px; font-size: 12px; }
+.checks div b { display: block; font: 600 13px var(--mono); }
+.checks div.due { box-shadow: inset 0 0 0 1px var(--warn); }
+.checks div.overdue { box-shadow: inset 0 0 0 1px var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--raise2)); }
+.checks div.overdue b { color: var(--bad); }
+
+.chart { width: 100%; height: 150px; display: block; }
+.big-price { font: 700 40px var(--display); letter-spacing: -.02em; }
+.livery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.livery-grid label { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--raise); padding: 6px 8px 6px 10px; border-radius: 10px; font-size: 13px; }
+.preview-art { background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,.08), transparent 70%); border-radius: 14px; padding: 10px; }
+.preview-art svg { width: 100%; height: auto; display: block; }
+.opt-list { display: grid; gap: 6px; }
+.opt-list label { display: flex; gap: 10px; align-items: flex-start; background: var(--raise); padding: 10px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; }
+.opt-list label:has(input:checked) { border-color: var(--accent); }
+.rep-bars div { display: grid; grid-template-columns: 110px 1fr 46px; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 5px; }
+.rep-bars .track { height: 8px; background: var(--raise2); border-radius: 99px; position: relative; }
+.rep-bars .track i { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
+.rep-bars .track::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--line2); }
+.me td { background: rgba(255,176,0,.07); }
+.code { font-family: var(--mono); font-size: 12px; color: var(--ink2); }
+.log li { list-style: none; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; display: flex; gap: 10px; }
+.log time { color: var(--ink3); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+
+@media (max-width: 720px) {
+  .ac-card { grid-template-columns: 96px 1fr; }
+  .ac-card > :last-child { grid-column: 1 / -1; display: flex; gap: 6px; text-align: left !important; }
+  .ac-card > :last-child > * + * { margin-top: 0; }
+  .grid3 { grid-template-columns: 1fr 1fr; }
+  .cabin-edit { grid-template-columns: 1fr 64px; } .cabin-edit .muted { display: none; }
+  .checks { grid-template-columns: 1fr 1fr; }
+}

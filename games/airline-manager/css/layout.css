@@ -1,0 +1,98 @@
+/* Spielfläche: Karte im Vollbild, HUD oben, Dock unten, Fenster schweben darüber. */
+#map { position: fixed; inset: 0; }
+.maplibregl-ctrl-attrib { font-size: 10px; background: rgba(0,0,0,.45) !important; color: var(--ink3) !important; }
+.maplibregl-ctrl-attrib a { color: var(--ink2) !important; }
+.maplibregl-ctrl-group { background: var(--panel) !important; border-radius: 10px !important; }
+.maplibregl-ctrl-group button span { filter: invert(1); }
+.maplibregl-popup-content { background: var(--panel-solid); color: var(--ink); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); border: 1px solid var(--line2); min-width: 220px; }
+.maplibregl-popup-tip { border-top-color: var(--panel-solid) !important; border-bottom-color: var(--panel-solid) !important; }
+.maplibregl-popup-close-button { color: var(--ink2); font-size: 18px; padding: 2px 8px; }
+
+/* ---------- HUD */
+.hud { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 20; display: flex; gap: 8px; align-items: stretch; pointer-events: none; }
+.hud > * { pointer-events: auto; }
+.glass { background: var(--panel); backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.hud .brand { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; }
+.hud .brand a { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--raise2); color: var(--ink2); text-decoration: none; }
+.hud .brand .tail { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font: 800 13px var(--display); }
+.hud .brand b { display: block; font: 650 15px var(--display); line-height: 1.1; }
+.hud .brand small { color: var(--ink3); font: 12px var(--mono); }
+.hud .stats { display: flex; gap: 2px; padding: 4px; overflow-x: auto; }
+.hud .stats div { padding: 4px 12px; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; min-width: 92px; }
+.hud .stats div:hover { background: rgba(255,255,255,.04); }
+.hud .stats span { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink3); }
+.hud .stats b { font: 650 15px var(--display); white-space: nowrap; }
+.hud .clock { margin-left: auto; padding: 8px 14px; display: flex; flex-direction: column; justify-content: center; text-align: right; }
+.hud .clock b { font: 600 16px var(--mono); }
+.hud .clock span { font-size: 11px; color: var(--ink3); }
+.tick-up { color: var(--good) !important; } .tick-down { color: var(--bad) !important; }
+
+/* ---------- Dock */
+.dock { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; gap: 2px; padding: 6px; max-width: calc(100vw - 24px); overflow-x: auto; }
+.dock button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 10px 5px; border-radius: 10px; color: var(--ink2); min-width: 66px; transition: background .15s, color .15s; }
+.dock button:hover { background: rgba(255,255,255,.06); color: var(--ink); }
+.dock button[aria-pressed="true"] { background: rgba(255,176,0,.14); color: var(--accent); }
+.dock svg { width: 22px; height: 22px; }
+.dock span { font-size: 11px; font-weight: 600; }
+.dock .badge { position: absolute; top: 3px; right: 10px; min-width: 16px; height: 16px; border-radius: 8px; padding: 0 4px; font: 700 10px/16px var(--font); color: #fff; background: var(--bad); }
+.dock .badge.warn { background: var(--warn); color: #241700; }
+
+/* ---------- Fenster */
+#windows { position: fixed; inset: 0; pointer-events: none; z-index: 25; }
+.win { position: absolute; pointer-events: auto; display: flex; flex-direction: column; min-width: 320px; max-width: calc(100vw - 16px); max-height: calc(100vh - 180px); background: var(--panel); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border: 1px solid var(--line2); border-radius: 16px; box-shadow: var(--shadow); animation: winIn .22s var(--ease); }
+@keyframes winIn { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+.win.focus { border-color: rgba(255,176,0,.35); }
+.win header { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; cursor: grab; user-select: none; border-bottom: 1px solid var(--line); }
+.win header:active { cursor: grabbing; }
+.win header svg { width: 18px; height: 18px; color: var(--accent); }
+.win header h2 { font-size: 15px; flex: 1; }
+.win header button { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--ink3); }
+.win header button:hover { background: rgba(255,255,255,.08); color: var(--ink); }
+.win .body { padding: 14px; overflow: auto; flex: 1; }
+
+/* ---------- Flug-Info (rechts, wie Flightradar) */
+.flightcard { position: fixed; top: 84px; right: 12px; width: 320px; z-index: 22; overflow: hidden; animation: winIn .22s var(--ease); }
+.flightcard .hd { padding: 12px 14px; display: flex; gap: 10px; align-items: center; background: linear-gradient(135deg, rgba(255,176,0,.18), transparent); }
+.flightcard .hd b { font: 700 18px var(--display); }
+.flightcard .art { padding: 6px 12px 0; }
+.flightcard .art svg { width: 100%; height: auto; display: block; }
+.flightcard .route { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 10px 14px; }
+.flightcard .route .ap b { font: 700 22px var(--display); display: block; }
+.flightcard .route .ap span { font-size: 12px; color: var(--ink3); }
+.flightcard .route .ap:last-child { text-align: right; }
+.flightcard .prog { margin: 0 14px; }
+.flightcard .grid3 { padding: 12px 14px; }
+.flightcard .grid3 div { background: var(--raise); border-radius: 10px; padding: 8px; }
+.flightcard .grid3 span { font-size: 10px; color: var(--ink3); text-transform: uppercase; letter-spacing: .06em; display: block; }
+.flightcard .grid3 b { font: 600 13px var(--mono); white-space: nowrap; }
+.flightcard footer { display: flex; gap: 6px; padding: 0 14px 14px; }
+
+/* ---------- Toasts */
+#toasts { position: fixed; top: 84px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+.toast { pointer-events: auto; padding: 10px 16px; border-radius: 12px; background: var(--panel-solid); border: 1px solid var(--line2); box-shadow: var(--shadow); font-weight: 550; max-width: min(520px, 90vw); animation: winIn .25s var(--ease); }
+.toast.good { border-color: color-mix(in srgb, var(--good) 50%, transparent); }
+.toast.warn { border-color: color-mix(in srgb, var(--warn) 60%, transparent); }
+.toast.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 20%, var(--panel-solid)); }
+
+/* ---------- Onboarding */
+.modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(5,7,10,.55); backdrop-filter: blur(4px); padding: 16px; }
+.modal.side { pointer-events: none; background: transparent; backdrop-filter: none; place-items: center start; padding-left: max(16px, 4vw); }
+.modal.side .box { pointer-events: auto; }
+.modal .box { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px; }
+.modal h1 { font-size: 28px; line-height: 1.1; }
+.modal label { display: block; font-size: 12px; color: var(--ink3); margin: 14px 0 5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.modal .in { width: 100%; }
+.pick { display: flex; flex-direction: column; gap: 4px; max-height: 210px; overflow: auto; margin-top: 6px; }
+.pick button { text-align: left; padding: 8px 10px; border-radius: 8px; display: flex; gap: 10px; align-items: center; }
+.pick button:hover, .pick button[aria-selected="true"] { background: var(--raise2); }
+.pick b { font-family: var(--mono); color: var(--accent); width: 34px; }
+
+@media (max-width: 720px) {
+  .hud { flex-wrap: wrap; }
+  .hud .clock { display: none; }
+  .hud .stats div { min-width: 78px; padding: 4px 8px; }
+  .dock button { min-width: 54px; padding: 6px 6px 4px; }
+  .dock span { font-size: 10px; }
+  .win { left: 8px !important; right: 8px; top: auto !important; bottom: 86px; width: auto !important; max-height: 70vh; }
+  .flightcard { left: 12px; right: 12px; width: auto; top: auto; bottom: 86px; }
+}
