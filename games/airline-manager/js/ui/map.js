@@ -13,7 +13,7 @@ import { weatherAt, severeWeather } from "../sim/weather.js";
 // Notfall-Stil ohne Kacheln: Spiel bleibt bedienbar, auch wenn der Kartendienst nicht erreichbar ist.
 const OFFLINE = { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#121822" } }] };
 const STYLES = ["https://tiles.openfreemap.org/styles/dark", "https://tiles.openfreemap.org/styles/positron", OFFLINE];
-const PLANE = "#ffb000", PLANE_SEL = "#ff5a1f", HUB = "#ffb000";
+const PLANE = "#ffb000", PLANE_SEL = "#ff5a1f", HUB = "#ffb000", PLANE_GROUND = "#3ddc84", PLANE_CHECK = "#8a94a6";
 
 export function createMap(container, ctx) {
   let styleIdx = 0, ready = false, selected = null, pickMode = null, popup = null, lastWx = 0;
@@ -63,10 +63,12 @@ export function createMap(container, ctx) {
       layout: {
         "icon-image": ["concat", "plane-", ["get", "kind"]], "icon-rotate": ["get", "hdg"], "icon-rotation-alignment": "map",
         "icon-allow-overlap": true, "icon-ignore-placement": true,
+        "icon-offset": ["get", "off"],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 1, 0.6, 5, 1, 9, 1.4],
         "text-field": ["step", ["zoom"], "", 4, ["get", "reg"]], "text-size": 10, "text-offset": [0, 1.6], "text-anchor": "top", "text-font": ["Noto Sans Regular"], "text-optional": true
       },
-      paint: { "icon-color": ["case", ["get", "sel"], PLANE_SEL, PLANE], "icon-opacity": ["case", ["get", "air"], 1, 0.55], "text-color": "#ffd27a", "text-halo-color": "#0d1016", "text-halo-width": 1.2 }
+      // gelb = in der Luft, grün = am Boden (gelandet / wartet auf Abflug / steht am Hub), grau = in Wartung
+      paint: { "icon-color": ["case", ["get", "sel"], PLANE_SEL, ["==", ["get", "ground"], "check"], PLANE_CHECK, ["get", "air"], PLANE, PLANE_GROUND], "icon-opacity": ["case", ["get", "air"], 1, 0.92], "text-color": ["case", ["get", "air"], "#ffd27a", "#9df0bf"], "text-halo-color": "#0d1016", "text-halo-width": 1.2 }
     });
     map.addLayer({
       id: "plane-delay", type: "symbol", source: "planes", filter: ["==", ["get", "delayed"], true],
@@ -132,14 +134,23 @@ export function createMap(container, ctx) {
     if (!ready || !ctx.state) return;
     const s = ctx.state, now = ctx.now(), feats = [];
     let track = empty();
+    const hub = AIRPORT_BY_IATA[s.airline.hubs[0]];
+    const parked = {}; // Flugzeuge am selben Flughafen leicht versetzt zeichnen (wie auf dem Vorfeld)
+    const slot = iata => { const i = parked[iata] = (parked[iata] || 0) + 1; return [((i - 1) % 4) * 14, Math.floor((i - 1) / 4) * 14 + 10]; };
     for (const ac of s.fleet) {
-      if (ac.status !== "active" && ac.status !== "check") continue;
-      if (!ac.ops) continue;
-      const route = s.routes.find(r => r.id === ac.ops.routeId);
-      if (!route) continue;
-      const p = ac.status === "check" ? { phase: "ground", lat: AIRPORT_BY_IATA[route.from].lat, lon: AIRPORT_BY_IATA[route.from].lon, heading: 0 } : positionAt(ac, route, now);
-      const t = typeOf(ac);
-      feats.push(pt([p.lon, p.lat], { id: ac.id, reg: ac.reg + (ac.ops.delay ? ` +${ac.ops.delay.min}'` : ""), hdg: p.heading, kind: t.art.deck2 || t.art.engines === 4 ? "jumbo" : t.size, air: p.phase === "air", sel: ac.id === selected, delayed: !!ac.ops.delay }));
+      if (ac.status === "crashed" || ac.status === "delivery") continue;
+      const t = typeOf(ac), kind = t.art.deck2 || t.art.engines === 4 ? "jumbo" : t.size;
+      const route = ac.ops && s.routes.find(r => r.id === ac.ops.routeId);
+      if (!route) {
+        // ohne Strecke / in Wartung: steht am Drehkreuz (grün bzw. grau)
+        if (!hub) continue;
+        feats.push(pt([hub.lon, hub.lat], { id: ac.id, reg: ac.reg, hdg: 0, kind, air: false, ground: ac.status === "check" ? "check" : "hub", off: slot(hub.iata), sel: ac.id === selected, delayed: false }));
+        continue;
+      }
+      const p = ac.status === "check" ? { phase: "ground", at: AIRPORT_BY_IATA[route.from], lat: AIRPORT_BY_IATA[route.from].lat, lon: AIRPORT_BY_IATA[route.from].lon, heading: 0 } : positionAt(ac, route, now);
+      const onGround = p.phase !== "air";
+      const ground = ac.status === "check" ? "check" : onGround ? (p.at?.iata === route.from ? "hub" : "dest") : null;
+      feats.push(pt([p.lon, p.lat], { id: ac.id, reg: ac.reg + (ac.ops.delay ? ` +${ac.ops.delay.min}'` : ""), hdg: onGround ? 0 : p.heading, kind, air: !onGround, ground, off: onGround ? slot(p.at?.iata || route.from) : [0, 0], sel: ac.id === selected, delayed: !!ac.ops.delay }));
       if (ac.id === selected && p.phase === "air") {
         const full = arc(p.from, p.to, 96), cut = Math.max(1, Math.round(p.progress * 96));
         track = fc([line(full.slice(0, cut + 1), { done: true }), line(full.slice(cut), { done: false })]);

@@ -4,6 +4,7 @@
 
 import { GAME, FUEL, REPUTATION, CATERING, BAGS } from "./config.js";
 import { whiteLivery, normalizeLivery } from "../art/livery.js";
+import { AIRCRAFT_BY_ID, LEGACY_TYPES } from "../data/aircraft.js";
 
 const mem = new Map(); // Fallback, falls localStorage fehlt (Node-Tests, privater Modus)
 const storage = {
@@ -49,8 +50,14 @@ export function migrate(s) {
   // Beispiel für spätere Versionen:
   // if (s.v === 1) { s.airline.newField = default; s.v = 2; }
   if (s.v !== GAME.version) return null;
-  s.airline.livery = normalizeLivery(s.airline.livery);
-  s.ordered ??= s.fleet.length; // alte Farbflächen-Livery → Malformat
+  s.airline.livery = normalizeLivery(s.airline.livery); // alte Farbflächen-Livery → Malformat
+  s.ordered ??= s.fleet.length;
+  // v0.16: Flotte auf die 38 Typen mit Blaupause umgestellt – weggefallene Typen auf den nächsten Verwandten
+  for (const ac of s.fleet) {
+    if (LEGACY_TYPES[ac.typeId]) ac.typeId = LEGACY_TYPES[ac.typeId];
+    if (!AIRCRAFT_BY_ID[ac.typeId]) ac.typeId = "a320neo";
+    ac.cond ??= null; // v0.16: Zustand gebrauchter Flugzeuge (null = neu gekauft, siehe sim/market.js)
+  }
   return s;
 }
 

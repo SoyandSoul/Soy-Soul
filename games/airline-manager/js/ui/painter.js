@@ -11,6 +11,7 @@ import { strokeD, simplify } from "../art/path.js";
 import { AIRCRAFT, AIRCRAFT_BY_ID } from "../data/aircraft.js";
 import { esc } from "./dom.js";
 import * as act from "../sim/actions.js";
+import { SCHEMES, PALETTES, presetLivery } from "../art/liveryPresets.js";
 
 const TOOLS = [
   ["move", "Auswählen", "V", '<path d="M5 3l14 8-6 2-2 6z"/>', "Text anklicken: ziehen zum Verschieben. Farbe, Größe, Inhalt, Fett/Kursiv ändern den ausgewählten Text. Entf löscht ihn."],
@@ -22,7 +23,7 @@ const TOOLS = [
   ["erase", "Radierer", "E", '<path d="M8 20h12"/><path d="M4 16l9-9 6 6-5 5H8z"/>', "Übermalt mit der Grundfarbe des Bauteils."]
 ];
 const PALETTE = ["#ffffff", "#e9ecf1", "#b9c0ca", "#5b6472", "#16191f", "#0b2a5b", "#1f4fd8", "#4fb3ff", "#0aa39b", "#1f9d55", "#a4d233", "#ffc400", "#ff7a00", "#e0262d", "#7a1631", "#ff4f9a", "#6b3fa0", "#c9a227"];
-const PREVIEWS = ["a220-300", "b737-max8", "a321neo", "b787-9", "a350-900", "b777-9", "b747-8i", "a380-800"];
+const PREVIEWS = ["a220-300", "b737-800", "a321neo", "crj900", "b787-9", "a350-900", "b777-300er", "b747-8i", "a380-800"];
 
 export function openPainter(ctx) {
   if (document.querySelector(".painter")) return;
@@ -43,6 +44,7 @@ export function openPainter(ctx) {
       <div class="row">
         <button class="btn sm" data-a="undo" title="Rückgängig (Strg+Z)">↶</button><button class="btn sm" data-a="redo" title="Wiederholen (Strg+Y)">↷</button>
         <button class="btn sm" data-a="zoom" title="Zoom">1×</button>
+        <button class="btn sm" data-a="presets">Vorlagen</button>
         <button class="btn sm" data-a="white">Alles weiß</button>
         <button class="btn sm" data-a="cancel">Abbrechen</button>
         <button class="btn sm p" data-a="save">Speichern</button>
@@ -65,7 +67,8 @@ export function openPainter(ctx) {
     </aside>
     <main class="pt-stage" data-k="stage"></main>
     <div class="pt-status small" data-k="status"></div>
-    <footer class="pt-previews" data-k="previews"></footer>`;
+    <footer class="pt-previews" data-k="previews"></footer>
+    <section class="pt-presets" data-k="presets" hidden></section>`;
   document.body.appendChild(el);
   const $ = k => el.querySelector(`[data-k="${k}"]`);
 
@@ -220,12 +223,34 @@ export function openPainter(ctx) {
     live.innerHTML = `<g clip-path="url(#${st.clip})">${item(it, st.box, base)}</g>`;
   }
 
+  // ---------- Vorlagen (Schemata × Farbwelten)
+  const pre = { palette: lv.preset?.palette || PALETTES[0].id, open: false };
+  function drawPresets() {
+    const box = $("presets");
+    box.hidden = !pre.open;
+    if (!pre.open) return;
+    const pal = PALETTES.find(p => p.id === pre.palette) || PALETTES[0];
+    box.innerHTML = `<div class="pt-presets-head"><div class="grow"><h3>Vorlagen</h3><span class="small muted">Schema wählen, Farbwelt wählen, übernehmen – danach Name, Farben und Details frei anpassen.</span></div><button class="btn sm" data-a="presetsClose">Schließen</button></div>
+      <div class="pt-palettes">${PALETTES.map(p => `<button data-pal="${p.id}" class="${p.id === pal.id ? "on" : ""}" title="${esc(p.name)}"><i style="background:${p.a}"></i><i style="background:${p.b}"></i><i style="background:${p.c}"></i><span>${esc(p.name)}</span></button>`).join("")}</div>
+      <div class="pt-scheme-grid">${SCHEMES.map(sc => `<button data-scheme="${sc.id}" class="${lv.preset?.scheme === sc.id && lv.preset?.palette === pal.id ? "on" : ""}">${renderAircraft(ui.type, presetLivery(sc.id, pal.id, s.airline.name, s.airline.iata), { fit: true, outline: 0.8, shadow: false })}<b>${esc(sc.name)}</b><span>${esc(sc.desc)}</span></button>`).join("")}</div>`;
+  }
+
   // ---------- Bedienung
   el.addEventListener("click", e => {
+    const pal = e.target.closest("[data-pal]"); if (pal) { pre.palette = pal.dataset.pal; drawPresets(); return; }
+    const sch = e.target.closest("[data-scheme]");
+    if (sch) {
+      if (lv.items.length && !lv.preset && !confirm("Vorlage übernehmen? Deine bisherige Bemalung wird ersetzt (Rückgängig ist möglich).")) return;
+      change(() => { lv = presetLivery(sch.dataset.scheme, pre.palette, s.airline.name, s.airline.iata); });
+      drawPresets();
+      return;
+    }
     const t = e.target.closest("[data-tool]"); if (t) { ui.tool = t.dataset.tool; syncTools(); return; }
     const c = e.target.closest("[data-c]"); if (c) { ui.color = c.dataset.c; if (!editSel("color", it => (it.c = ui.color))) syncTools(); return; }
     const p = e.target.closest("[data-prev]"); if (p) { ui.type = p.dataset.prev; $("type").value = ui.type; draw(); drawPreviews(); return; }
     const a = e.target.closest("[data-a]")?.dataset.a;
+    if (a === "presets") { pre.open = true; drawPresets(); }
+    if (a === "presetsClose") { pre.open = false; drawPresets(); }
     if (a === "undo") doUndo();
     if (a === "delsel") deleteSel();
     if (a === "redo") doRedo();
@@ -236,7 +261,7 @@ export function openPainter(ctx) {
       if (ctx.run(act.setLivery, lv)) { dirty = false; ctx.toast("Neue Livery ist auf allen Flugzeugen.", "good"); close(); }
     }
   });
-  $("type").addEventListener("change", e => { ui.type = e.target.value; draw(); drawPreviews(); });
+  $("type").addEventListener("change", e => { ui.type = e.target.value; draw(); drawPreviews(); drawPresets(); });
   $("color").addEventListener("input", e => { ui.color = e.target.value; $("hex").textContent = ui.color; editSel("color", it => (it.c = ui.color)); });
   $("size").addEventListener("input", e => { ui.size = +e.target.value / 100; editSel("size", it => (it.s = r3(ui.size * 1.6))); });
   $("txt").addEventListener("input", e => { ui.txt = e.target.value; if (e.target.value.trim()) editSel("txt", it => (it.txt = e.target.value)); });

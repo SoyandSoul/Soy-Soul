@@ -66,11 +66,11 @@ export function tickFlightCard(el, ctx, id) {
   q("bar").style.width = ((p?.progress || 0) * 100).toFixed(1) + "%";
   q("dep").textContent = p ? "Ab " + fmt.time(ac.ops.dep) : "";
   q("arr").textContent = p ? "An " + fmt.time(p.eta) : "";
-  q("alt").textContent = p?.phase === "air" ? fmt.int(p.altFt) + " ft" : "–";
-  q("spd").textContent = p?.phase === "air" ? p.speedKt + " kt" : "–";
+  q("alt").innerHTML = p?.phase === "air" ? `${fmt.int(p.altFt)} ft<small class="muted"> · ${fmt.int(p.altFt * 0.3048)} m</small>` : "–";
+  q("spd").innerHTML = p?.phase === "air" ? `${p.speedKt} kt<small class="muted"> · ${fmt.int(p.speedKt * 1.852)} km/h</small>` : "–";
   q("hdg").textContent = p?.phase === "air" ? Math.round(p.heading) + "°" : "–";
-  q("st").textContent = inCheck ? ac.check.type + "-Check" : p.phase === "air" ? "In der Luft" : now < ac.ops.dep ? "Boarding" : "Gelandet";
-  q("rem").textContent = inCheck ? fmt.duration(ac.check.until - now) : p.phase === "air" ? fmt.duration(p.eta - now) : "Abflug " + fmt.time(ac.ops.dep);
+  q("st").textContent = inCheck ? ac.check.type + "-Check" : p.phase === "air" ? "In der Luft" : now < ac.ops.dep ? (p.progress >= 1 ? "Gelandet · Turnaround" : "Boarding") : "Gelandet";
+  q("rem").innerHTML = inCheck ? fmt.duration(ac.check.until - now) : p.phase === "air" ? `${fmt.duration(p.eta - now)}<small class="muted"> · an ${fmt.time(p.eta)}</small>` : "Abflug " + fmt.time(ac.ops.dep);
   const m = mostUrgent(ac, now);
   const mt = q("mt");
   mt.textContent = m ? `${m.check} ${fmt.fh(m.rem)}` : "OK";

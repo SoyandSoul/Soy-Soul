@@ -1,6 +1,7 @@
 // Wartung: A-, B-, C-, D-Checks nach Flugstunden oder Kalendertagen (was zuerst eintritt).
 // Überfällige Checks laufen ins Minus. Je weiter im Minus, desto höher das Risiko für Vorfälle und Abstürze.
 
+import { condEffects } from "./market.js";
 import { CHECKS, CONTRACT, DAY, H } from "../core/config.js";
 import { typeOf } from "./flight.js";
 
@@ -50,7 +51,9 @@ export function legRisk(ac, ts, blockH) {
   let w = 0;
   for (const k of CHECKS.order) w += CHECKS[k].risk * Math.pow(st[k].overRatio, CHECKS.riskExp);
   const crash = Math.min(0.5, CHECKS.riskPerFH * w * blockH);
-  return { crash, incident: Math.min(0.9, crash * CHECKS.incidentMul + 0.0002 * blockH * w) };
+  // Gebrauchte Maschinen in schlechtem Zustand: zusätzlich ungeplante Defekte (keine Abstürze, aber Kosten + Standzeit)
+  const fault = Math.min(0.6, condEffects(ac.cond).faultPerBlockH * blockH);
+  return { crash, incident: Math.min(0.9, crash * CHECKS.incidentMul + 0.0002 * blockH * w), fault };
 }
 
 export function checkCost(state, ac, check) {

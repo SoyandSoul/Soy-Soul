@@ -4,10 +4,11 @@ import { fmt } from "../../core/util.js";
 import { CABIN, FLIGHT, CHECKS } from "../../core/config.js";
 import { typeOf, seatUnits, totalSeats, effectiveRange, routeProblems, routeDistance } from "../../sim/flight.js";
 import { checkStatus, condition } from "../../sim/maintenance.js";
-import { aircraftValue } from "../../sim/market.js";
+import { aircraftValue, condEffects } from "../../sim/market.js";
 import { sideView } from "../aircraftArt.js";
 import * as act from "../../sim/actions.js";
 import { seatmapSVG, setClass, moveBoundary, CLASS_COLORS } from "../seatmap.js";
+import { datasheet, condLine } from "../datasheet.js";
 
 export const STATUS = {
   idle: ["Am Boden", "info"], active: ["Im Liniendienst", "good"], check: ["In Wartung", "warn"],
@@ -143,7 +144,8 @@ function detail(ctx, ac, v) {
       ${route ? html`<button class="btn sm" data-act="locate">Auf Karte zeigen</button>` : ""}<button class="btn sm" data-act="maint">Wartung</button></div>
     <div class="preview-art">${raw(sideView(t, s.airline.livery))}</div>
     <div class="row" style="margin:10px 0"><div class="grow"><h3 style="font-size:20px">${ac.reg} · ${t.maker} ${t.name}</h3>
-      <div class="muted small">Gekauft ${new Date(ac.bought).toLocaleDateString("de-DE")} · ${fmt.int(ac.hours)} Flugstunden · ${fmt.int(ac.cycles)} Zyklen · Baujahr-Alter ${ac.ageYears} J.</div></div>
+      <div class="muted small">Gekauft ${new Date(ac.bought).toLocaleDateString("de-DE")} · ${fmt.int(ac.hours)} Flugstunden · ${fmt.int(ac.cycles)} Zyklen · Baujahr-Alter ${ac.ageYears} J.</div>
+      <div style="margin-top:4px">${condLine(ac.cond)}</div></div>
       <span class="pill ${STATUS[ac.status][1]}">${STATUS[ac.status][0]}</span></div>
     ${ac.status === "delivery" ? html`<div class="card row" style="margin-bottom:10px"><span class="grow">Lieferung am ${fmt.dateTime(ac.availableAt)}</span><b class="mono acc">⏱ <span data-eta="${ac.availableAt}"></span></b></div>` : ""}
     <input class="in" style="width:100%" name="rename" data-act="rename" placeholder="Taufname (optional)" value="${ac.name}" maxlength="24">
@@ -165,9 +167,11 @@ function detail(ctx, ac, v) {
 
     <h3 style="margin:16px 0 8px;font-size:15px">Technik</h3>
     <div class="grid2">
-      <dl class="kv card"><dt>Reichweite</dt><dd>${fmt.km(effectiveRange(ac))}</dd><dt>Zusatztanks</dt><dd>${ac.aux || 0} / ${FLIGHT.aux.maxTanks}</dd><dt>Startstrecke</dt><dd>${fmt.int(t.runwayM)} m</dd><dt>Verbrauch</dt><dd>${fmt.int(t.fuelKgH)} kg/h</dd></dl>
+      <dl class="kv card"><dt>Reichweite</dt><dd>${fmt.km(effectiveRange(ac))}</dd><dt>Zusatztanks</dt><dd>${ac.aux || 0} / ${FLIGHT.aux.maxTanks}</dd><dt>Startstrecke</dt><dd>${fmt.int(t.runwayM)} m</dd><dt>Verbrauch</dt><dd>${fmt.int(t.fuelKgH * (1 + condEffects(ac.cond).fuel))} kg/h</dd></dl>
       <dl class="kv card"><dt>Cockpit</dt><dd>${t.crew.pilots} Piloten</dd><dt>Kabine (min.)</dt><dd>${t.crew.cabin}</dd><dt>Techniker</dt><dd>${t.crew.techs}</dd><dt>Restwert</dt><dd>${fmt.money(aircraftValue(ac, now))}</dd></dl>
     </div>
+    <h3 style="margin:16px 0 8px;font-size:15px">Datenblatt ${t.maker} ${t.name}</h3>
+    <div class="card">${datasheet(t, ac, { open: ["Leistung"] })}</div>
     <div class="row wrap" style="margin-top:10px">
       <button class="btn sm" data-act="aux" ${canEdit && (ac.aux || 0) < FLIGHT.aux.maxTanks ? "" : "disabled"}>Zusatztank einbauen (${fmt.money(FLIGHT.aux.priceM * 1e6)}, +${FLIGHT.aux.rangeBonus * 100} % Reichweite, −${fmt.int(FLIGHT.aux.payloadCostKg)} kg Nutzlast)</button>
     </div>

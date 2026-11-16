@@ -38,7 +38,7 @@ games/airline-manager/
 │  │  ├─ events.js         Event-Bus Simulation → UI
 │  │  └─ util.js           deterministischer Zufall, Formatierung
 │  ├─ data/
-│  │  ├─ aircraft.js       30 Typen Airbus/Boeing mit einheitlichen Werten
+│  │  ├─ aircraft.js       38 Typen (Airbus, Boeing, Bombardier, Embraer, Beechcraft, Concorde) + Datenblatt
 │  │  └─ airports.js       137 Flughäfen: IATA/ICAO, Koordinaten, Bahnlänge, Nachfrage-Faktoren
 │  ├─ sim/                 Spiellogik, ohne DOM
 │  │  ├─ engine.js         settle(): rechnet alles bis "jetzt" nach (Kern des Offline-Prinzips)
@@ -70,9 +70,10 @@ games/airline-manager/
 │  │  └─ path.js           geglättete Konturen, Pinselstriche, Vereinfachung
 │     └─ apps/             hangar, shop, routes, maint, fuel, airline, stocks, leaderboard, logbook
 ├─ lib/                    MapLibre GL (Kopie aus history-shots)
-├─ data/profiles.json      abgepauste Blaupausen-Profile (anfangs leer)
+├─ data/profiles.json      abgepauste Blaupausen-Profile aller 38 Typen (tools/trace_profiles.py)
 ├─ tools/
-│  ├─ profil-werkstatt.html  Blaupausen abpausen → profiles.json (im Browser öffnen)
+│  ├─ trace_profiles.py      Seitenansichten automatisch abpausen → profiles.json
+│  ├─ profil-werkstatt.html  Blaupausen von Hand abpausen → profiles.json (im Browser öffnen)
 │  └─ dxf_to_svg.py          Herstellerzeichnungen (DXF) → SVG
 └─ tests/sim.test.mjs      Simulationstests
 ```
@@ -192,10 +193,26 @@ Höhenleitwerk, Flügel, Triebwerke) in relativen Koordinaten – deshalb passt 
 **Woher die Formen kommen** (`js/art/geometry.js`):
 
 1. **Abgepauste Blaupausen** aus `data/profiles.json` – haben Vorrang und übernehmen die Form 1:1.
+   Seit v0.16 sind **alle 38 Typen** abgepaust (automatisch, siehe unten).
 2. Solange ein Typ nicht abgepaust ist: Profil aus echten Maßen pro Baureihe (Länge, Rumpfhöhe,
    Nasen- und Heckform, Leitwerkshöhe und -pfeilung, Flügel mit V-Stellung, Winglet-Art, Triebwerksgröße und -lage).
 
-**Einen Typ abpausen** (ca. 10–15 Minuten pro Typ):
+**Automatisch abpausen** (`tools/trace_profiles.py`, seit v0.16): Ein Ordner mit Seitenansichten (eine Datei pro
+Typ, Dateiname = Typ wie in der Tabelle `TYPES` im Skript, PNG/JPG/AVIF mit weißem oder transparentem Hintergrund)
+wird in einem Rutsch zu `profiles.json`:
+
+```
+pip install numpy scipy pillow          # einmalig (AVIF braucht Pillow ≥ 11)
+python3 -I tools/trace_profiles.py <bilderordner> games/airline-manager/data/profiles.json --debug /tmp/dbg
+```
+
+Aus dem Bild kommen Rumpf-Ober-/Unterkontur (Nase, 747-Buckel, Heckkonus), das Seitenleitwerk (exakt), die Lage
+der Triebwerke und die Fensterreihe. Flügel, Höhenleitwerk, Pylone, Türen und Cockpit werden parametrisch an den
+erkannten Stellen ergänzt. `--debug` schreibt Masken mit den erkannten Linien zum Prüfen. Die Bilder selbst landen
+nicht im Repo – nur die Konturen. Gestapelte Mehrfachansichten (oberste zählt), Rahmen/Text (werden abgetrennt) und
+ausgefahrenes Fahrwerk (schmale Auswüchse werden ignoriert) sind abgefangen.
+
+**Einen Typ von Hand abpausen** (Profil-Werkstatt, ca. 10–15 Minuten pro Typ):
 
 1. `tools/profil-werkstatt.html` im Browser öffnen (über den lokalen Webserver, siehe „Starten“).
 2. Blaupause laden oder Screenshot einfügen. Gute Quellen: die Seitenansicht in den
@@ -246,6 +263,28 @@ aber langsam. Hebel in `core/config.js`: `GAME.startCash`, `GAME.marketShare`, `
 - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
 
 ## Änderungen
+
+**v0.16**
+- Flotte auf die 38 Typen umgestellt, für die Seitenansichten vorliegen: Airbus A220–A380, Boeing 717–787,
+  Bombardier CRJ, Embraer E-Jets/ERJ, Beechcraft 1900D und Concorde (nur gebraucht). Weggefallene Typen
+  (737 MAX, 777-9, A321XLR …) werden in alten Spielständen auf den nächsten Verwandten umgestellt
+  (`LEGACY_TYPES` in `data/aircraft.js`, `core/store.js → migrate`). Exklusivverträge gibt es weiter nur mit
+  Airbus und Boeing (`CONTRACT_MAKERS`).
+- Alle 38 Typen sind abgepaust: `data/profiles.json` kommt aus `tools/trace_profiles.py` (siehe „Flugzeugformen“).
+  Die Flugzeuge sind weiterhin ab Werk weiß.
+- Lackiererei → **Vorlagen**: 10 Schemata nach gängigen Mustern (Eurowhite, Cheatline, Billboard, farbiger Bauch,
+  Heckschwung, Retro-Streifen, Zweiton, Vollton, Metallic, Sonderlackierung) × 10 Farbwelten, mit Airline-Name und
+  Kürzel vorbelegt (`art/liveryPresets.js`). Danach beliebig weitermalen. Keine Markenlogos echter Airlines.
+- **Datenblatt** je Typ mit Untergruppen (Abmessungen, Gewichte & Tank, Leistung, Antrieb, Kabine & Crew,
+  Geschichte, Wirtschaft) im Flugzeugmarkt (neu und gebraucht, aufklappbar) und im Hangar (`ui/datasheet.js`,
+  Realdaten im `info`-Block von `data/aircraft.js`).
+- **Gebraucht-Zustand** (`USED.cond` in `core/config.js`): Angebote haben einen Zustand 35–98 % aus Alter und
+  Stunden. Schlechter Zustand = weniger Reichweite (bis −12 %), Mehrverbrauch (bis +14 %), ungeplante Defekte
+  (Reparaturkosten + Standzeit, Logbuch-Eintrag) und niedrigerer Restwert. Anzeige im Markt und Hangar.
+- Karte: Flugzeuge am Boden sind **grün** (gelandet am Ziel, Turnaround, am Hub ohne Strecke), in Wartung grau,
+  in der Luft gelb; mehrere am selben Flughafen stehen leicht versetzt. Flug-Infokarte zeigt Höhe zusätzlich in m,
+  Speed in km/h und die Ankunftszeit.
+- Tests: 13 (neu: jeder Typ hat eine Blaupause, Vorlagen zeichnen sauber, Gebraucht-Zustand im Bereich).
 
 **v0.15**
 - Die ersten 5 Flugzeuge kommen sofort, danach Lieferzeiten in Echtzeit (`GAME.newDeliveryH`, `orderStaggerH`,

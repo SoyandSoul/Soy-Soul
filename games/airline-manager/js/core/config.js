@@ -10,7 +10,7 @@ export const GAME = {
   startCash: 200_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.15",
+  label: "v0.16",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -132,6 +132,18 @@ export const REPUTATION = {
   demandMin: 0.6, demandSpan: 0.8            // Nachfragefaktor = min + span × rep/100
 };
 
-export const USED = { listings: 18, maxAge: 28, depreciation: 0.92, floor: 0.08, insuranceRefund: 0.6 };
+export const USED = {
+  listings: 18, maxAge: 28, depreciation: 0.92, floor: 0.08, insuranceRefund: 0.6,
+  // Zustand gebrauchter Flugzeuge (cond 0..1, aus Alter + Stunden). Bei cond = 0 gelten die vollen Abschläge:
+  cond: {
+    min: 0.35,                               // schlechtester Zustand auf dem Markt
+    rangeLoss: 0.12,                         // −12 % Reichweite (Triebwerksverschleiß, Zusatzgewicht)
+    fuelExtra: 0.14,                         // +14 % Verbrauch
+    faultPerBlockH: 0.03,                    // Defektwahrscheinlichkeit pro Blockstunde (× (1 − cond))
+    faultCost: { narrow: 45e3, wide: 120e3, jumbo: 200e3 }, // ungeplante Reparatur
+    faultDelayH: [2, 9],                     // Standzeit danach (Spanne, deterministisch gewürfelt)
+    valueLoss: 0.35                          // Restwert sinkt um bis zu 35 %
+  }
+};
 
 export const STOCKS = { profitMultiple: 3, repWeight: 0.4, minPrice: 0.5, fee: 0.005, refreshMs: 60_000 };

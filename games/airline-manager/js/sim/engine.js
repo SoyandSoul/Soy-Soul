@@ -115,6 +115,17 @@ function process(state, ac, ts, report, quiet) {
   route.stats.legs++; route.stats.pax += leg.paxTotal; route.stats.profit += leg.profit;
 
   const roll = rand01("risk", ac.id, dep);
+  let faultDelay = 0;
+  if (roll >= risk.incident && risk.fault && rand01("fault", ac.id, dep) < risk.fault) {
+    // Gebrauchtmaschine in schlechtem Zustand: ungeplanter Defekt → Reparatur + Standzeit, kein Sicherheitsrisiko
+    const t = typeOf(ac), cost = USED.cond.faultCost[t.size];
+    const [d0, d1] = USED.cond.faultDelayH;
+    faultDelay = (d0 + (d1 - d0) * rand01("faultDelay", ac.id, dep)) * H;
+    leg.event = "fault"; leg.cost.maint += cost; leg.profit -= cost;
+    book(state, leg.arr, "cost", "maint", cost);
+    report.faults = (report.faults || 0) + 1;
+    log(state, leg.arr, "warn", `${ac.reg} in ${leg.to}: technischer Defekt (Alter/Zustand), Reparatur ${Math.round(cost / 1e3)} k$, ${Math.round(faultDelay / H)} h Standzeit.`);
+  }
   if (roll < risk.crash) {
     leg.event = "crash";
     crash(state, ac, route, leg.arr, report, quiet);
@@ -133,10 +144,11 @@ function process(state, ac, ts, report, quiet) {
   const arrivedHome = ac.ops.dir === 1;
   const turn = turnaroundH(typeOf(ac)) * H;
   ac.ops.dir = 1 - ac.ops.dir;
-  ac.ops.dep = leg.arr + turn;
+  ac.ops.dep = leg.arr + turn + faultDelay;
+  if (faultDelay) ac.ops.delay = { min: Math.round(faultDelay / 60_000), reason: "technischem Defekt", at: leg.to };
   // Wetter am Ankunftsflughafen kann den Turnaround verlängern
   const wd = weatherDelay(leg.to, leg.arr, ac.id);
-  ac.ops.delay = wd;
+  if (!faultDelay) ac.ops.delay = wd;
   if (wd) {
     ac.ops.dep += wd.min * 60_000;
     if (wd.min >= 45) log(state, leg.arr, "warn", `${ac.reg} in ${wd.at}: ${wd.min} min Verspätung wegen ${wd.reason}.`);

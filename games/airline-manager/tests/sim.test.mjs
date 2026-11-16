@@ -120,6 +120,25 @@ test("Erste 5 Flugzeuge sofort, danach Lieferzeit", () => {
   assert.ok(g.fleet[6].availableAt > g.fleet[5].availableAt, "zweites spätes Flugzeug derselben Bestellung kommt später");
 });
 
+test("Blaupausen: jeder Typ hat ein abgepaustes Profil, Vorlagen zeichnen sauber", async () => {});
+const { readFileSync } = await import("node:fs");
+const { setTracedProfiles, getProfile, tracedIds } = await import("../js/art/geometry.js");
+const { SCHEMES, PALETTES, presetLivery } = await import("../js/art/liveryPresets.js");
+setTracedProfiles(JSON.parse(readFileSync(new URL("../data/profiles.json", import.meta.url), "utf8")));
+for (const t of AIRCRAFT) {
+  assert.ok(tracedIds().includes(t.id), `${t.id} ohne Blaupause in data/profiles.json`);
+  const p = getProfile(t.id);
+  assert.equal(p.source, "blueprint", t.id);
+  assert.ok(p.zones.fuselage.length && p.zones.fin.length && p.zones.wing.length, t.id + ": Bauteile fehlen");
+  assert.ok(Math.abs(p.bbox.x1 - p.bbox.x0 - t.art.lengthM) < t.art.lengthM * 0.15, t.id + ": Länge passt nicht zur Blaupause");
+}
+for (const sc of SCHEMES) for (const pal of PALETTES.slice(0, 3)) {
+  const svg = renderAircraft("a321neo", presetLivery(sc.id, pal.id, "Test Air", "TA"));
+  assert.ok(!/NaN|undefined/.test(svg), sc.id + "/" + pal.id);
+}
+const used = usedListings(T0);
+assert.ok(used.every(l => l.cond >= 0.35 && l.cond <= 0.98), "Gebraucht-Zustand liegt im erlaubten Bereich");
+
 test("Wetter deterministisch, Verspätungen kommen vor", async () => {});
 const { weatherAt, weatherDelay } = await import("../js/sim/weather.js");
 assert.deepEqual(weatherAt("OSL", T0), weatherAt("OSL", T0));

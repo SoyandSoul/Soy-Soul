@@ -3,9 +3,10 @@ import { html, raw } from "../dom.js";
 import { fmt } from "../../core/util.js";
 import { AIRCRAFT, AIRCRAFT_BY_ID, MAKERS } from "../../data/aircraft.js";
 import { CHECKS } from "../../core/config.js";
-import { canOrderNew, newOrderQuote, usedListings, listPrice, MARKET_FACTOR, deliveryDelay } from "../../sim/market.js";
+import { canOrderNew, newOrderQuote, usedListings, listPrice, MARKET_FACTOR, deliveryDelay, condEffects } from "../../sim/market.js";
 import { GAME } from "../../core/config.js";
 import { sideView } from "../aircraftArt.js";
+import { datasheet, condLine } from "../datasheet.js";
 import * as act from "../../sim/actions.js";
 
 export default {
@@ -83,6 +84,7 @@ function newer(ctx, v) {
       <div class="info">
         <h3>${t.name}<small>${t.maker}</small></h3>
         ${specs(t)}
+        <details class="ds-wrap"><summary>Datenblatt</summary>${datasheet(t, null, { compact: true })}</details>
         <div class="price-line"><div><b>${fmt.money(q.unit * (1 - q.disc))}</b><br><s>Liste ${fmt.money(listPrice(t))}</s></div>
           <div class="row"><input class="in" type="number" name="qty" min="1" max="50" value="1" data-act="qty" style="width:56px" ${block ? "disabled" : ""}><button class="btn p sm" data-act="buyNew" data-id="${t.id}" ${block ? "disabled" : ""}>Bestellen</button></div></div>
         <div class="small ${block ? "warn" : "muted"}">${block || html`Gesamt: <span data-total>${fmt.money(q.total)}</span> · Lieferung ${leadTime(s, t, false)}`}</div>
@@ -106,9 +108,11 @@ function used(ctx, v) {
         <div class="specs">
           <div><span>Alter</span><b>${l.age} J.</b></div><div><span>Std.</span><b>${fmt.int(l.hours)}</b></div>
           <div><span>C in</span><b class="${cRem < 800 ? "warn" : ""}">${fmt.int(cRem)} h</b></div><div><span>D in</span><b class="${dRem < 2000 ? "warn" : ""}">${fmt.int(dRem)} h</b></div>
-          <div><span>Reichw.</span><b>${fmt.int(t.rangeKm)} km</b></div><div><span>Sitze</span><b>${t.seats}</b></div>
+          <div><span>Reichw.</span><b>${fmt.int(t.rangeKm * (1 + condEffects(l.cond).range))} km</b></div><div><span>Sitze</span><b>${t.seats}</b></div>
         </div>
+        <div>${condLine(l.cond)}</div>
         ${l.nearHeavy ? html`<div class="small warn">Schwerer Check steht bald an – daher günstiger.</div>` : ""}
+        <details class="ds-wrap"><summary>Datenblatt</summary>${datasheet(t, { cond: l.cond, aux: 0 }, { compact: true })}</details>
         <div class="small muted">Übergabe ${leadTime(s, t, true)}</div>
         <div class="price-line"><b>${fmt.money(l.price)}</b><button class="btn p sm" data-act="buyUsed" data-id="${l.id}" ${sold ? "disabled" : ""}>${sold ? "Gekauft" : "Kaufen"}</button></div>
       </div></article>`;

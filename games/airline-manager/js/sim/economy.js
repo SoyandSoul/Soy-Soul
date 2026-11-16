@@ -1,6 +1,7 @@
 // Wirtschaft pro Flug: Einnahmen (Tickets, Fracht, Bordverkauf, Gepäck) und Kosten
 // (Kerosin, Crew, Start-/Landegebühren, Turnaround, Catering, Wartungsreserve).
 
+import { condEffects } from "./market.js";
 import { CABIN, CARGO, FEES, STAFF, CATERING, BAGS, FIXED, H } from "../core/config.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { typeOf, routeDistance, blockHours, cargoCapacityKg, totalSeats } from "./flight.js";
@@ -56,7 +57,7 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   rev.bags = (b.pax.y + b.pax.w * 0.5) * bagTake * state.airline.bagFee;
 
   // --- Kosten
-  const fuelKg = t.fuelKgH * bh * (0.88 + 0.12 * lf) + (cargoKg / 1000) * 30 * bh;
+  const fuelKg = (t.fuelKgH * bh * (0.88 + 0.12 * lf) + (cargoKg / 1000) * 30 * bh) * (1 + condEffects(ac.cond).fuel);
   const cost = {};
   cost.fuel = consumeFuel(state, fuelKg, dep);
   const wage = 1 + STAFF.training.wageBonus * state.airline.training;

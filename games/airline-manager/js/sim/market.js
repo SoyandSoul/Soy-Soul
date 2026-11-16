@@ -38,7 +38,7 @@ export function aircraftValue(ac, ts) {
   const ageY = (ac.ageYears || 0) + (ts - ac.bought) / (365 * DAY);
   const v = basePrice(t) * Math.max(USED.floor, Math.pow(USED.depreciation, ageY));
   const usedPenalty = Math.min(0.3, ac.hours / 200000);
-  return v * (1 - usedPenalty);
+  return v * (1 - usedPenalty) * (1 - USED.cond.valueLoss * condPenalty(ac));
 }
 
 /** Gebrauchtangebote des Tages (UTC). Deterministisch → identisch für alle Spieler. */
@@ -55,11 +55,23 @@ export function usedListings(ts) {
       maint[k] = { fh: Math.round(Math.min(hours, CHECKS[k].fh * frac * 1.05)), daysAgo: Math.round(CHECKS[k].days * frac) };
     }
     const nearHeavy = (CHECKS.C.fh - maint.C.fh) < 800 || (CHECKS.D.fh - maint.D.fh) < 2000;
-    const value = basePrice(t) * Math.max(USED.floor, Math.pow(USED.depreciation, age)) * (1 - Math.min(0.3, hours / 200000));
+    // Zustand: je älter und je mehr Stunden, desto schlechter – plus Pflegezustand des Vorbesitzers
+    const wear = Math.min(1, age / USED.maxAge * 0.6 + hours / 120000 * 0.4);
+    const cond = Math.round(100 * Math.max(USED.cond.min, Math.min(0.98, 1 - wear * 0.55 - r() * 0.2))) / 100;
+    const value = basePrice(t) * Math.max(USED.floor, Math.pow(USED.depreciation, age)) * (1 - Math.min(0.3, hours / 200000)) * (1 - USED.cond.valueLoss * (1 - cond));
     const price = Math.round(value * (nearHeavy ? 0.85 : 1) * (0.92 + r() * 0.16) / 1e4) * 1e4;
-    out.push({ id: `U-${key}-${i}`, typeId: t.id, age, hours, maint, price, nearHeavy, seller: SELLERS[Math.floor(r() * SELLERS.length)] });
+    out.push({ id: `U-${key}-${i}`, typeId: t.id, age, hours, maint, price, nearHeavy, cond, seller: SELLERS[Math.floor(r() * SELLERS.length)] });
   }
   return out.sort((a, b) => a.price - b.price);
+}
+
+/** 0 = wie neu, 1 = schlechtester Zustand. Neu gekaufte Flugzeuge haben cond = null. */
+export const condPenalty = ac => ac.cond == null ? 0 : Math.max(0, Math.min(1, 1 - ac.cond));
+
+/** Auswirkungen des Zustands für die Anzeige */
+export function condEffects(cond) {
+  const p = cond == null ? 0 : Math.max(0, 1 - cond);
+  return { range: -USED.cond.rangeLoss * p, fuel: USED.cond.fuelExtra * p, faultPerBlockH: USED.cond.faultPerBlockH * p };
 }
 
 const SELLERS = ["Leasinggesellschaft", "Insolvenzmasse", "Flottenerneuerung", "Charter-Airline", "Regierungsflotte", "Broker"];
@@ -101,6 +113,7 @@ export function createAircraft(state, type, ts, { used = null, orderIndex = 0 } 
     name: "",
     bought: ts,
     ageYears: used ? used.age : 0,
+    cond: used ? used.cond ?? 0.8 : null,     // Zustand gebrauchter Maschinen (sim/market.js → condEffects)
     hours: used ? used.hours : 0,
     cycles: used ? Math.round(used.hours / 2.2) : 0,
     maint,

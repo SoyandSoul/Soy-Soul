@@ -4,6 +4,7 @@ import { FLIGHT, CABIN, H } from "../core/config.js";
 import { AIRCRAFT_BY_ID } from "../data/aircraft.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { distanceKm, interpolate, bearing } from "./geo.js";
+import { condEffects } from "./market.js";
 
 export const typeOf = ac => AIRCRAFT_BY_ID[ac.typeId];
 
@@ -19,7 +20,7 @@ export function blockHours(km, type) {
 export const turnaroundH = type => FLIGHT.turnaroundMin[type.size] / 60;
 
 export function effectiveRange(ac) {
-  return typeOf(ac).rangeKm * (1 + FLIGHT.aux.rangeBonus * (ac.aux || 0));
+  return typeOf(ac).rangeKm * (1 + FLIGHT.aux.rangeBonus * (ac.aux || 0)) * (1 + condEffects(ac.cond).range);
 }
 
 export function seatUnits(cfg) {

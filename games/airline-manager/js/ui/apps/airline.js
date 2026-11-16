@@ -2,7 +2,7 @@
 import { html, raw } from "../dom.js";
 import { fmt } from "../../core/util.js";
 import { CATERING, BAGS, STAFF, CONTRACT } from "../../core/config.js";
-import { AIRCRAFT_BY_ID, MAKERS } from "../../data/aircraft.js";
+import { AIRCRAFT_BY_ID, CONTRACT_MAKERS } from "../../data/aircraft.js";
 import { AIRPORT_BY_IATA, searchAirports } from "../../data/airports.js";
 import { summary, REV, COST } from "../../sim/ledger.js";
 import { repFactors, repTarget } from "../../sim/reputation.js";
@@ -134,7 +134,7 @@ function livery(ctx, v) {
 function contract(ctx) {
   const c = ctx.state.airline.contract;
   return html`<p class="small muted" style="margin-bottom:10px">Ein Exklusivvertrag bindet dich an einen Hersteller. Dafür gibt es ${CONTRACT.baseDiscount * 100} % Grundrabatt, Mengenrabatte (${CONTRACT.volume.map(([n, d]) => `ab ${n} Stück +${d * 100} %`).join(", ")}) und −${CONTRACT.maintDiscount * 100} % auf alle Checks dieses Herstellers. Gebrauchtkäufe bleiben frei.</p>
-    <div class="grid2">${MAKERS.map(m => html`<div class="card"><h3>${m}</h3>
+    <div class="grid2">${CONTRACT_MAKERS.map(m => html`<div class="card"><h3>${m}</h3>
       ${c?.maker === m ? html`<p class="small good" style="margin:6px 0">Aktiv seit ${new Date(c.since).toLocaleDateString("de-DE")}</p><button class="btn sm danger" data-act="cancel">Kündigen (${fmt.money(CONTRACT.cancelFee)})</button>`
         : html`<p class="small muted" style="margin:6px 0">${c ? "Gesperrt durch Vertrag mit " + c.maker : "Verfügbar"}</p><button class="btn sm p" data-act="sign" data-maker="${m}" ${c ? "disabled" : ""}>Unterschreiben</button>`}</div>`)}</div>`;
 }
