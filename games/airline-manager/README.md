@@ -252,6 +252,11 @@ FRA–JFK ca. 2,7 Mio $/Woche. Ein Flugzeug spielt sich also in Monaten bis gut 
 aber langsam. Hebel in `core/config.js`: `GAME.startCash`, `GAME.marketShare`, `CABIN.refFare`, `DEMAND.k`,
 `FEES`, `STAFF`, sowie `MARKET_FACTOR`. Checks: `CHECKS.*.fh/days/downH` (C- und D-Check stehen Wochen in Echtzeit).
 
+## Fahrplan
+
+Die Wunschliste ist in neun Pakete aufgeteilt – eines pro Version, jeweils fertig und getestet, bevor das
+nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
+
 ## Was als Nächstes kommt (Vorschläge)
 
 - Eigenes Bestätigungs-Popup statt `confirm()`
