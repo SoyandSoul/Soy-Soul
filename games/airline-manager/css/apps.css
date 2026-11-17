@@ -57,6 +57,10 @@
   .cabin-edit { grid-template-columns: 1fr 64px; } .cabin-edit .muted { display: none; }
   .checks { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 560px) {
+  /* Auf dem Telefon untereinander statt nebeneinander – zweispaltig werden die Beträge abgeschnitten */
+  .win .grid2 { grid-template-columns: 1fr; }
+}
 
 /* ---------- Lackiererei */
 .painter { position: fixed; inset: 0; z-index: 90; background: radial-gradient(ellipse at 55% 40%, #1d2531, #0b0e13 70%); display: grid; grid-template-columns: 250px 1fr; grid-template-rows: auto 1fr auto auto; animation: winIn .2s var(--ease); }
@@ -140,3 +144,30 @@
 .frame-chip span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink3); }
 .frame-chip b { font-size: 13px; }
 .frame-chip .bar { margin-top: 4px; height: 4px; }
+
+/* Flugabrechnung (ui/apps/report.js) */
+.rep-h { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink3); margin: 16px 0 8px; }
+.rrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rrow:last-child { border-bottom: 0; }
+.rlink { font-size: 13.5px; color: var(--ink); }
+.rlink:hover b { color: var(--accent); }
+.rstars { color: var(--accent); font-size: 13px; letter-spacing: 1px; }
+.rparts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 12px; margin: 6px 0; }
+.rparts span { font-size: 11px; color: var(--ink3); display: block; }
+.rparts span b { color: var(--ink2); }
+.rparts i { display: block; height: 4px; border-radius: 99px; margin-bottom: 3px; min-width: 4px; }
+.rrow p { margin-top: 2px; }
+
+.fl { border-bottom: 1px solid var(--line); }
+.fl:last-child { border-bottom: 0; }
+.fl-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 2px; text-align: left; }
+.fl-head:hover { background: rgba(255,255,255,.04); }
+.fl-head .fl-route { min-width: 128px; }
+.fl-head b { font-size: 13px; }
+.fl-head small { display: block; font-size: 11px; color: var(--ink3); }
+.fl-head > b:last-child { margin-left: auto; }
+.fl.ev .fl-head { background: color-mix(in srgb, var(--bad) 7%, transparent); }
+.fl-body { padding: 4px 2px 14px; }
+.fl-bars { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 11px; color: var(--ink3); }
+.fl-bars b { color: var(--ink2); font-weight: 600; }
+@media (max-width: 720px) { .fl-head { flex-wrap: wrap; } .fl-head .fl-route { min-width: 100%; } }

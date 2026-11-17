@@ -22,18 +22,20 @@ import { weatherDelay } from "./weather.js";
 import { salaryPerDay, staffEffects } from "./staff.js";
 import { rentPerDay, isLeased, returnSettlement, termOf } from "./lease.js";
 import { newlyReached, applyReward } from "./goals.js";
+import { turnaroundHours, handlerDelay } from "./handling.js";
 
 const MAX_STEPS = 200_000;
 
-export function cycleHours(ac, route) {
+export function cycleHours(ac, route, state = null) {
   const t = typeOf(ac);
-  return 2 * (blockHours(routeDistance(route), t) + turnaroundH(t));
+  const turn = state ? turnaroundHours(state, ac) : turnaroundH(t);
+  return 2 * (blockHours(routeDistance(route), t) + turn);
 }
 
 /** Wie oft fliegt die eigene Airline eine Strecke pro Tag und Richtung? */
 export function flightsPerDay(state, route) {
   let n = 0;
-  for (const ac of state.fleet) if (ac.ops?.routeId === route.id && ac.status !== "crashed") n += 24 / cycleHours(ac, route);
+  for (const ac of state.fleet) if (ac.ops?.routeId === route.id && ac.status !== "crashed") n += 24 / cycleHours(ac, route, state);
   return n;
 }
 
@@ -193,11 +195,13 @@ function process(state, ac, ts, report, quiet, staffEff) {
 
   // Nächstes Leg planen. Verspätung kommt aus drei Quellen: Defekt, Wetter am Ankunftsort, fehlendes Personal.
   const arrivedHome = ac.ops.dir === 1;
-  const turn = turnaroundH(typeOf(ac)) * H;
+  const turn = turnaroundHours(state, ac) * H;
   ac.ops.dir = 1 - ac.ops.dir;
 
   const sources = [];
   if (faultDelay) sources.push({ min: Math.round(faultDelay / 60_000), reason: "technischem Defekt" });
+  const hd = handlerDelay(state, ac, leg.arr);
+  if (hd) sources.push(hd);
   const wd = weatherDelay(leg.to, leg.arr, ac.id);
   if (wd) sources.push({ min: wd.min, reason: wd.reason });
   if (staffEff?.delayMin) sources.push({ min: staffEff.delayMin, reason: staffEff.flight >= staffEff.ground ? "fehlendem Flugpersonal" : "fehlendem Bodenpersonal" });

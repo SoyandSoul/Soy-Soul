@@ -4,9 +4,10 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.20**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.21**
 
-> **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) ist als v0.17 fertig.
+> **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
+> Flugabrechnung) als v0.21.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
 > Flottenvereinheitlichung sind als v0.19 fertig. Offen daraus: Umsteiger am Drehkreuz, IROPS,
 > wartende Entscheidungen, Benachrichtigungen, geführter Einstieg – siehe unten.
@@ -69,22 +70,28 @@ Punkte 5, 9, 16, 27 · **das größte Paket, Grundlage für Paket 3 und 4**
 
 ---
 
-## Paket 3 – Abflug und Flugabrechnung → v0.18
+## Paket 3 – Abflug und Flugabrechnung → v0.21 ✅
 
-Punkte 6, 8 · **braucht Paket 2**
+Punkte 6, 8 · erledigt
 
-- Liste „bereit zum Abflug" in der Airline-Zentrale, alternativ als kleines Popup
-- Ein Knopf schickt alle startbereiten Flieger los
-- Danach Abrechnung aller gerade gestarteten Flüge: Umsatz, Kosten, Gewinn
-- Jeder Flug einzeln aufklappbar
-- Bewertung der Strecke aus Auslastung und Zufriedenheit
-- Wahl des Bodenabfertigers: günstig (mehr Verspätung, unzufriedene Gäste) · mittel · Premium (teuer, top)
+- ✅ Bereich **Abflüge** im Airline-Panel: alles am Gate mit laufender Restzeit und Verspätungsgrund
+- ✅ Ein Knopf zieht alle vor – als **Schnellabfertigung** statt Startfreigabe, siehe unten
+- ✅ **Flugabrechnung** über 6 h / 24 h / 7 Tage: Umsatz und Kosten nach Posten, Gewinn, Marge
+- ✅ Jeder Flug einzeln aufklappbar
+- ✅ Streckenbewertung mit Sternen aus Auslastung, Pünktlichkeit und Ertrag je Sitz
+- ✅ Bodenabfertiger wählbar: Sparanbieter · Standard · Premium
 
-**Test:** 20 Flüge sammeln lassen, Sammelabflug, Zahlen gegen das Logbuch prüfen.
+**Gelöster Konflikt:** Punkt 6 will einen Abflugknopf, Punkt 22 will, dass Flieger auch bei
+geschlossenem Tab fliegen. Beides geht nur, wenn Flugzeuge weiter von allein starten – der Knopf kürzt
+deshalb die Standzeit gegen Aufpreis, statt den Start überhaupt erst auszulösen. Der Preis hängt an der
+gesparten Zeit. Anwesenheit wird belohnt, Abwesenheit nicht bestraft.
+
+**Test:** erledigt – drei Tests in `sim.test.mjs` (Abfertigerstaffelung, Preis und Abflugzeit beim
+Vorziehen, Sterne und Teilnoten), dazu Browsercheck auf Desktop und Telefon.
 
 ---
 
-## Paket 4 – Erlöse und Reputation → v0.19
+## Paket 4 – Erlöse und Reputation → v0.22
 
 Punkte 10, 11, 12, 13, 14 · **braucht Paket 2**
 
@@ -99,7 +106,7 @@ Punkte 10, 11, 12, 13, 14 · **braucht Paket 2**
 
 ---
 
-## Paket 5 – Hub und Ausstattung → v0.20
+## Paket 5 – Hub und Ausstattung → v0.23
 
 Punkte 15, 25, 28
 
@@ -114,7 +121,7 @@ Punkte 15, 25, 28
 
 ---
 
-## Paket 6 – Finanzen → v0.21
+## Paket 6 – Finanzen → v0.24
 
 Punkte 29, 30 · **Leasing ist als v0.18 schon erledigt**
 
@@ -125,7 +132,7 @@ Punkte 29, 30 · **Leasing ist als v0.18 schon erledigt**
 
 ---
 
-## Paket 7 – Karte und Bodenbetrieb → v0.22
+## Paket 7 – Karte und Bodenbetrieb → v0.25
 
 Punkte 17, 18
 
@@ -139,7 +146,7 @@ wird es ein vereinfachtes Schema geben.
 
 ---
 
-## Paket 8 – Welt und Ereignisse → v0.23
+## Paket 8 – Welt und Ereignisse → v0.26
 
 Punkte 19, 20, 23, 26
 
@@ -153,7 +160,7 @@ Punkte 19, 20, 23, 26
 
 ---
 
-## Paket 9 – Börse und Rangliste online → v0.24
+## Paket 9 – Börse und Rangliste online → v0.27
 
 Punkte 21, 24, 32 · **braucht Supabase – ohne Server nicht umsetzbar**
 

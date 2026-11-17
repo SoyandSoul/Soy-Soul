@@ -3,12 +3,13 @@
 
 import { AIRCRAFT_BY_ID } from "../data/aircraft.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
-import { CABIN, CONTRACT, FLIGHT, STAFF, BAGS, CATERING, CHECKS, LEASE, DAY, H } from "../core/config.js";
+import { CABIN, CONTRACT, FLIGHT, STAFF, BAGS, CATERING, CHECKS, LEASE, HANDLERS, DAY, H } from "../core/config.js";
 import { uid } from "../core/util.js";
 import { book } from "./ledger.js";
 import { canOrderNew, newOrderQuote, createAircraft, usedListings, aircraftValue, basePrice } from "./market.js";
 import { leaseQuote, makeContract, frameBlock, isLeased, returnSettlement, buyoutPrice, termOf } from "./lease.js";
 import { commonality } from "./commonality.js";
+import { rushCost, rushAllQuote, rushSaving } from "./handling.js";
 import { routeProblems, seatUnits, typeOf } from "./flight.js";
 import { refFare } from "./demand.js";
 import { routeDistance } from "./flight.js";
@@ -176,6 +177,38 @@ export function cancelContract(state, now) {
   book(state, now, "cost", "contract", CONTRACT.cancelFee);
   state.airline.contract = null;
   return ok();
+}
+
+export function setHandler(state, key) {
+  if (!HANDLERS[key] || key === "rush" || key === "default") return fail("Unbekannter Abfertiger.");
+  if (state.airline.handler === key) return fail("Dieser Abfertiger ist bereits beauftragt.");
+  state.airline.handler = key;
+  return ok({ handler: HANDLERS[key] });
+}
+
+/** Schnellabfertigung für ein Flugzeug: Priorität am Gate gegen Aufpreis. */
+export function rushDeparture(state, acId, now) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!ac?.ops || ac.status !== "active") return fail("Flugzeug steht nicht zum Abflug bereit.");
+  const left = ac.ops.dep - now;
+  if (left <= 4 * 60_000) return fail("Das Flugzeug startet ohnehin gleich.");
+  const cost = rushCost(state, ac, left);
+  if (cost > state.cash) return fail("Nicht genug Geld für die Schnellabfertigung.");
+  const saved = rushSaving(left);
+  book(state, now, "cost", "handling", cost);
+  ac.ops.dep -= saved;
+  ac.ops.rushed = true;
+  return ok({ saved, cost, reg: ac.reg });
+}
+
+/** Alle beschleunigbaren Flugzeuge auf einmal vorziehen. */
+export function rushAll(state, now) {
+  const q = rushAllQuote(state, now);
+  if (!q.count) return fail("Gerade steht kein Flugzeug zum Vorziehen bereit.");
+  if (q.total > state.cash) return fail(`Schnellabfertigung für ${q.count} Flugzeuge kostet ${Math.round(q.total / 1e3)} k$ – nicht genug Geld.`);
+  let saved = 0;
+  for (const d of q.list) { const r = rushDeparture(state, d.ac.id, now); if (r.ok) saved += r.saved; }
+  return ok({ count: q.count, cost: q.total, saved });
 }
 
 export function setCatering(state, mode) { if (!CATERING.modes[mode]) return fail("Unbekannt."); state.airline.catering = mode; return ok(); }

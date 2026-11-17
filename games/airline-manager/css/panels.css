@@ -160,3 +160,11 @@
 .cl-body li { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; line-height: 1.45; }
 .cl-body li .pill { font-style: normal; flex: none; margin-top: 1px; min-width: 56px; justify-content: center; }
 @media (max-width: 860px) { .cl-body { padding-left: 2px; } }
+
+/* Abflugliste */
+.dep { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: var(--r-sm); }
+.dep:hover { background: rgba(255,255,255,.04); }
+.dep b { font-size: 13px; }
+.dep small { display: block; font-size: 11px; color: var(--ink3); }
+.dep-left { font: 600 12px var(--mono); color: var(--ink2); white-space: nowrap; }
+.dep.late .dep-left { color: var(--warn); }

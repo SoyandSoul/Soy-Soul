@@ -15,6 +15,9 @@ import { typeOf, routeDistance, positionAt } from "../../sim/flight.js";
 import { leaseFrame, monthlyObligation, isLeased } from "../../sim/lease.js";
 import { goalProgress, nextGoal, rewardText, GOAL_GROUPS } from "../../sim/goals.js";
 import { commonality, commonalityNote } from "../../sim/commonality.js";
+import { departureBoard, rushAllQuote, rushSaving, handlerOf } from "../../sim/handling.js";
+import { tally, legsSince } from "../../sim/report.js";
+import { HANDLERS } from "../../core/config.js";
 import * as act from "../../sim/actions.js";
 import { exportSave, importSave } from "../../core/store.js";
 import { online, cloudSave } from "../../net/backend.js";
@@ -151,6 +154,44 @@ const fleet = {
   })
 };
 
+// ---------------------------------------------------------------- Abflüge
+const departures = {
+  id: "departures", title: "Abflüge", icon: "plane",
+  badge(ctx) { const n = departureBoard(ctx.state, ctx.now()).length; return n ? { n } : null; },
+  render(ctx) {
+    const now = ctx.now(), board = departureBoard(ctx.state, now), q = rushAllQuote(ctx.state, now);
+    const last = tally(legsSince(ctx.state, now - 6 * 3600_000));
+    return html`
+      ${last ? html`<div class="note ${last.profit < 0 ? "warn" : "good"}">
+        <b>Letzte 6 Stunden: ${last.profit >= 0 ? "+" : ""}${fmt.money(last.profit)}</b>
+        <span>${last.legs} Flüge · ${Math.round(last.lf * 100)} % Auslastung · ${Math.round(last.onTime * 100)} % pünktlich</span>
+        <button class="btn sm" data-act="report">Abrechnung</button></div>`
+      : html`<div class="note"><b>Noch keine Abrechnung</b><span>Sobald Flüge landen, stehen hier die Zahlen.</span></div>`}
+
+      ${!board.length ? html`<div class="empty"><b>Alles unterwegs</b>Gerade steht kein Flugzeug am Gate.</div>`
+      : html`<div class="fgroup"><h4>Am Gate<span>${board.length}</span></h4>
+          ${board.slice(0, 8).map(d => html`<div class="dep ${d.delay ? "late" : ""}">
+            <span class="grow"><b>${d.ac.reg}</b><small>${d.from} → ${d.to}${d.delay ? ` · +${d.delay.min}′ wegen ${d.delay.reason}` : ""}</small></span>
+            <span class="dep-left" data-left="${d.ac.id}">${fmt.duration(d.left)}</span>
+            ${d.rushable ? html`<button class="btn sm" data-act="rush" data-id="${d.ac.id}" title="Priorität am Gate: ${fmt.duration(d.saving)} früher weg">−${fmt.duration(d.saving)} · ${fmt.money(d.cost)}</button>` : ""}
+          </div>`)}</div>
+        ${q.count ? html`<button class="btn p" style="width:100%;margin-top:10px" data-act="rushAll">
+            Alle ${q.count} vorziehen · ${fmt.money(q.total)}</button>
+          <p class="small muted" style="margin-top:6px">Schnellabfertigung kürzt die laufende Standzeit um ${Math.round(HANDLERS.rush.cut * 100)} %, der Preis richtet sich nach der gesparten Zeit. Ohne dich starten die Flugzeuge trotzdem pünktlich – es geht nur schneller.</p>` : ""}`}`;
+  },
+  tick(el, ctx) {
+    for (const span of el.querySelectorAll("[data-left]")) {
+      const ac = ctx.state.fleet.find(a => a.id === span.dataset.left);
+      if (ac?.ops) span.textContent = fmt.duration(Math.max(0, ac.ops.dep - ctx.now()));
+    }
+  },
+  click: (ctx, v, api) => ({
+    report: () => ctx.openApp("report"),
+    rush: el => { const r = ctx.run(act.rushDeparture, el.dataset.id, ctx.now()); if (r) ctx.toast(`${r.reg} wird vorgezogen – ${fmt.duration(r.saved)} früher für ${fmt.money(r.cost)}.`, "good"); },
+    rushAll: () => { const r = ctx.run(act.rushAll, ctx.now()); if (r) ctx.toast(`${r.count} Flugzeuge vorgezogen für ${fmt.money(r.cost)} – zusammen ${fmt.duration(r.saved)} früher weg.`, "good"); }
+  })
+};
+
 // ---------------------------------------------------------------- Personal
 const staff = {
   id: "staff", title: "Personal", icon: "staff",
@@ -232,22 +273,32 @@ const finance = {
 
 // ---------------------------------------------------------------- Angebot an Bord
 const offer = {
-  id: "offer", title: "Angebot an Bord", icon: "offer",
+  id: "offer", title: "Service", icon: "offer",
   render(ctx) {
-    const a = ctx.state.airline;
-    return html`<div class="opt-list">${Object.entries(CATERING.modes).map(([k, m]) => html`<label><input type="radio" name="catering" value="${k}" data-act="catering" ${a.catering === k ? "checked" : ""}>
+    const a = ctx.state.airline, h = handlerOf(ctx.state);
+    return html`<h4 class="fhead">Bodenabfertigung</h4>
+      <div class="opt-list">${Object.entries(HANDLERS).filter(([k]) => !["rush", "default"].includes(k)).map(([k, m]) => html`<label><input type="radio" name="handler" value="${k}" data-act="handler" ${a.handler === k ? "checked" : ""}>
+        <div><b>${m.label}</b> <span class="pill ${m.rep > 0 ? "good" : m.rep < 0 ? "bad" : ""}">Ruf ${m.rep > 0 ? "+" : ""}${m.rep}</span>
+        <div class="small muted">${m.desc}</div>
+        <div class="small muted">Standzeit ${Math.round(m.turnaround * 100)} % · Verspätung ${Math.round(m.delayChance * 100)} % je Umlauf · Kosten ${Math.round(m.costFactor * 100)} %</div></div></label>`)}</div>
+      <h4 class="fhead">Bordverpflegung</h4>
+      <div class="opt-list">${Object.entries(CATERING.modes).map(([k, m]) => html`<label><input type="radio" name="catering" value="${k}" data-act="catering" ${a.catering === k ? "checked" : ""}>
       <div><b>${m.label}</b> <span class="pill ${m.rep > 0 ? "good" : m.rep < 0 ? "bad" : ""}">Reputation ${m.rep > 0 ? "+" : ""}${m.rep}</span>
       <div class="small muted">${k === "free" ? "Essen und Getränke in allen Klassen inklusive. Teuer, Passagiere lieben es." : k === "mixed" ? "Premium-Klassen inklusive, Economy kauft an Bord." : "Alles kostenpflichtig – Extra-Umsatz, aber weniger Zufriedenheit."}</div></div></label>`)}</div>
       <div class="card" style="margin-top:10px"><div class="row"><b class="grow">Gepäckgebühr Economy</b><b data-bag class="acc">$${a.bagFee}</b></div>
         <input type="range" min="0" max="${BAGS.maxFee}" step="5" value="${a.bagFee}" data-act="bag" style="margin-top:8px">
         <p class="small muted">Höhere Gebühren bringen pro Koffer mehr, aber weniger Passagiere zahlen sie – und die Reputation sinkt (bis −${BAGS.repCap}).</p></div>`;
   },
-  change: ctx => ({ catering: el => ctx.run(act.setCatering, el.value), bag: el => ctx.run(act.setBagFee, el.value) }),
+  change: ctx => ({
+    catering: el => ctx.run(act.setCatering, el.value),
+    bag: el => ctx.run(act.setBagFee, el.value),
+    handler: el => { const r = ctx.run(act.setHandler, el.value); if (r) ctx.toast(`${r.handler.label} beauftragt.`, "good"); }
+  }),
   input: () => ({ bag: el => { el.closest(".card").querySelector("[data-bag]").textContent = "$" + el.value; } })
 };
 
 // ---------------------------------------------------------------- Reputation
-const LABELS = { preis: "Preisfairness", komfort: "Kabinenkomfort", bordservice: "Bordservice", gepaeck: "Gepäckgebühr", schulung: "Schulung", personal: "Personalbesetzung", sicherheit: "Vorfälle", unfallfrei: "Unfallfreie Zeit" };
+const LABELS = { abfertigung: "Bodenabfertigung", preis: "Preisfairness", komfort: "Kabinenkomfort", bordservice: "Bordservice", gepaeck: "Gepäckgebühr", schulung: "Schulung", personal: "Personalbesetzung", sicherheit: "Vorfälle", unfallfrei: "Unfallfreie Zeit" };
 
 const reputation = {
   id: "rep", title: "Reputation", icon: "airline",
@@ -330,4 +381,4 @@ const account = {
   })
 };
 
-export const AIRLINE_SECTIONS = [overview, goals, fleet, staff, finance, offer, reputation, company, account];
+export const AIRLINE_SECTIONS = [overview, goals, departures, fleet, staff, finance, offer, reputation, company, account];

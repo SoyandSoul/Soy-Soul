@@ -15,6 +15,8 @@ import { goalProgress, nextGoal, GOALS } from "../js/sim/goals.js";
 import { commonality } from "../js/sim/commonality.js";
 import { routeOutlook } from "../js/sim/demand.js";
 import { AIRCRAFT_BY_ID } from "../js/data/aircraft.js";
+import { turnaroundHours, rushCost, rushSaving, departureBoard, rushAllQuote } from "../js/sim/handling.js";
+import { tally, rateRoute, routeReport } from "../js/sim/report.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
 import { AIRCRAFT } from "../js/data/aircraft.js";
@@ -278,6 +280,65 @@ test("Streckenbewertung warnt vor Überversorgung", () => {
   const summer = routeOutlook(s, "FRA", "PMI", big, null, Date.UTC(2026, 6, 15));
   const winter = routeOutlook(s, "FRA", "PMI", big, null, Date.UTC(2026, 10, 15));
   assert.ok(summer.bookable > winter.bookable * 1.2, `Saison fehlt: Sommer ${summer.bookable}, Winter ${winter.bookable}`);
+});
+
+test("Abfertiger wirkt auf Standzeit, Kosten und Ruf", () => {
+  const { s } = setup(1);
+  const [ac] = s.fleet;
+  const std = turnaroundHours(s, ac);
+  assert.ok(act.setHandler(s, "budget").ok);
+  const cheap = turnaroundHours(s, ac);
+  assert.ok(act.setHandler(s, "premium").ok);
+  const fast = turnaroundHours(s, ac);
+  assert.ok(cheap > std && std > fast, `Standzeiten müssen sich staffeln: ${cheap} / ${std} / ${fast}`);
+  assert.ok(!act.setHandler(s, "rush").ok, "rush ist kein wählbarer Abfertiger");
+  assert.ok(!act.setHandler(s, "gibtsnicht").ok);
+});
+
+test("Schnellabfertigung: Preis nach gesparter Zeit, Abflug rückt vor", () => {
+  const { s, route, start } = setup(1);
+  const [ac] = s.fleet;
+  assert.ok(act.assign(s, ac.id, route.id, start).ok);
+  const now = start + 6 * H;
+  settle(s, now);
+  const board = departureBoard(s, now);
+  if (!board.length) { assert.ok(true, "gerade nichts am Gate"); return; }
+  const d = board[0];
+  // Preis skaliert mit der Restzeit: später drücken heißt weniger sparen und weniger zahlen
+  assert.ok(rushCost(s, d.ac, d.left) >= rushCost(s, d.ac, d.left / 2), "Preis muss mit der Restzeit fallen");
+  assert.ok(rushSaving(d.left) > 0 && rushSaving(d.left) < d.left, "Vorziehen kürzt, ersetzt die Abfertigung aber nicht");
+  const before = d.ac.ops.dep, cash = s.cash;
+  const r = act.rushDeparture(s, d.ac.id, now);
+  if (d.rushable) {
+    assert.ok(r.ok, r.msg);
+    assert.equal(d.ac.ops.dep, before - r.saved);
+    assert.ok(s.cash < cash, "Schnellabfertigung muss Geld kosten");
+    assert.ok(d.ac.ops.dep > now, "ein Flugzeug kann nicht ohne Abfertigung starten");
+  }
+  // Zweimal drücken bringt nichts mehr, wenn es gleich losgeht
+  const q = rushAllQuote(s, now);
+  assert.equal(q.total, q.list.reduce((a, x) => a + x.cost, 0));
+});
+
+test("Streckenbewertung: Sterne, Teilnoten und Hinweis", () => {
+  const { s, route, start } = setup(2);
+  for (const ac of s.fleet) assert.ok(act.assign(s, ac.id, route.id, start).ok);
+  assert.equal(rateRoute(s, route.id, start), null, "unter zwei Flügen gibt es keine Bewertung");
+  const now = start + 10 * DAY;
+  settle(s, now);
+  const rr = rateRoute(s, route.id, now);
+  assert.ok(rr, "nach zehn Tagen muss eine Bewertung dastehen");
+  assert.ok(rr.stars >= 0 && rr.stars <= 5, rr.stars);
+  assert.equal(rr.parts.length, 3);
+  for (const p of rr.parts) assert.ok(p.score >= 0 && p.score <= 1, `${p.key}: ${p.score}`);
+  assert.equal(rr.weakest, rr.parts.slice().sort((a, b) => a.score - b.score)[0]);
+  assert.ok(rr.hint.length > 20);
+  // FRA–PMI ist bewusst überversorgt: die Auslastung muss die schwächste Note sein
+  assert.equal(rr.weakest.key, "Auslastung", `erwartet schwache Auslastung, war ${rr.weakest.key}`);
+  assert.ok(routeReport(s, now).length >= 1);
+  const t = tally(s.flights.slice(0, 5));
+  assert.ok(t.legs === 5 && t.pax > 0 && t.lf > 0 && t.onTime <= 1);
+  assert.equal(tally([]), null);
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.20",
+  label: "v0.21",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -107,6 +107,33 @@ export const STAFF = {
 };
 
 export const FIXED = { insurancePerMPerDay: 25, parkingPerDay: { narrow: 150, wide: 400, jumbo: 700 } };
+
+// Bodenabfertigung. In der Realität kaufen Airlines das an fast allen Stationen zu – vom billigen
+// Dienstleister bis zum Premiumanbieter mit eigener Crew. Das entscheidet über Standzeit und Pünktlichkeit.
+export const HANDLERS = {
+  budget: {
+    label: "Sparanbieter", short: "günstig",
+    desc: "Knapp besetzt und oft im Verzug. Gepäck geht häufiger verloren, Gäste warten.",
+    turnaround: 1.25,            // Faktor auf die Standzeit
+    delayChance: 0.22,           // Wahrscheinlichkeit je Umlauf für zusätzliche Verspätung
+    delayMin: [15, 55],          // Spanne dieser Verspätung
+    costFactor: 0.7,             // Faktor auf Turnaround- und Handlingkosten
+    rep: -7
+  },
+  standard: {
+    label: "Standardabfertiger", short: "ausgewogen",
+    desc: "Solide Arbeit zu üblichen Konditionen – der Normalfall an den meisten Flughäfen.",
+    turnaround: 1.0, delayChance: 0.08, delayMin: [10, 30], costFactor: 1.0, rep: 0
+  },
+  premium: {
+    label: "Premiumabfertiger", short: "teuer",
+    desc: "Eigene Teams, Priorität am Gate, kaum Verzug. Gäste merken den Unterschied.",
+    turnaround: 0.82, delayChance: 0.02, delayMin: [5, 15], costFactor: 1.55, rep: 7
+  },
+  // Schnellabfertigung auf Zuruf: Priorität am Gate gegen Aufpreis, verkürzt die laufende Standzeit.
+  rush: { cut: 0.45, costPerSeat: 26, minCost: 400, repPerUse: 0 },
+  default: "standard"
+};
 
 export const CATERING = {
   modes: {

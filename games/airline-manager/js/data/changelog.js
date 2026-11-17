@@ -6,6 +6,17 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.21", date: "17.11.2026", title: "Abflüge und Flugabrechnung",
+    intro: "Flüge liefen bisher im Hintergrund durch – man sah weder, was gerade am Gate steht, noch was eine Strecke tatsächlich einbringt.",
+    items: [
+      ["neu", "Abflug-Bereich im Airline-Panel: alle Flugzeuge am Gate mit laufender Restzeit, Grund einer Verspätung und den Zahlen der letzten sechs Stunden."],
+      ["neu", "Schnellabfertigung: Priorität am Gate kürzt die laufende Standzeit um 45 %. Der Preis richtet sich nach der gesparten Zeit, einzeln oder für alle auf einmal. Ohne dich starten die Flugzeuge trotzdem pünktlich – Anwesenheit wird belohnt, Abwesenheit nicht bestraft."],
+      ["neu", "Bodenabfertigung wählbar: Sparanbieter, Standard oder Premium. Das verschiebt Standzeit, Verspätungsrisiko, Handlingkosten und Reputation gegeneinander."],
+      ["neu", "Flugabrechnung: Fenster mit Zeiträumen von 6 Stunden bis 7 Tage, Umsatz und Kosten nach Posten, dazu jeder einzelne Flug zum Aufklappen."],
+      ["neu", "Streckenbewertung mit Sternen aus Auslastung, Pünktlichkeit und Ertrag je Sitz – inklusive Hinweis, woran die schwächste Note hängt."]
+    ]
+  },
+  {
     v: "v0.20", date: "17.11.2026", title: "Änderungsverlauf im Spiel",
     intro: "Bisher stand nur im Projekt-README, was sich geändert hat.",
     items: [

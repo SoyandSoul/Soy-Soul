@@ -272,6 +272,25 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.21 – Abflüge und Flugabrechnung** (Paket 3)
+- `sim/handling.js`: Bodenabfertigung als Airline-Einstellung (`airline.handler`, Konfiguration unter
+  `HANDLERS`). Der gewählte Abfertiger skaliert die Standzeit (`turnaroundHours(state, ac)`, ersetzt
+  `turnaroundH(type)`), die Handlingkosten (`costFactor`) und den Reputationsfaktor `abfertigung`; dazu
+  kommt eine eigene deterministische Verspätungsquelle `handlerDelay`.
+- Verspätungen werden in `engine.js` jetzt als Liste von Quellen gesammelt (Defekt, Wetter,
+  Personalmangel, Abfertiger) und summiert, statt sich gegenseitig zu überschreiben – die Abrechnung
+  nennt den Grund.
+- Schnellabfertigung: `rushDeparture` / `rushAll` kürzen die laufende Standzeit um `rush.cut`. Der Preis
+  skaliert mit der Restzeit (`rushCost(state, ac, left)`), damit spätes Drücken weder teuer noch nutzlos
+  ist. Flugzeuge starten weiterhin ohne Zutun – der Knopf macht es nur schneller (Punkt 6 und 22 der
+  Wunschliste vertragen sich so).
+- `sim/report.js`: `tally`, `legsSince`, `rateRoute` (0–5 Sterne aus Auslastung, Pünktlichkeit und
+  Ertrag je Sitz gegen `refFare`, dazu Hinweis auf die schwächste Teilnote) und `routeReport`.
+- Neu im Airline-Panel: Bereich **Abflüge** (Zahlen der letzten sechs Stunden, Gate-Liste mit laufender
+  Restzeit über `tick`, Vorziehen einzeln oder gesammelt) und Abfertigerwahl im Bereich **Service**.
+- Neues Fenster **Flugabrechnung** (`ui/apps/report.js`): Zeiträume 6 h / 24 h / 7 Tage, Umsatz und
+  Kosten nach Posten, Streckenbewertung mit Sternen, jeder Flug einzeln aufklappbar.
+
 **v0.20 – Änderungsverlauf im Spiel**
 - Knopf unten im Airline-Panel („Airline Manager v0.20 · Was ist neu") öffnet den Verlauf aller Versionen
   seit Projektbeginn (`data/changelog.js`, `ui/apps/changelog.js`). Nach einem Update erscheint dort ein

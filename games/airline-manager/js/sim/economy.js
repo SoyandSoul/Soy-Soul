@@ -5,6 +5,7 @@ import { condEffects } from "./market.js";
 import { cabinCrew, staffEffects } from "./staff.js";
 import { reserveForLeg } from "./lease.js";
 import { commonality } from "./commonality.js";
+import { handlerOf } from "./handling.js";
 import { CABIN, CARGO, FEES, STAFF, CATERING, BAGS, FIXED, H } from "../core/config.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { typeOf, routeDistance, blockHours, cargoCapacityKg, totalSeats } from "./flight.js";
@@ -49,7 +50,7 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   const pilots = pilotsFor(bh), cabin = cabinCrew(ac);
   cost.crew = (pilots * STAFF.allowancePerH.pilot + cabin * STAFF.allowancePerH.cabin) * bh * wage;
   cost.fees = t.mtowT * (FEES.landingPerT[from.tier] + FEES.landingPerT[to.tier]) / 2 + paxTotal * FEES.paxFee[from.tier];
-  cost.handling = FEES.turnaroundBase[t.size] + paxTotal * FEES.handlingPerPax;
+  cost.handling = (FEES.turnaroundBase[t.size] + paxTotal * FEES.handlingPerPax) * handlerOf(state).costFactor;
   cost.nav = FEES.navPerKm * km * Math.sqrt(t.mtowT / 50);
   cost.sales = rev.tickets * FEES.distribution;
   cost.catering = CABIN.classes.reduce((s, c) => s + b.pax[c] * cat.costPerPax[c], 0) * (km > 3000 ? 1.8 : 1);
