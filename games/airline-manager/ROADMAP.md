@@ -14,6 +14,11 @@ Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.31**
 > Flottenvereinheitlichung sind als v0.19 fertig. Umsteiger am Drehkreuz als v0.29, geführter
 > Einstieg, Benachrichtigungen und Balance-Werkzeug als v0.28, IROPS als v0.30.
 > **Zurückgestellt:** Paket 1 (Flugzeugformen) – auf Noahs Wunsch später, zusammen mit den Norebbo-Vorlagen.
+>
+> **Damit ist die Wunschliste abgearbeitet.** Offen bleiben nur zwei Dinge, die nicht am Code hängen:
+> die Flugzeugformen (Paket 1, braucht die heruntergeladenen Vorlagen) und der Supabase-Server für
+> die Online-Börse (Paket 9, Spielseite ist fertig). Was danach sinnvoll wäre, steht unter
+> „Was als Nächstes sinnvoll wäre" ganz unten.
 
 ---
 
@@ -239,3 +244,23 @@ Paket 9  (Online)        ── braucht Supabase
 4. Version an drei Stellen hochzählen: `core/config.js` (GAME.label), `index.html` (ver der Spielkarte),
    README → „Änderungen"
 5. Nach Freigabe auf `main` pushen
+
+---
+
+## Was als Nächstes sinnvoll wäre
+
+Nichts davon steht auf Noahs Liste – das sind Beobachtungen aus dem Bauen und aus den Messungen.
+
+1. **Zweites Drehkreuz als echtes Thema.** Der Ausbau hängt schon je Flughafen, und `hubRep` mittelt
+   über alle Drehkreuze. Was fehlt: ein Grund, eines zu eröffnen (eigene Nachfrage, eigene Wellen)
+   und ein Preis dafür. Aktuell verwässert ein zweites Drehkreuz nur den Ruf.
+2. **Langstrecke lohnt sich zu wenig.** Die Ertragskurve je Kilometer ist bewusst degressiv
+   (`CABIN.refFare.taper`), damit Regionalflüge nicht chancenlos sind. Mit Umsteigern hat sich das
+   Gleichgewicht verschoben: Lange Zubringerstrecken bringen jetzt doppelt. Einmal nachmessen.
+3. **Reputation bewegt sich spät kaum noch.** Nach 90 Tagen pendelt sie um 50, weil Störfälle und
+   Ausbau sich aufheben. Entweder die Spanne dehnen oder langfristige Treiber ergänzen.
+4. **Flugzeugtypen jenseits der A320-Familie.** Die Balance ist fast ausschließlich an Schmalrumpf
+   gemessen. Großraum und Regionaljets brauchen eigene Szenarien im Balance-Werkzeug.
+5. **Mehrere Flugzeuge je Strecke sauberer abbilden.** Die Nachfrage wird über `flightsPerDay`
+   geteilt, aber die Abflugzeiten stapeln sich – zwei Maschinen auf einer Strecke starten oft fast
+   gleichzeitig. Eine Taktverschiebung wäre realistischer und würde Umsteiger weiter aufwerten.
