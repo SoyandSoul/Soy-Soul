@@ -12,7 +12,13 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.32",
+  label: "v0.33",
+  // Wie die Flugzeuge aussehen:
+  //   "foto"  – abfotografierte Seitenrisse aus img/aircraft (js/data/photos.js).
+  //             Dafür entfällt die Lackiererei: Ein Bild lässt sich nicht bemalen.
+  //   "lack"  – gezeichnete Vektorflugzeuge aus js/art/render.js, dafür mit eigener Livery.
+  // Typen ohne Bild werden auch im Fotomodus gezeichnet.
+  art: "foto",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)

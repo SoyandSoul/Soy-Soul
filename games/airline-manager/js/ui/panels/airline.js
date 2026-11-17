@@ -3,7 +3,7 @@
 
 import { html, raw } from "../dom.js";
 import { fmt } from "../../core/util.js";
-import { STAFF, CATERING, ONBOARD, BAGS, CONTRACT, FLIGHT, MARKETING } from "../../core/config.js";
+import { STAFF, CATERING, ONBOARD, BAGS, CONTRACT, FLIGHT, MARKETING, GAME } from "../../core/config.js";
 import { AIRPORT_BY_IATA, searchAirports } from "../../data/airports.js";
 import { CONTRACT_MAKERS } from "../../data/aircraft.js";
 import { statement, REV_BLOCKS } from "../../sim/finance.js";
@@ -463,8 +463,8 @@ const company = {
   render(ctx, v) {
     const s = ctx.state, c = s.airline.contract;
     return html`
-      <div class="card row"><div class="grow"><b>Lackiererei</b><div class="small muted">Eigene Livery für die ganze Flotte malen – oder eine Vorlage wählen.</div></div>
-        <button class="btn sm p" data-act="paint">Öffnen</button></div>
+      ${GAME.art === "lack" ? html`<div class="card row"><div class="grow"><b>Lackiererei</b><div class="small muted">Eigene Livery für die ganze Flotte malen – oder eine Vorlage wählen.</div></div>
+        <button class="btn sm p" data-act="paint">Öffnen</button></div>` : ""}
       <h4 class="fhead">Herstellervertrag</h4>
       <p class="small muted">${CONTRACT.baseDiscount * 100} % Grundrabatt, Mengenrabatte und −${CONTRACT.maintDiscount * 100} % auf Checks – sperrt aber Neubestellungen beim anderen Hersteller.</p>
       <div class="grid2" style="margin-top:8px">${CONTRACT_MAKERS.map(m => html`<div class="card"><b>${m}</b>

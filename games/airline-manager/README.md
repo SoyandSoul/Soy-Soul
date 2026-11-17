@@ -75,6 +75,7 @@ games/airline-manager/
 │     └─ apps/             hangar, shop, routes, maint, fuel, stocks, leaderboard, logbook
 ├─ lib/                    MapLibre GL (Kopie aus history-shots)
 ├─ data/profiles.json      abgepauste Blaupausen-Profile aller 57 Typen (tools/trace_profiles.py)
+├─ img/aircraft/*.png      freigestellte Seitenrisse für den Fotomodus (tools/crop_sideviews.py)
 ├─ tools/
 │  ├─ trace_profiles.py      Seitenansichten automatisch abpausen → profiles.json
 │  ├─ profil-werkstatt.html  Blaupausen von Hand abpausen → profiles.json (im Browser öffnen)
@@ -274,6 +275,23 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
 
 ## Änderungen
+
+**v0.33 – Echte Seitenrisse**
+- Neuer Schalter `GAME.art` in `js/core/config.js`: `"foto"` zeigt die Seitenrisse aus
+  `img/aircraft/`, `"lack"` schaltet zurück auf die gezeichneten Vektorflugzeuge mit Lackiererei.
+  Umgeschaltet wird an genau einer Stelle, `sideView()` in `js/ui/aircraftArt.js`; der
+  Vektor-Renderer, `data/profiles.json` und die Livery-Werkzeuge bleiben unangetastet.
+- `tools/crop_sideviews.py` bereitet die Vorlagen auf: Sie zeigen dasselbe Flugzeug zweimal
+  übereinander. Genommen wird die obere Ansicht (Fahrwerk eingefahren), weil sich nur sie sauber
+  abtrennen lässt – nach oben begrenzt nichts, nach unten ein Fenster, dessen Höhe aus
+  Höhe/Länge des echten Typs und der gezeichneten Länge in Pixeln kommt. Freigestellt wird über
+  dieselbe Silhouette wie beim Blaupausen-Tracer, nicht über „Weiß durchsichtig machen": Das
+  Flugzeug ist ja selbst weiß.
+- `js/data/photos.js` hält die Bildgröße je Typ. Daraus rechnet die UI dieselben
+  Meter-Koordinaten wie bei den Vektoren, damit der Größenvergleich zwischen den Typen stimmt.
+- Zehn Typen haben noch kein Bild (A220-100/-300, 737-900ER, CRJ-200/700/900, E170, E175,
+  ERJ 145, Concorde). Für sie greift automatisch der Vektor-Renderer.
+- Seitenrisse: Vorlagen von Norebbo (norebbo.com), mit Erlaubnis verwendet.
 
 **v0.32 – Neunzehn neue Flugzeuge**
 - Katalog von 38 auf 57 Typen: A300-600R, A310-300, A318, A340-500, 737-600, 737 MAX 7/8/9/10,

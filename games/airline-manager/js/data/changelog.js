@@ -6,6 +6,16 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.33", date: "17.11.2026", title: "Echte Seitenrisse",
+    intro: "Die Flugzeuge sind jetzt abfotografierte Seitenrisse statt gezeichneter Umrisse.",
+    items: [
+      ["neu", "47 der 57 Typen zeigen einen echten Seitenriss mit Schattierung, Fenstern und Türen – in Markt, Hangar, Flotte und auf der Flugkarte."],
+      ["besser", "Der Größenvergleich bleibt ehrlich: Alle Bilder stehen im selben Maßstab, eine A380 ist neben einer CRJ-200 so groß wie in echt."],
+      ["besser", "Die Lackiererei ruht so lange. Ein Bild lässt sich nicht bemalen; die Vektorflugzeuge und die Livery-Werkzeuge bleiben im Code und sind über einen Schalter wieder einschaltbar."],
+      ["besser", "Zehn Typen haben noch kein Bild – A220-100 und -300, 737-900ER, CRJ-200/700/900, E170, E175, ERJ 145 und die Concorde. Die werden weiter gezeichnet."]
+    ]
+  },
+  {
     v: "v0.32", date: "17.11.2026", title: "Neunzehn neue Flugzeuge",
     intro: "Der Katalog wächst von 38 auf 57 Typen – und die Hecktriebwerker sehen endlich aus wie Hecktriebwerker.",
     items: [
