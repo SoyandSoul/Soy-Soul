@@ -291,7 +291,7 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
   Meter-Koordinaten wie bei den Vektoren, damit der Größenvergleich zwischen den Typen stimmt.
 - Zehn Typen haben noch kein Bild (A220-100/-300, 737-900ER, CRJ-200/700/900, E170, E175,
   ERJ 145, Concorde). Für sie greift automatisch der Vektor-Renderer.
-- Seitenrisse: Vorlagen von Norebbo (norebbo.com), mit Erlaubnis verwendet.
+- Seitenrisse: all rights reserved to Norebbo (norebbo.com), mit Erlaubnis verwendet.
 
 **v0.32 – Neunzehn neue Flugzeuge**
 - Katalog von 38 auf 57 Typen: A300-600R, A310-300, A318, A340-500, 737-600, 737 MAX 7/8/9/10,
