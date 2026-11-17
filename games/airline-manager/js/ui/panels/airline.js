@@ -13,11 +13,15 @@ import { companyValue } from "../../sim/stocks.js";
 import { repFactors, repTarget } from "../../sim/reputation.js";
 import { typeOf, routeDistance, positionAt } from "../../sim/flight.js";
 import { leaseFrame, monthlyObligation, isLeased } from "../../sim/lease.js";
+import { goalProgress, nextGoal, rewardText, GOAL_GROUPS } from "../../sim/goals.js";
+import { commonality, commonalityNote } from "../../sim/commonality.js";
 import * as act from "../../sim/actions.js";
 import { exportSave, importSave } from "../../core/store.js";
 import { online, cloudSave } from "../../net/backend.js";
 
 const pct = x => Math.round(x * 100) + " %";
+/** Faktor 0,82 → "−18 %" */
+const pctDiff = f => (f <= 1 ? "−" : "+") + Math.abs(Math.round((f - 1) * 100)) + " %";
 const sign = v => (v >= 0 ? "+" : "") + fmt.money(v);
 
 // ---------------------------------------------------------------- Übersicht
@@ -51,6 +55,36 @@ const overview = {
   },
   click: (ctx, v, api) => ({ goStaff: () => { v.open = "staff"; api.rerender(); } })
 };
+
+// ---------------------------------------------------------------- Ziele
+const goals = {
+  id: "goals", title: "Ziele", icon: "board",
+  badge(ctx) {
+    const gp = goalProgress(ctx.state, ctx.now());
+    const open = gp.filter(g => !g.done).length;
+    return open ? { n: `${gp.length - open}/${gp.length}`, kind: "" } : { n: "✓", kind: "" };
+  },
+  render(ctx) {
+    const gp = goalProgress(ctx.state, ctx.now()), now = ctx.now();
+    const next = nextGoal(ctx.state, now);
+    const done = gp.filter(g => g.done).length;
+    return html`
+      ${next ? html`<div class="note info"><b>Als Nächstes: ${next.title}</b><span>${next.hint}</span></div>`
+        : html`<div class="note good"><b>Alle Ziele erreicht</b><span>Respekt – die Airline läuft.</span></div>`}
+      <div class="row small muted" style="margin-top:8px"><span class="grow">${done} von ${gp.length} erreicht</span>
+        <span>${ctx.state.airline.frameBonus ? `Leasingrahmen aus Zielen: ${fmt.money(ctx.state.airline.frameBonus)}/Monat` : ""}</span></div>
+      <div class="bar" style="margin-top:4px"><i style="width:${done / gp.length * 100}%;background:var(--accent)"></i></div>
+      ${GOAL_GROUPS.map(grp => html`<div class="goal-head"><h4>${grp}</h4></div>
+        ${gp.filter(g => g.group === grp).map(g => html`<div class="goal ${g.done ? "done" : ""}">
+          <div class="row"><b class="grow">${g.done ? html`<span class="tick">✓</span> ` : ""}${g.title}</b>
+            <span class="reward">${rewardText(g.reward)}</span></div>
+          ${g.done ? "" : html`<div class="bar"><i style="width:${g.pct * 100}%;background:var(--${g.pct > 0.66 ? "good" : g.pct > 0.3 ? "warn" : "accent"})"></i></div>
+            <small>${g.hint} · ${fmtGoal(g)}</small>`}
+        </div>`)}`)}`;
+  }
+};
+
+const fmtGoal = g => g.target >= 1000 ? `${fmt.int(g.cur)} von ${fmt.int(g.target)}` : g.target === 1 ? "noch offen" : `${fmt.dec(g.cur)} von ${g.target}`;
 
 // ---------------------------------------------------------------- Flotte
 const FLEET_GROUPS = [["air", "In der Luft"], ["ground", "Am Boden"], ["idle", "Ohne Strecke"], ["check", "In Wartung"], ["delivery", "In Auslieferung"]];
@@ -92,7 +126,11 @@ const fleet = {
     for (const a of s.fleet) { if (a.status === "crashed") continue; (by[fleetGroup(ctx, a)] ||= []).push(a); }
     const groups = FLEET_GROUPS.map(([id, label]) => [id, label, by[id] || []]).filter(([, , l]) => l.length);
     if (!s.fleet.length) return html`<div class="empty"><b>Noch keine Flugzeuge</b>Im Betriebs-Panel rechts den Flugzeugmarkt öffnen.</div>`;
-    return html`${groups.map(([id, label, list]) => html`
+    const c = commonality(s);
+    return html`${c.active ? html`<div class="note ${c.bonus > 0.4 ? "good" : c.penalty ? "warn" : ""}">
+        <b>Flottenstruktur: ${c.families} Baureihe${c.families === 1 ? "" : "n"}</b>
+        <span>${commonalityNote(c)} Wartung ${pctDiff(c.maint)}, Cockpit-Bedarf ${pctDiff(c.cockpit)}, Schulung ${pctDiff(c.training)}.</span></div>` : ""}
+      ${groups.map(([id, label, list]) => html`
       <div class="fgroup"><h4>${label}<span>${list.length}</span></h4>${list.map(a => aircraftRow(ctx, a))}</div>`)}
       <div class="row" style="margin-top:10px"><button class="btn sm grow" data-act="hangar">Hangar öffnen</button><button class="btn sm grow" data-act="shop">Flugzeug kaufen</button></div>`;
   },
@@ -292,4 +330,4 @@ const account = {
   })
 };
 
-export const AIRLINE_SECTIONS = [overview, fleet, staff, finance, offer, reputation, company, account];
+export const AIRLINE_SECTIONS = [overview, goals, fleet, staff, finance, offer, reputation, company, account];

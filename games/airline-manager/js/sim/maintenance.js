@@ -1,6 +1,7 @@
 // Wartung: A-, B-, C-, D-Checks nach Flugstunden oder Kalendertagen (was zuerst eintritt).
 // Überfällige Checks laufen ins Minus. Je weiter im Minus, desto höher das Risiko für Vorfälle und Abstürze.
 
+import { commonality } from "./commonality.js";
 import { condEffects } from "./market.js";
 import { CHECKS, CONTRACT, DAY, H } from "../core/config.js";
 import { typeOf } from "./flight.js";
@@ -60,7 +61,7 @@ export function checkCost(state, ac, check) {
   const t = typeOf(ac);
   let cost = CHECKS[check].cost[t.size];
   if (state.airline.contract?.maker === t.maker) cost *= 1 - CONTRACT.maintDiscount;
-  return cost;
+  return cost * commonality(state).maint;   // einheitliche Flotte: ein Ersatzteillager, geschulte Techniker
 }
 
 /** Check starten. Flugzeug muss am Boden am Heimatdrehkreuz stehen. */

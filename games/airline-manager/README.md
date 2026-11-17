@@ -271,6 +271,26 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.19 – Ziele, Streckenbewertung, Flottenvereinheitlichung**
+- **Ziele und Meilensteine** (`sim/goals.js`): 20 Ziele in fünf Gruppen (Aufbau, Betrieb, Flotte, Netz,
+  Wirtschaft) mit Fortschrittsbalken und Belohnung – Einmalzahlung, dauerhafter Leasingrahmen oder
+  Reputation. Vorher konnte man ewig spielen, ohne je ein Etappenziel zu erreichen. Das Panel zeigt
+  „Als Nächstes" und schlägt dabei immer aus der frühesten offenen Gruppe vor.
+  Dafür führt der Spielstand jetzt eine dauerhafte Statistik (`state.stats`: Passagiere, Flüge, Kilometer,
+  angeflogene Ziele, letzte große Verspätung, letzter überzogener Check) – `state.flights` ist gedeckelt
+  und taugte dafür nicht.
+- **Streckenbewertung vor dem Zuweisen** (`sim/demand.js → routeOutlook`, `ui/outlook.js`): zeigt buchbare
+  Nachfrage, erwartete Auslastung und wie viele Flugzeuge dieses Typs die Strecke sinnvoll trägt – im Hangar
+  und in der Routen-App, live beim Umschalten. Vorher konnte man blind eine dünne Strecke überversorgen und
+  verlor Geld, ohne je gewarnt worden zu sein. Die Bewertung mittelt eine Woche und ist damit saisonal:
+  Palma im Juli trägt deutlich mehr als im November.
+- **Flottenvereinheitlichung** (`sim/commonality.js`): Wer überwiegend eine Baureihe fliegt, spart bis zu
+  18 % Wartung, 15 % Cockpit-Bedarf und 25 % Schulungs- und Einstellungskosten (gemeinsames Type Rating,
+  ein Ersatzteillager). Ab vier Baureihen gibt es stattdessen Aufschlag, bis +20 %. Unter drei Flugzeugen
+  passiert nichts. Anzeige im Flottenabschnitt.
+- Tests: 19 (neu: Ziele schalten frei und belohnen genau einmal, Vereinheitlichung mit Bonus und Malus,
+  Streckenbewertung warnt vor Überversorgung und bildet die Saison ab).
+
 **v0.18 – Leasing** (vorgezogen aus Paket 6, löst die langsame Amortisation aus v0.17)
 - **Flugzeuge leasen statt kaufen** (`sim/lease.js`): Kaution plus Monatsrate statt Kaufpreis, dazu
   Wartungsrücklagen pro Flugstunde an den Leasinggeber. So wachsen echte Airlines – die meisten besitzen

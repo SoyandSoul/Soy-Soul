@@ -21,6 +21,7 @@ import { aircraftValue } from "./market.js";
 import { weatherDelay } from "./weather.js";
 import { salaryPerDay, staffEffects } from "./staff.js";
 import { rentPerDay, isLeased, returnSettlement, termOf } from "./lease.js";
+import { newlyReached, applyReward } from "./goals.js";
 
 const MAX_STEPS = 200_000;
 
@@ -73,6 +74,17 @@ function leaseRollover(state, now, quiet) {
   }
 }
 
+/** Erreichte Ziele freischalten und belohnen. */
+function checkGoals(state, now, report, quiet) {
+  for (const g of newlyReached(state, now)) {
+    state.goals.done.push(g.id);
+    const txt = applyReward(state, g.reward);
+    log(state, now, "good", `Ziel erreicht: ${g.title}${txt ? ` – ${txt}` : ""}.`);
+    (report.goals ||= []).push(g);
+    if (!quiet) bus.emit("goal", { goal: g, reward: txt });
+  }
+}
+
 function log(state, ts, kind, text) {
   state.log.unshift({ t: ts, kind, text });
   if (state.log.length > 200) state.log.length = 200;
@@ -115,6 +127,7 @@ export function settle(state, now, { quiet = false } = {}) {
   }
 
   state.lastSettled = now;
+  checkGoals(state, now, report, quiet);
   prune(state);
   return report;
 }
@@ -143,6 +156,12 @@ function process(state, ac, ts, report, quiet, staffEff) {
   addFlightHours(ac, leg.blockH - 0.3);
   updateRep(state, leg.arr, leg);
   report.legs++; report.profit += leg.profit;
+  // Dauerhafte Statistik (state.flights ist gedeckelt und taugt dafür nicht)
+  const st = state.stats;
+  st.pax += leg.paxTotal; st.legs++; st.km += leg.km;
+  if (!st.dest.includes(leg.to)) st.dest.push(leg.to);
+  if (leg.delay >= 30) st.lastBigDelay = leg.arr;
+  if (mostUrgent(ac, leg.arr)?.overdue) st.lastOverdue = leg.arr;
   route.stats ||= { legs: 0, pax: 0, profit: 0 };
   route.stats.legs++; route.stats.pax += leg.paxTotal; route.stats.profit += leg.profit;
 

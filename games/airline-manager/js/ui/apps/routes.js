@@ -8,6 +8,7 @@ import { routeDistance, routeProblems, typeOf, blockHours } from "../../sim/flig
 import { demandPreview, refFare, seasonOf, effectivePrice, seasonFactor } from "../../sim/demand.js";
 import { flightsPerDay } from "../../sim/engine.js";
 import * as act from "../../sim/actions.js";
+import { outlookFor } from "../outlook.js";
 
 const SEASON = { peak: ["Hochsaison", "good"], off: ["Nebensaison", "info"], normal: ["Normal", ""] };
 
@@ -53,7 +54,16 @@ export default {
   },
 
   change(ctx, v, api) {
-    return { from: el => { v.from = el.value; api.rerender(); } };
+    return {
+      from: el => { v.from = el.value; api.rerender(); },
+      // Streckenbewertung zum gewählten Flugzeug nachziehen
+      pickAc: el => {
+        const ac = ctx.state.fleet.find(a => a.id === el.value);
+        const r = ctx.state.routes.find(x => x.id === v.detail);
+        const box = el.closest(".body")?.querySelector("[data-outlook]");
+        if (box) box.innerHTML = r && ac ? outlookFor(ctx, r, ac).s : "";
+      }
+    };
   },
 
   input(ctx, v, api) {
@@ -150,7 +160,8 @@ function detail(ctx, r) {
       ${onRoute.length ? html`<table class="t"><tbody>${onRoute.map(a => html`<tr><td><b>${a.reg}</b> <span class="muted small">${typeOf(a).name}</span></td><td class="small">${fmt.hours(blockHours(km, typeOf(a)))} Block</td>
         <td class="r"><button class="btn sm" data-act="showAc" data-id="${a.id}">Karte</button> <button class="btn sm" data-act="unassign" data-id="${a.id}">Abziehen</button></td></tr>`)}</tbody></table>`
         : html`<p class="muted small">Noch keine.</p>`}
-      <div class="row" style="margin-top:10px"><select class="in grow" name="ac"><option value="">Freies Flugzeug wählen …</option>${free.map(a => html`<option value="${a.id}">${a.reg} · ${typeOf(a).name}</option>`)}</select><button class="btn sm p" data-act="assign" ${free.length ? "" : "disabled"}>Zuweisen</button></div>
+      <div class="row" style="margin-top:10px"><select class="in grow" name="ac" data-act="pickAc"><option value="">Freies Flugzeug wählen …</option>${free.map(a => html`<option value="${a.id}">${a.reg} · ${typeOf(a).name}</option>`)}</select><button class="btn sm p" data-act="assign" ${free.length ? "" : "disabled"}>Zuweisen</button></div>
+      <div data-outlook>${free.length ? outlookFor(ctx, r, free[0]) : ""}</div>
     </div>`;
 }
 

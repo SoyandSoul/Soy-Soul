@@ -116,6 +116,7 @@ async function publishLoop() {
 bus.on("crash", ({ aircraft, route }) => toast(`ABSTURZ: ${aircraft.reg} auf ${route.from}–${route.to}. Überfällige Wartung!`, "bad", 9000));
 bus.on("incident", ({ aircraft }) => toast(`Vorfall auf ${aircraft.reg} – Wartung überfällig.`, "warn", 6000));
 bus.on("delivered", ({ aircraft }) => toast(`${aircraft.reg} wurde ausgeliefert und steht im Hangar.`, "good"));
+bus.on("goal", ({ goal, reward }) => toast(`Ziel erreicht: ${goal.title}${reward ? ` – ${reward}` : ""}`, "good", 8000));
 
 // ---------- Start
 function start() {

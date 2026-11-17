@@ -4,10 +4,11 @@
 //   Urlaub         – Einwohner der einen Seite × Tourismuswert der anderen, mit Saison der Herkunfts-Hemisphäre.
 // Große Städte und Drehkreuze haben dadurch automatisch mehr Nachfrage; Ferienziele boomen im Sommer.
 
-import { DEMAND, CABIN, GAME, REPUTATION } from "../core/config.js";
+import { DEMAND, CABIN, GAME, REPUTATION, FLIGHT } from "../core/config.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { clamp, rand01 } from "../core/util.js";
-import { routeDistance } from "./flight.js";
+import { routeDistance, blockHours, typeOf } from "./flight.js";
+import { distanceKm } from "./geo.js";
 
 const TAU = Math.PI * 2;
 
@@ -107,4 +108,51 @@ export function demandPreview(from, to, ts, km) {
   const res = {};
   for (const c of CABIN.classes) res[c] = Math.round(m.total * split[c] * GAME.marketShare);
   return res;
+}
+
+/**
+ * Einschätzung einer Strecke, bevor man ein Flugzeug darauf setzt.
+ * Beantwortet die Frage, die das Spiel bisher offen ließ: Trägt diese Strecke überhaupt
+ * ein weiteres Flugzeug – oder versorge ich sie damit über?
+ *
+ * from/to = IATA, type = Flugzeugtyp, cfg = Kabine, extra = zusätzliche Flugzeuge (meist 1).
+ */
+export function routeOutlook(state, from, to, type, cfg, now, extra = 1) {
+  const a = AIRPORT_BY_IATA[from], b = AIRPORT_BY_IATA[to];
+  const km = Math.round(distanceKm(a, b));
+  // Beide Richtungen über eine Woche mitteln – Wochentage und Saison schwanken deutlich
+  let market = 0;
+  for (let d = 0; d < 7; d++) {
+    const ts = now + d * 86400000;
+    market += dailyMarket(from, to, ts, km).total + dailyMarket(to, from, ts, km).total;
+  }
+  market = market / 7 / 2;                                    // mittlere Nachfrage je Richtung und Tag
+  const bookable = market * GAME.marketShare * repDemandFactor(state.airline.rep);
+
+  const seats = CABIN.classes.reduce((s, c) => s + (cfg?.[c] || 0), 0) || type.seats;
+  const cycleH = 2 * (blockHours(km, type) + FLIGHT.turnaroundMin[type.size] / 60);
+  const depsPerAircraft = 24 / cycleH;                        // Abflüge je Richtung und Tag
+  const current = state.routes
+    .filter(r => (r.from === from && r.to === to) || (r.from === to && r.to === from))
+    .reduce((s, r) => s + state.fleet.filter(x => x.ops?.routeId === r.id && x.status !== "crashed")
+      .reduce((n, x) => n + 24 / (2 * (blockHours(km, typeOf(x)) + FLIGHT.turnaroundMin[typeOf(x).size] / 60)), 0), 0);
+
+  const depsAfter = current + depsPerAircraft * extra;
+  const seatsAfter = depsAfter * seats;
+  const lf = seatsAfter ? Math.min(1, bookable / seatsAfter) : 0;
+  const sweet = 0.82;                                         // Auslastung, bei der eine Strecke gut läuft
+  const recommended = seats ? bookable / (seats * sweet) : 0;  // sinnvolle Abflüge je Richtung und Tag
+  const fits = recommended / Math.max(0.01, depsPerAircraft);  // wie viele Flugzeuge dieses Typs die Strecke trägt
+
+  let verdict, note;
+  if (lf >= 0.75) { verdict = "good"; note = "Die Nachfrage trägt das."; }
+  else if (lf >= 0.55) { verdict = "ok"; note = "Läuft, aber ohne Luft nach oben."; }
+  else { verdict = "bad"; note = current > 0 ? "Die Strecke ist damit überversorgt." : "Zu wenig Nachfrage für dieses Flugzeug."; }
+
+  return {
+    km, market: Math.round(market), bookable: Math.round(bookable), seats,
+    depsPerAircraft, current, depsAfter, lf, recommended,
+    capacity: Math.max(0, Math.floor(fits * 10) / 10),        // wie viele Flugzeuge sinnvoll sind
+    verdict, note
+  };
 }

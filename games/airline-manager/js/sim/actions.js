@@ -8,6 +8,7 @@ import { uid } from "../core/util.js";
 import { book } from "./ledger.js";
 import { canOrderNew, newOrderQuote, createAircraft, usedListings, aircraftValue, basePrice } from "./market.js";
 import { leaseQuote, makeContract, frameBlock, isLeased, returnSettlement, buyoutPrice, termOf } from "./lease.js";
+import { commonality } from "./commonality.js";
 import { routeProblems, seatUnits, typeOf } from "./flight.js";
 import { refFare } from "./demand.js";
 import { routeDistance } from "./flight.js";
@@ -308,7 +309,7 @@ export function hire(state, group, n, now) {
   if (!GROUPS.includes(group)) return fail("Unbekannte Personalgruppe.");
   n = Math.max(0, Math.round(+n || 0));
   if (!n) return fail("Bitte eine Anzahl angeben.");
-  const cost = hireCost(group, n);
+  const cost = Math.round(hireCost(group, n) * commonality(state).training);
   if (cost > state.cash) return fail(`Einstellung kostet ${Math.round(cost / 1000)} k$ an Werbung und Schulung – nicht genug Geld.`);
   book(state, now, "cost", "recruit", cost);
   state.staff[group] = staffHave(state)[group] + n;
@@ -332,7 +333,8 @@ export function hireAllOpen(state, now) {
   const need = staffNeed(state), have = staffHave(state);
   const open = {};
   let total = 0, cost = 0;
-  for (const g of GROUPS) { const d = Math.max(0, need[g] - have[g]); if (d) { open[g] = d; total += d; cost += hireCost(g, d); } }
+  const tf = commonality(state).training;
+  for (const g of GROUPS) { const d = Math.max(0, need[g] - have[g]); if (d) { open[g] = d; total += d; cost += Math.round(hireCost(g, d) * tf); } }
   if (!total) return fail("Alle Stellen sind besetzt.");
   if (cost > state.cash) return fail(`${total} Stellen kosten ${Math.round(cost / 1000)} k$ an Werbung und Schulung – nicht genug Geld.`);
   book(state, now, "cost", "recruit", cost);

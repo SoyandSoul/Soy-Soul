@@ -117,3 +117,24 @@
   .hud { top: 60px; }
   .hud .clock { display: none; }
 }
+
+/* Streckenbewertung (ui/outlook.js) */
+.outlook { margin-top: 8px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--raise); border-left: 3px solid var(--ink3); }
+.outlook.good { border-left-color: var(--good); }
+.outlook.ok { border-left-color: var(--warn); }
+.outlook.bad { border-left-color: var(--bad); }
+.outlook .bar { margin-top: 6px; height: 5px; }
+.outlook p { margin-top: 6px; line-height: 1.35; }
+.outlook.compact { padding: 6px 8px; margin-top: 4px; }
+
+/* Ziele */
+.goal { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.goal:last-child { border-bottom: 0; }
+.goal.done { opacity: .6; }
+.goal .row b { font-size: 13px; }
+.goal .reward { font-size: 10.5px; font-weight: 650; color: var(--accent); white-space: nowrap; }
+.goal .bar { margin-top: 5px; height: 5px; }
+.goal small { display: block; font-size: 11px; color: var(--ink3); line-height: 1.3; margin-top: 3px; }
+.goal .tick { color: var(--good); font-weight: 700; }
+.goal-head { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 2px; }
+.goal-head h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink3); }

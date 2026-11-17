@@ -8,6 +8,7 @@
 
 import { STAFF } from "../core/config.js";
 import { typeOf } from "./flight.js";
+import { commonality } from "./commonality.js";
 
 export const GROUPS = ["cockpit", "cabin", "ground", "admin"];
 
@@ -36,6 +37,8 @@ export function staffNeed(state) {
       if (r) { dest.add(r.from); dest.add(r.to); }
     }
   }
+  // Ein gemeinsames Type Rating heißt: ein Pilotenpool statt vieler kleiner.
+  cockpit *= commonality(state).cockpit;
   ground += dest.size * n.groundPerDestination;
   admin += (cockpit + cabin + ground) * n.adminShare;
   const out = { cockpit: Math.ceil(cockpit), cabin: Math.ceil(cabin), ground: Math.ceil(ground), admin: Math.ceil(admin), destinations: dest.size };

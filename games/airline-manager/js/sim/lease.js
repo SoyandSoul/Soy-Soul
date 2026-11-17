@@ -48,7 +48,8 @@ export function leaseFrame(state, now) {
   const f = LEASE.frame;
   const monthlyProfit = Math.max(0, summary(state, 30, now).profit);
   const rep = f.repLow + f.repSpan * state.airline.rep / 100;
-  const max = (f.base + monthlyProfit * f.profitMultiple) * rep;
+  // Erreichte Ziele heben den Rahmen dauerhaft (sim/goals.js)
+  const max = (f.base + monthlyProfit * f.profitMultiple) * rep + (state.airline.frameBonus || 0);
   const used = monthlyObligation(state);
   return { max, used, free: Math.max(0, max - used), rep, monthlyProfit };
 }

@@ -11,6 +11,10 @@ import { checkStatus } from "../js/sim/maintenance.js";
 import { summary } from "../js/sim/ledger.js";
 import { staffNeed, coverage, salaryPerDay, GROUPS } from "../js/sim/staff.js";
 import { leaseFrame, monthlyObligation } from "../js/sim/lease.js";
+import { goalProgress, nextGoal, GOALS } from "../js/sim/goals.js";
+import { commonality } from "../js/sim/commonality.js";
+import { routeOutlook } from "../js/sim/demand.js";
+import { AIRCRAFT_BY_ID } from "../js/data/aircraft.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
 import { AIRCRAFT } from "../js/data/aircraft.js";
@@ -217,6 +221,63 @@ test("Leasing: Rate, Rahmen, Verlängerung und Rückgabe", () => {
   assert.ok(ret.ok, ret.msg);
   assert.ok(!s.fleet.includes(ac), "Flugzeug muss zurückgehen");
   assert.ok(s.cash !== cash, "Rückgabe muss abgerechnet werden");
+});
+
+test("Ziele: Fortschritt, Freischalten und Belohnung", () => {
+  const { s, start } = setup(1);
+  const route = act.createRoute(s, "FRA", "LHR").route;
+  act.assign(s, s.fleet[0].id, route.id, start);
+  act.hireAllOpen(s, start);
+  assert.equal(new Set(GOALS.map(g => g.id)).size, GOALS.length, "doppelte Ziel-IDs");
+  const frameBefore = s.airline.frameBonus || 0;
+  let fired = [];
+  for (let d = 1; d <= 14; d++) fired.push(...(settle(s, start + d * DAY).goals || []));
+  assert.ok(fired.length >= 3, `zu wenige Ziele erreicht: ${fired.length}`);
+  assert.ok(s.goals.done.includes("route1") && s.goals.done.includes("fly1"), "Grundziele fehlen");
+  assert.ok((s.airline.frameBonus || 0) > frameBefore, "Belohnung wurde nicht gutgeschrieben");
+  // Jedes Ziel wird nur einmal vergeben
+  const again = settle(s, start + 15 * DAY).goals || [];
+  assert.equal(again.filter(g => s.goals.done.filter(x => x === g.id).length > 1).length, 0);
+  assert.equal(new Set(s.goals.done).size, s.goals.done.length, "Ziel doppelt freigeschaltet");
+  // Der Vorschlag muss aus einer frühen Gruppe kommen, nicht aus "Wirtschaft"
+  const n = nextGoal(s, start + 15 * DAY);
+  assert.ok(!n || n.group !== "Wirtschaft" || s.goals.done.length > 10, `unpassender Vorschlag: ${n?.title}`);
+  const gp = goalProgress(s, start + 15 * DAY);
+  assert.ok(gp.every(g => g.pct >= 0 && g.pct <= 1), "Fortschritt außerhalb 0..1");
+});
+
+test("Flottenvereinheitlichung: Bonus und Malus", () => {
+  const mk = types => {
+    const s = newGame({ name: "T", iata: "TT", hub: "FRA", player: { code: "c", secret: "x" }, now: T0 });
+    s.cash = 5e9;
+    for (const t of types) assert.ok(act.orderNew(s, t, 1, T0).ok, t);
+    return commonality(s);
+  };
+  const pure = mk(["a320neo", "a320neo", "a320neo", "a320neo"]);
+  const mixed = mk(["a320neo", "a220-300", "e175", "b787-9", "a350-900", "b777-300er"]);
+  const tiny = mk(["a320neo", "a320neo"]);
+  assert.equal(tiny.active, false, "unter drei Flugzeugen darf nichts passieren");
+  assert.ok(pure.maint < 0.9 && pure.cockpit < 0.95 && pure.training < 0.85, "Einheitsflotte bringt zu wenig");
+  assert.ok(mixed.maint > 1 && mixed.families === 6, "Mischflotte wird nicht teurer");
+  assert.ok(pure.maint < mixed.maint && pure.training < mixed.training);
+});
+
+test("Streckenbewertung warnt vor Überversorgung", () => {
+  const s = newGame({ name: "T", iata: "TT", hub: "FRA", player: { code: "c", secret: "x" }, now: T0 });
+  const big = AIRCRAFT_BY_ID["a320neo"], small = AIRCRAFT_BY_ID["e175"];
+  const thickRoute = routeOutlook(s, "FRA", "LHR", big, null, T0);
+  const thinRoute = routeOutlook(s, "FRA", "PMI", big, null, T0);
+  const thinSmall = routeOutlook(s, "FRA", "PMI", small, null, T0);
+  assert.equal(thickRoute.verdict, "good", `FRA-LHR sollte tragen (${Math.round(thickRoute.lf * 100)} %)`);
+  assert.ok(thinRoute.lf < thickRoute.lf - 0.2, `FRA-PMI muss deutlich schwächer sein (${Math.round(thinRoute.lf * 100)} % vs ${Math.round(thickRoute.lf * 100)} %)`);
+  assert.ok(thinRoute.capacity < 1, `dünne Strecke darf kein ganzes A320neo tragen (${thinRoute.capacity})`);
+  assert.ok(thinSmall.lf > thinRoute.lf, "kleineres Flugzeug muss auf dünner Strecke besser dastehen");
+  assert.ok(thickRoute.capacity > thinRoute.capacity, "starke Strecke muss mehr Flugzeuge tragen");
+  assert.ok(thinRoute.bookable > 0 && thinRoute.km > 1000);
+  // Im Hochsommer trägt Palma deutlich mehr als im November – die Bewertung muss das abbilden
+  const summer = routeOutlook(s, "FRA", "PMI", big, null, Date.UTC(2026, 6, 15));
+  const winter = routeOutlook(s, "FRA", "PMI", big, null, Date.UTC(2026, 10, 15));
+  assert.ok(summer.bookable > winter.bookable * 1.2, `Saison fehlt: Sommer ${summer.bookable}, Winter ${winter.bookable}`);
 });
 
 test("Wetter deterministisch, Verspätungen kommen vor", async () => {});

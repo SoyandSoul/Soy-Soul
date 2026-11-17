@@ -26,6 +26,7 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
       catering: CATERING.defaultMode,
       bagFee: BAGS.defaultFee,
       training: 0,
+      frameBonus: 0,                          // dauerhafter Leasingrahmen aus erreichten Zielen
       rep: REPUTATION.start,
       safety: { crashes: [], incidents: [], since: now },
       shares: GAME.startShares
@@ -41,6 +42,9 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
     market: { boughtUsed: [] },
     ordered: 0,                               // Zähler für Sofort-Lieferungen
     staff: { cockpit: 0, cabin: 0, ground: 0, admin: 0 },  // wird gleich auf den Startbedarf gesetzt
+    // Dauerhafte Statistik über die ganze Laufzeit (state.flights ist gedeckelt, taugt dafür nicht)
+    stats: { pax: 0, legs: 0, km: 0, dest: [], lastBigDelay: 0, lastOverdue: 0 },
+    goals: { done: [], seen: [] },                         // erreichte Ziele, siehe sim/goals.js
     lastSettled: now,
     lastFixedAt: now
   };
@@ -71,6 +75,19 @@ export function migrate(s) {
     const need = staffNeed(s);
     for (const g of GROUPS) s.staff[g] = need[g];
   }
+  // v0.18: Leasing · v0.19: Statistik und Ziele
+  for (const ac of s.fleet) ac.lease ??= null;
+  s.airline.frameBonus ??= 0;
+  if (!s.stats) {
+    const dest = new Set(s.airline.hubs);
+    for (const r of s.routes) { dest.add(r.from); dest.add(r.to); }
+    s.stats = {
+      pax: s.flights.reduce((a, f) => a + f.paxTotal, 0),
+      legs: s.flights.length, km: s.flights.reduce((a, f) => a + f.km, 0),
+      dest: [...dest], lastBigDelay: 0, lastOverdue: 0
+    };
+  }
+  s.goals ??= { done: [], seen: [] };
   return s;
 }
 

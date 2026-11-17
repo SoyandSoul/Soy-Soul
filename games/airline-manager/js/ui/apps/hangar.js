@@ -11,6 +11,7 @@ import { sideView } from "../aircraftArt.js";
 import * as act from "../../sim/actions.js";
 import { seatmapSVG, setClass, moveBoundary, CLASS_COLORS } from "../seatmap.js";
 import { datasheet, condLine } from "../datasheet.js";
+import { outlookFor } from "../outlook.js";
 
 export const STATUS = {
   idle: ["Am Boden", "info"], active: ["Im Liniendienst", "good"], check: ["In Wartung", "warn"],
@@ -103,7 +104,16 @@ export default {
   },
 
   change(ctx, v) {
-    return { rename: el => ctx.run(act.renameAircraft, v.detail, el.value) };
+    return {
+      rename: el => ctx.run(act.renameAircraft, v.detail, el.value),
+      // Bewertung der gewählten Strecke live nachziehen
+      route: el => {
+        const ac = ctx.state.fleet.find(a => a.id === v.detail);
+        const r = ctx.state.routes.find(x => x.id === el.value);
+        const box = el.closest(".card")?.querySelector("[data-outlook]");
+        if (box) box.innerHTML = r && ac ? outlookFor(ctx, r, ac).s : "";
+      }
+    };
   },
 
   input(ctx, v) {
@@ -202,7 +212,8 @@ function detail(ctx, ac, v) {
     <h3 style="margin:16px 0 8px;font-size:15px">Einsatz</h3>
     <div class="card">${route
       ? html`<div class="row"><div class="grow"><b>${route.from} ⇄ ${route.to}</b> <span class="muted small">${fmt.km(routeDistance(route))}</span>${ac.unassign ? html` <span class="pill warn">wird abgezogen</span>` : ""}</div><button class="btn sm" data-act="unassign">Von Strecke nehmen</button></div>`
-      : html`<div class="row"><select class="in grow" name="route" ${ac.status !== "idle" ? "disabled" : ""}><option value="">Strecke wählen …</option>${usable.map(r => html`<option value="${r.id}">${r.from} → ${r.to} (${fmt.km(routeDistance(r))})</option>`)}</select><button class="btn sm p" data-act="assign" ${ac.status !== "idle" ? "disabled" : ""}>Starten</button></div>
+      : html`<div class="row"><select class="in grow" name="route" data-act="route" ${ac.status !== "idle" ? "disabled" : ""}><option value="">Strecke wählen …</option>${usable.map(r => html`<option value="${r.id}">${r.from} → ${r.to} (${fmt.km(routeDistance(r))})</option>`)}</select><button class="btn sm p" data-act="assign" ${ac.status !== "idle" ? "disabled" : ""}>Starten</button></div>
+        <div data-outlook>${usable.length ? outlookFor(ctx, usable[0], ac) : ""}</div>
         <p class="small muted" style="margin-top:6px">${s.routes.length - usable.length ? `${s.routes.length - usable.length} Strecke(n) ausgeblendet: Reichweite oder Bahnlänge passt nicht.` : "Fliegt im Pendel: Hinflug, Turnaround, Rückflug – rund um die Uhr in Echtzeit."}</p>`}</div>
 
     <h3 style="margin:16px 0 8px;font-size:15px">Kabine</h3>

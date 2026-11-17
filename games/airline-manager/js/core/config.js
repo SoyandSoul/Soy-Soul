@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.18",
+  label: "v0.19",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -143,6 +143,18 @@ export const CHECKS = {
   riskPerFH: 0.0005,                         // Absturzrisiko pro Flugstunde bei 100 % Überfälligkeit (× Gewicht)
   riskExp: 1.5,
   incidentMul: 6                             // nicht-tödliche Vorfälle sind so viel häufiger
+};
+
+// Flottenvereinheitlichung: Wer nur eine Baureihe fliegt, spart real bei Ersatzteilen, Schulung und
+// Crew-Planung (gemeinsames Type Rating). Ein Flickenteppich kostet dagegen Aufschlag.
+export const COMMONALITY = {
+  maintBonus: 0.18,          // bis −18 % Wartungsreserve bei reiner Einheitsflotte
+  cockpitBonus: 0.15,        // bis −15 % Cockpit-Bedarf (ein Pilotenpool statt vieler)
+  trainingBonus: 0.25,       // bis −25 % Schulungs- und Einstellungskosten
+  penaltyFrom: 4,            // ab so vielen Baureihen beginnt der Aufschlag
+  penaltyPerFamily: 0.04,    // je weiterer Baureihe
+  penaltyMax: 0.20,
+  minFleet: 3                // darunter gibt es weder Bonus noch Malus
 };
 
 export const CONTRACT = {
