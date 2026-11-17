@@ -7,10 +7,12 @@ export const DAY = 24 * H;
 export const GAME = {
   version: 1,                        // Save-Format-Version, siehe core/store.js → migrate()
   saveKey: "am-save",
-  startCash: 200_000_000,
+  // Startkapital einer jungen Airline: genug für ein paar Leasingkautionen, Personal und Puffer –
+  // ein Flugzeug zu kaufen ist anfangs bewusst außer Reichweite (siehe sim/lease.js).
+  startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.17",
+  label: "v0.18",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -172,6 +174,31 @@ export const USED = {
     faultDelayH: [2, 9],                     // Standzeit danach (Spanne, deterministisch gewürfelt)
     valueLoss: 0.35                          // Restwert sinkt um bis zu 35 %
   }
+};
+
+// Leasing. In der Realität besitzen die meisten Airlines ihre Flotte nicht, sondern mieten sie bei
+// Gesellschaften wie AerCap oder Air Lease. Statt des Kaufpreises zahlt man Kaution und Monatsrate,
+// dazu Wartungsrücklagen pro Flugstunde. Dafür bindet das Flugzeug kein Kapital.
+export const LEASE = {
+  ratePerMonth: 0.0095,              // Monatsrate als Anteil am Marktwert (echte Operating Leases: 0,8–1,0 %)
+  monthDays: 30.4,
+  terms: [                           // kurze Laufzeit = teurer, der Leasinggeber trägt das Wiedervermarktungsrisiko
+    { months: 3,  factor: 1.35 },
+    { months: 6,  factor: 1.15 },
+    { months: 12, factor: 1.00 },
+    { months: 24, factor: 0.88 }
+  ],
+  defaultTerm: 12,
+  depositMonths: 2,                  // Kaution, bei ordentlicher Rückgabe erstattet
+  reservePerFH: { narrow: 190, wide: 390, jumbo: 560 },  // Wartungsrücklage an den Leasinggeber je Flugstunde
+  earlyReturnMonths: 3,              // so viele Monatsraten werden bei vorzeitiger Rückgabe fällig (höchstens)
+  returnPenaltyPerFH: 900,           // überfällige Checks bei der Rückgabe
+  buyoutFactor: 1.08,                // Herauskaufen aus dem Vertrag: Marktwert plus Aufschlag
+  extendFactor: 1.06,                // automatische Verlängerung wird etwas teurer
+  saleLeasebackFactor: 0.94,         // Sale-and-Leaseback: eigenes Flugzeug verkaufen und zurückmieten
+  deliveryH: 36,                     // Übergabe eines Leasingflugzeugs
+  // Leasingrahmen: Leasinggeber schauen auf den Zahlungsstrom, nicht auf das Guthaben.
+  frame: { base: 1_100_000, profitMultiple: 1.8, repLow: 0.6, repSpan: 0.8 }
 };
 
 export const STOCKS = { profitMultiple: 3, repWeight: 0.4, minPrice: 0.5, fee: 0.005, refreshMs: 60_000 };

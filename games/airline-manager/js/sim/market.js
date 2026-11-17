@@ -2,14 +2,13 @@
 // Der Gebrauchtmarkt wird pro Tag aus einem Seed erzeugt – alle Spieler sehen dieselben Angebote, ganz ohne Server.
 
 import { AIRCRAFT, AIRCRAFT_BY_ID } from "../data/aircraft.js";
-import { CONTRACT, USED, CHECKS, GAME, DAY, H } from "../core/config.js";
+import { CONTRACT, USED, CHECKS, GAME, LEASE, DAY, H } from "../core/config.js";
 import { rng, dayKey } from "../core/util.js";
 
 /** Marktpreis-Faktor: Airlines zahlen in der Realität deutlich unter Liste. 1 = voller Listenpreis. */
-// Was eine Airline tatsächlich zahlt, als Anteil vom Listenpreis.
-// Echte Großkunden bekommen 45–55 % Rabatt; darunter ist bewusste Spielbalance, damit eine Maschine
-// in rund einem Jahr Echtzeit statt in drei Jahren verdient ist. Hochdrehen macht das Spiel härter.
-export const MARKET_FACTOR = 0.30;
+// Was eine Airline tatsächlich zahlt, als Anteil vom Listenpreis – echte Großkunden bekommen 45–55 % Rabatt.
+// Gekauft wird im Spiel erst später; gewachsen wird über Leasing (sim/lease.js), wie bei echten Airlines.
+export const MARKET_FACTOR = 0.50;
 
 export const listPrice = type => type.priceM * 1e6;
 export const basePrice = type => listPrice(type) * MARKET_FACTOR;
@@ -97,13 +96,14 @@ export function defaultConfig(type) {
 }
 
 /** Lieferzeit in ms für das nächste Flugzeug (die ersten GAME.instantDeliveries kommen sofort). */
-export function deliveryDelay(state, type, { used = false, orderIndex = 0 } = {}) {
+export function deliveryDelay(state, type, { used = false, leased = false, orderIndex = 0 } = {}) {
   if ((state.ordered || 0) < GAME.instantDeliveries) return 0;
+  if (leased) return LEASE.deliveryH * H;      // Leasinggeber haben Maschinen am Lager
   return ((used ? GAME.usedDeliveryH : GAME.newDeliveryH[type.size]) + (used ? 0 : orderIndex * GAME.orderStaggerH)) * H;
 }
 
-export function createAircraft(state, type, ts, { used = null, orderIndex = 0 } = {}) {
-  const delay = deliveryDelay(state, type, { used: !!used, orderIndex });
+export function createAircraft(state, type, ts, { used = null, orderIndex = 0, lease = null } = {}) {
+  const delay = deliveryDelay(state, type, { used: !!used, leased: !!lease, orderIndex });
   state.ordered = (state.ordered || 0) + 1;
   const maint = {};
   for (const k of CHECKS.order) {
@@ -127,6 +127,7 @@ export function createAircraft(state, type, ts, { used = null, orderIndex = 0 } 
     status: delay ? "delivery" : "idle",
     availableAt: delay ? ts + delay : null,
     ops: null,
-    check: null
+    check: null,
+    lease                                      // null = Eigentum, sonst Vertrag aus sim/lease.js
   };
 }

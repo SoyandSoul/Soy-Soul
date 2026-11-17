@@ -4,7 +4,7 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.17**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.18**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) ist als v0.17 fertig.
 > **Zurückgestellt:** Paket 1 (Flugzeugformen) – auf Noahs Wunsch später, zusammen mit den Norebbo-Vorlagen.
@@ -62,9 +62,7 @@ Punkte 5, 9, 16, 27 · **das größte Paket, Grundlage für Paket 3 und 4**
 
 **Test:** erledigt – Margen gemessen über 28 Spieltage, Kostenanteile gegen echte Airline-Strukturen geprüft.
 
-**Offener Punkt aus diesem Paket:** Die Amortisation einer Maschine liegt trotz gesenktem `MARKET_FACTOR`
-noch bei rund einem Jahr Echtzeit. Wenn das Wachstum schneller gehen soll, sind **Leasing** (statt Kauf, passt
-zu Paket 6) oder ein weiter gesenkter `MARKET_FACTOR` die Stellschrauben. Noahs Entscheidung.
+**Erledigt:** Das Wachstumsproblem aus diesem Paket ist mit **Leasing** gelöst (v0.18, aus Paket 6 vorgezogen).
 
 ---
 
@@ -115,7 +113,7 @@ Punkte 15, 25, 28
 
 ## Paket 6 – Finanzen → v0.21
 
-Punkte 29, 30
+Punkte 29, 30 · **Leasing ist als v0.18 schon erledigt**
 
 - Kredite mit Zinsen, Rückzahlung am Stück oder in Raten
 - Kerosin mit Diagrammen statt Zahlenkolonnen (Preisverlauf, Tanklagerstand, Verbrauch)

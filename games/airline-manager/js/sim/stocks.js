@@ -8,7 +8,8 @@ import { summary, book } from "./ledger.js";
 import { smoothNoise } from "../core/util.js";
 
 export function companyValue(state, now, marketPrices = {}) {
-  const fleet = state.fleet.filter(a => a.status !== "crashed").reduce((s, a) => s + aircraftValue(a, now), 0);
+  // Geleaste Maschinen gehören dem Leasinggeber und zählen nicht zum Vermögen.
+  const fleet = state.fleet.filter(a => a.status !== "crashed" && !a.lease).reduce((s, a) => s + aircraftValue(a, now), 0);
   const fuel = state.fuel.stockKg * state.fuel.avgCost;
   const holdings = Object.entries(state.stocks.holdings).reduce((s, [code, h]) => s + h.qty * (marketPrices[code] ?? h.cost / h.qty), 0);
   const profit30 = summary(state, 30, now).profit;

@@ -12,6 +12,7 @@ import { COST, REV } from "../../sim/ledger.js";
 import { companyValue } from "../../sim/stocks.js";
 import { repFactors, repTarget } from "../../sim/reputation.js";
 import { typeOf, routeDistance, positionAt } from "../../sim/flight.js";
+import { leaseFrame, monthlyObligation, isLeased } from "../../sim/lease.js";
 import * as act from "../../sim/actions.js";
 import { exportSave, importSave } from "../../core/store.js";
 import { online, cloudSave } from "../../net/backend.js";
@@ -38,12 +39,14 @@ const overview = {
       </div>
       ${eff.openPositions ? html`<div class="note warn"><b>${eff.openPositions} offene Stellen</b><span>Unterbesetzung kostet Pünktlichkeit und Reputation.</span><button class="btn sm p" data-act="goStaff">Zum Personal</button></div>` : ""}
       ${s.cash < 0 ? html`<div class="note bad"><b>Die Kasse ist im Minus</b><span>Flugzeuge verkaufen oder unrentable Strecken schließen.</span></div>` : ""}
+      ${(() => { const fr = leaseFrame(s, now); const leased = fleet.filter(isLeased).length;
+        return leased || fr.used ? html`<div class="note info"><b>Leasing</b><span>${leased} von ${fleet.length} Flugzeugen geleast · ${fmt.money(fr.used)} Raten pro Monat · noch ${fmt.money(fr.free)} Rahmen frei</span></div>` : ""; })()}
       <dl class="kv" style="margin-top:10px">
-        <dt>Flottenwert</dt><dd>${fmt.money(val.fleet)}</dd>
+        <dt>Flottenwert (Eigentum)</dt><dd>${fmt.money(val.fleet)}</dd>
         <dt>Kerosinvorrat</dt><dd>${fmt.money(val.fuel)}</dd>
         <dt>Beteiligungen</dt><dd>${fmt.money(val.holdings)}</dd>
         <dt>Ertragswert</dt><dd>${fmt.money(val.goodwill)}</dd>
-        <dt>Laufende Kosten</dt><dd>${fmt.money(salaryPerDay(s).total)} / Tag Personal</dd>
+        <dt>Laufende Kosten</dt><dd>${fmt.money(salaryPerDay(s).total)} / Tag Personal${monthlyObligation(s) ? html` · ${fmt.money(monthlyObligation(s))} / Monat Leasing` : ""}</dd>
       </dl>`;
   },
   click: (ctx, v, api) => ({ goStaff: () => { v.open = "staff"; api.rerender(); } })
@@ -76,7 +79,7 @@ function aircraftRow(ctx, ac) {
   else detail = "steht am Drehkreuz";
   return html`<button class="acrow ${cls}" data-act="focus" data-id="${ac.id}">
     <i class="dot"></i>
-    <span class="grow"><b>${ac.reg}</b><small>${t.name}${ac.name ? ` · ${ac.name}` : ""}</small></span>
+    <span class="grow"><b>${ac.reg}</b>${isLeased(ac) ? html`<i class="tag">Leasing</i>` : ""}<small>${t.name}${ac.name ? ` · ${ac.name}` : ""}</small></span>
     <span class="acdet">${detail}</span></button>`;
 }
 

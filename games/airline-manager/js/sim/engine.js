@@ -9,7 +9,7 @@
 // Zufall (Nachfrage-Rauschen, Vorfälle) ist deterministisch aus Flugzeug-ID + Abflugzeit:
 // Neu laden würfelt nichts neu.
 
-import { GAME, H, DAY, USED, CHECKS } from "../core/config.js";
+import { GAME, H, DAY, USED, CHECKS, LEASE } from "../core/config.js";
 import { rand01 } from "../core/util.js";
 import { bus } from "../core/events.js";
 import { typeOf, routeDistance, blockHours, turnaroundH } from "./flight.js";
@@ -20,6 +20,7 @@ import { addFlightHours, legRisk, mostUrgent, startCheck, finishCheck } from "./
 import { aircraftValue } from "./market.js";
 import { weatherDelay } from "./weather.js";
 import { salaryPerDay, staffEffects } from "./staff.js";
+import { rentPerDay, isLeased, returnSettlement, termOf } from "./lease.js";
 
 const MAX_STEPS = 200_000;
 
@@ -44,6 +45,31 @@ function nextEventAt(state, ac) {
       return ac.ops.dep + blockHours(routeDistance(r), typeOf(ac)) * H;
     }
     default: return Infinity;
+  }
+}
+
+/**
+ * Abgelaufene Leasingverträge: entweder zurückgeben (wenn so eingestellt) oder automatisch verlängern.
+ * Automatisch verlängern ist freundlicher – sonst stünde die halbe Flotte still, während niemand zusieht.
+ */
+function leaseRollover(state, now, quiet) {
+  for (const ac of [...state.fleet]) {
+    if (!isLeased(ac) || ac.status === "crashed" || ac.lease.until > now) continue;
+    const l = ac.lease;
+    if (l.returnAtEnd && ac.status !== "active" && ac.status !== "check") {
+      const st = returnSettlement(ac, now);
+      if (st.refund) book(state, now, "rev", "insurance", st.refund);
+      if (st.due) book(state, now, "cost", "leaseFee", st.due);
+      state.fleet = state.fleet.filter(a => a !== ac);
+      log(state, now, "info", `${ac.reg} wurde an ${l.lessor} zurückgegeben.${st.penalty ? ` Abzug für überfällige Checks: ${Math.round(st.penalty / 1e3)} k$.` : ""}`);
+      continue;
+    }
+    // Verlängerung zum leicht höheren Satz
+    l.rate = Math.round(l.rate * LEASE.extendFactor);
+    l.until = now + l.months * LEASE.monthDays * DAY;
+    l.extensions++;
+    const note = l.returnAtEnd ? " (Rückgabe war gewünscht, das Flugzeug ist aber im Einsatz)" : "";
+    log(state, now, "info", `Leasingvertrag für ${ac.reg} bei ${l.lessor} um ${l.months} Monate verlängert, neue Rate ${Math.round(l.rate / 1e3)} k$/Monat${note}.`);
   }
 }
 
@@ -74,8 +100,10 @@ export function settle(state, now, { quiet = false } = {}) {
     for (const ac of state.fleet) if (ac.status !== "crashed" && ac.status !== "delivery") fixed += fixedPerHour(ac) * hrs;
     book(state, now, "cost", "fixed", fixed);
     book(state, now, "cost", "staff", salaryPerDay(state).total / 24 * hrs);
+    book(state, now, "cost", "lease", rentPerDay(state) / 24 * hrs);
     state.lastFixedAt = now;
   }
+  leaseRollover(state, now, quiet);
 
   // Personallage einmal pro Durchlauf bestimmen – sie ändert sich während des Nachrechnens kaum.
   const staffEff = staffEffects(state);
@@ -175,7 +203,8 @@ function process(state, ac, ts, report, quiet, staffEff) {
 }
 
 function crash(state, ac, route, ts, report, quiet) {
-  const refund = aircraftValue(ac, ts) * USED.insuranceRefund;
+  // Bei einer Leasingmaschine gehört der Versicherungswert dem Leasinggeber; die Airline verliert die Kaution.
+  const refund = isLeased(ac) ? 0 : aircraftValue(ac, ts) * USED.insuranceRefund;
   ac.status = "crashed"; ac.ops = null; ac.crashedAt = ts;
   state.airline.safety.crashes.push(ts);
   book(state, ts, "rev", "insurance", refund);

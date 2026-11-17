@@ -155,7 +155,7 @@ async function boot() {
     ctx.state = newGame({ name, iata, hub, player: newPlayer(), now: ctx.now() });
     save(ctx.state);
     start();
-    toast(`${name} ist gegründet! Links im Airline-Panel findest du Flotte, Personal und Finanzen – rechts im Betriebs-Panel den Flugzeugmarkt.`, "good", 9000);
+    toast(`${name} ist gegründet! Mit dem Startkapital kaufst du noch kein Flugzeug – lease dein erstes im Betriebs-Panel rechts (Flugzeugmarkt → Leasen) und stelle links Personal ein.`, "good", 11000);
   });
 }
 

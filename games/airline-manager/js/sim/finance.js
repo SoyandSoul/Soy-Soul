@@ -18,9 +18,10 @@ export const REV_BLOCKS = [
 export const COST_BLOCKS = [
   { id: "staff", label: "Personal", hint: "Gehälter, Spesen, Schulung", cats: ["staff", "crew", "training"], color: "staff" },
   { id: "ops", label: "Flugbetrieb", hint: "Kerosin, Gebühren, Handling, Flugsicherung", cats: ["fuel", "fees", "handling", "nav"], color: "ops" },
+  { id: "fleet", label: "Flotte", hint: "Leasingraten und Wartungsrücklagen", cats: ["lease", "leaseReserve"], color: "fleet" },
   { id: "tech", label: "Technik", hint: "Wartungsreserve, Checks, Versicherung, Parken", cats: ["maint", "checks", "fixed"], color: "tech" },
   { id: "market", label: "Vertrieb & Service", hint: "Buchungskosten und Catering", cats: ["sales", "catering"], color: "market" },
-  { id: "capex", label: "Investitionen", hint: "Flugzeuge, Ausbau, Personalgewinnung, Verträge, Aktien", cats: ["aircraft", "upgrades", "recruit", "contract", "stocks"], color: "muted", capex: true }
+  { id: "capex", label: "Investitionen", hint: "Flugzeuge, Ausbau, Personalgewinnung, Kautionen, Verträge, Aktien", cats: ["aircraft", "upgrades", "recruit", "contract", "stocks"], color: "muted", capex: true }
 ];
 
 const sumCats = (obj, cats) => cats.reduce((s, c) => s + (obj[c] || 0), 0);

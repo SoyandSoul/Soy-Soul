@@ -3,10 +3,11 @@
 
 import { AIRCRAFT_BY_ID } from "../data/aircraft.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
-import { CABIN, CONTRACT, FLIGHT, STAFF, BAGS, CATERING, CHECKS, H } from "../core/config.js";
+import { CABIN, CONTRACT, FLIGHT, STAFF, BAGS, CATERING, CHECKS, LEASE, DAY, H } from "../core/config.js";
 import { uid } from "../core/util.js";
 import { book } from "./ledger.js";
-import { canOrderNew, newOrderQuote, createAircraft, usedListings, aircraftValue } from "./market.js";
+import { canOrderNew, newOrderQuote, createAircraft, usedListings, aircraftValue, basePrice } from "./market.js";
+import { leaseQuote, makeContract, frameBlock, isLeased, returnSettlement, buyoutPrice, termOf } from "./lease.js";
 import { routeProblems, seatUnits, typeOf } from "./flight.js";
 import { refFare } from "./demand.js";
 import { routeDistance } from "./flight.js";
@@ -52,6 +53,7 @@ export function buyUsed(state, listingId, now) {
 export function sellAircraft(state, acId, now) {
   const ac = state.fleet.find(a => a.id === acId);
   if (!ac) return fail("Flugzeug nicht gefunden.");
+  if (isLeased(ac)) return fail("Geleaste Flugzeuge gehören dem Leasinggeber – zurückgeben oder herauskaufen.");
   if (ac.status === "active" || ac.status === "check") return fail("Erst von der Route nehmen bzw. Check abwarten.");
   const value = ac.status === "crashed" ? 0 : aircraftValue(ac, now) * 0.95;
   state.fleet = state.fleet.filter(a => a !== ac);
@@ -196,6 +198,109 @@ export function upgradeTraining(state, now) {
 }
 
 export const hubPrice = iata => AIRPORT_BY_IATA[iata].tier * 5e6;
+
+// ---------- Leasing
+
+/** Fabrikneues Flugzeug leasen. */
+export function leaseNew(state, typeId, months, now) {
+  const t = AIRCRAFT_BY_ID[typeId], block = canOrderNew(state, t);
+  if (block) return fail(block);
+  const q = leaseQuote(state, t, { months });
+  const fb = frameBlock(state, now, q.rate);
+  if (fb) return fail(fb);
+  if (q.upfront > state.cash) return fail(`Kaution und erste Rate kosten ${Math.round(q.upfront / 1e3)} k$ – nicht genug Geld.`);
+  book(state, now, "cost", "leaseFee", q.deposit);          // Kaution: bei ordentlicher Rückgabe zurück
+  const ac = createAircraft(state, t, now, { lease: null });
+  ac.lease = makeContract(state, t, now, q);
+  state.fleet.push(ac);
+  return ok({ aircraft: ac, quote: q });
+}
+
+/** Ein Gebrauchtangebot leasen statt kaufen. */
+export function leaseUsed(state, listingId, months, now) {
+  if (state.market.boughtUsed.includes(listingId)) return fail("Dieses Angebot ist schon vergeben.");
+  const l = usedListings(now).find(x => x.id === listingId);
+  if (!l) return fail("Angebot ist nicht mehr verfügbar.");
+  const t = AIRCRAFT_BY_ID[l.typeId];
+  const q = leaseQuote(state, t, { months, used: l });
+  const fb = frameBlock(state, now, q.rate);
+  if (fb) return fail(fb);
+  if (q.upfront > state.cash) return fail(`Kaution und erste Rate kosten ${Math.round(q.upfront / 1e3)} k$ – nicht genug Geld.`);
+  book(state, now, "cost", "leaseFee", q.deposit);
+  const ac = createAircraft(state, t, now, { used: l, lease: null });
+  ac.lease = makeContract(state, t, now, q);
+  state.fleet.push(ac);
+  state.market.boughtUsed.push(listingId);
+  if (state.market.boughtUsed.length > 200) state.market.boughtUsed.shift();
+  return ok({ aircraft: ac, quote: q });
+}
+
+/** Vertrag verlängern (freiwillig, vor Ablauf). */
+export function extendLease(state, acId, months, now) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!isLeased(ac)) return fail("Kein Leasingflugzeug.");
+  const t = typeOf(ac), rate = Math.round(ac.lease.rate * (termOf(months).factor / termOf(ac.lease.months).factor));
+  const fb = frameBlock(state, now, Math.max(0, rate - ac.lease.rate));
+  if (fb) return fail(fb);
+  ac.lease.until = Math.max(ac.lease.until, now) + months * LEASE.monthDays * DAY;
+  ac.lease.months = months;
+  ac.lease.rate = rate;
+  ac.lease.returnAtEnd = false;
+  return ok({ rate, until: ac.lease.until });
+}
+
+/** Am Vertragsende zurückgeben statt automatisch verlängern. */
+export function setReturnAtEnd(state, acId, on) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!isLeased(ac)) return fail("Kein Leasingflugzeug.");
+  ac.lease.returnAtEnd = !!on;
+  return ok({ returnAtEnd: ac.lease.returnAtEnd });
+}
+
+/** Sofort zurückgeben. Vorzeitig kostet Restraten, überfällige Checks kosten extra. */
+export function returnLease(state, acId, now) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!isLeased(ac)) return fail("Kein Leasingflugzeug.");
+  if (ac.status === "active") return fail("Erst von der Strecke nehmen.");
+  if (ac.status === "check") return fail("Der laufende Check muss abgeschlossen werden.");
+  const st = returnSettlement(ac, now);
+  if (st.due > state.cash) return fail(`Rückgabe kostet ${Math.round(st.due / 1e3)} k$ – nicht genug Geld.`);
+  if (st.refund) book(state, now, "rev", "insurance", st.refund);
+  if (st.due) book(state, now, "cost", "leaseFee", st.due);
+  state.fleet = state.fleet.filter(a => a !== ac);
+  return ok({ ...st, reg: ac.reg });
+}
+
+/** Aus dem Vertrag herauskaufen – das Flugzeug gehört danach der Airline. */
+export function buyoutLease(state, acId, now) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!isLeased(ac)) return fail("Kein Leasingflugzeug.");
+  const price = buyoutPrice(ac, now);
+  if (price > state.cash) return fail(`Übernahme kostet ${Math.round(price / 1e6)} Mio $ – nicht genug Geld.`);
+  book(state, now, "cost", "aircraft", price);
+  book(state, now, "rev", "insurance", ac.lease.deposit);   // Kaution zurück
+  ac.lease = null;
+  ac.price = price;
+  return ok({ price });
+}
+
+/** Sale-and-Leaseback: eigenes Flugzeug an eine Leasinggesellschaft verkaufen und zurückmieten. */
+export function saleLeaseback(state, acId, months, now) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!ac) return fail("Flugzeug nicht gefunden.");
+  if (isLeased(ac)) return fail("Dieses Flugzeug ist bereits geleast.");
+  if (ac.status === "crashed" || ac.status === "delivery") return fail("Nicht möglich.");
+  const t = typeOf(ac), value = aircraftValue(ac, now) * LEASE.saleLeasebackFactor;
+  const q = leaseQuote(state, t, { months });
+  q.value = value; q.rate = value * LEASE.ratePerMonth * termOf(months).factor;
+  q.deposit = q.rate * LEASE.depositMonths;
+  const fb = frameBlock(state, now, q.rate);
+  if (fb) return fail(fb);
+  book(state, now, "rev", "insurance", value);              // Verkaufserlös
+  book(state, now, "cost", "leaseFee", q.deposit);
+  ac.lease = makeContract(state, t, now, q);
+  return ok({ value, rate: q.rate, deposit: q.deposit });
+}
 
 // ---------- Personal
 

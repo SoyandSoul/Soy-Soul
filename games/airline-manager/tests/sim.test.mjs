@@ -10,6 +10,8 @@ import { usedListings } from "../js/sim/market.js";
 import { checkStatus } from "../js/sim/maintenance.js";
 import { summary } from "../js/sim/ledger.js";
 import { staffNeed, coverage, salaryPerDay, GROUPS } from "../js/sim/staff.js";
+import { leaseFrame, monthlyObligation } from "../js/sim/lease.js";
+import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
 import { AIRCRAFT } from "../js/data/aircraft.js";
 import { AIRPORTS } from "../js/data/airports.js";
@@ -33,9 +35,9 @@ test("Gebrauchtmarkt für alle gleich", () => {
   assert.deepEqual(usedListings(T0), usedListings(T0 + 3 * H));
 });
 
-function setup() {
+function setup(n = 2) {
   const s = newGame({ name: "Test Air", iata: "TA", hub: "FRA", player: { code: "AL-TST-001", secret: "x" }, now: T0 });
-  const r = act.orderNew(s, "a320neo", 2, T0); assert.ok(r.ok, r.msg);
+  for (let i = 0; i < n; i++) { const r = act.leaseNew(s, "a320neo", 12, T0); assert.ok(r.ok, r.msg); }
   settle(s, T0 + 2 * H);
   const route = act.createRoute(s, "FRA", "PMI").route;
   const hired = act.hireAllOpen(s, T0 + 2 * H); assert.ok(hired.ok, hired.msg);
@@ -65,10 +67,11 @@ test("Abrechnung ist unabhängig davon, wie oft man reinschaut", () => {
 });
 
 test("Gut gewählte Strecke ist profitabel (Balance-Grundcheck)", () => {
-  // Ein Flugzeug auf einer nachfragestarken Strecke – so sieht vernünftiges Spiel aus.
-  const { s, start } = setup();
+  // Ein geleastes Flugzeug auf einer nachfragestarken Strecke – so sieht vernünftiges Spiel aus.
+  const { s, start } = setup(1);
   const route = act.createRoute(s, "FRA", "LHR").route;
   act.assign(s, s.fleet[0].id, route.id, start);
+  act.hireAllOpen(s, start);          // neues Ziel heißt mehr Bodenpersonal
   let legs = 0;
   for (let d = 1; d <= 28; d++) legs += settle(s, start + d * DAY).legs;
   const sum = summary(s, 30, start + 28 * DAY), margin = sum.profit / sum.opRev;
@@ -90,6 +93,7 @@ test("Zu viel Kapazität auf einer dünnen Strecke lohnt sich nicht", () => {
 
 test("Personal: ohne Crew kein Einsatz, Gehälter laufen als Tageskosten", () => {
   const s = newGame({ name: "Test Air", iata: "TA", hub: "FRA", player: { code: "c", secret: "x" }, now: T0 });
+  s.cash = 300e6;
   act.orderNew(s, "a320neo", 2, T0);
   settle(s, T0 + 2 * H);
   const route = act.createRoute(s, "FRA", "LHR").route;
@@ -137,6 +141,7 @@ test("Überfällige Wartung → negative Stunden + Risiko", () => {
 
 test("Bahnlänge wird geprüft", () => {
   const s = newGame({ name: "X", iata: "XX", hub: "LHR", player: { code: "c", secret: "s" }, now: T0 });
+  s.cash = 300e6;
   act.orderNew(s, "a350-900", 1, T0); settle(s, T0 + 2 * H);
   const r = act.createRoute(s, "LHR", "LCY").route;
   const res = act.assign(s, s.fleet[0].id, r.id, T0 + 2 * H);
@@ -154,6 +159,7 @@ assert.ok(Object.values(fresh.airline.livery.base).every(c => c === "#ffffff"));
 
 test("Erste 5 Flugzeuge sofort, danach Lieferzeit", () => {
   const g = newGame({ name: "D", iata: "DD", hub: "FRA", player: { code: "c", secret: "s" }, now: T0 });
+  g.cash = 900e6;
   g.cash = 2e9;
   act.orderNew(g, "a320neo", 4, T0); act.orderNew(g, "a320neo", 3, T0);
   assert.deepEqual(g.fleet.map(a => a.status), ["idle", "idle", "idle", "idle", "idle", "delivery", "delivery"]);
@@ -178,6 +184,40 @@ for (const sc of SCHEMES) for (const pal of PALETTES.slice(0, 3)) {
 }
 const used = usedListings(T0);
 assert.ok(used.every(l => l.cond >= 0.35 && l.cond <= 0.98), "Gebraucht-Zustand liegt im erlaubten Bereich");
+
+test("Leasing: Rate, Rahmen, Verlängerung und Rückgabe", () => {
+  const s = newGame({ name: "Lease Air", iata: "LA", hub: "FRA", player: { code: "c", secret: "x" }, now: T0 });
+  const before = s.cash;
+  const r = act.leaseNew(s, "a320neo", 12, T0);
+  assert.ok(r.ok, r.msg);
+  const ac = r.aircraft;
+  assert.ok(ac.lease && ac.lease.rate > 0, "Vertrag fehlt");
+  assert.ok(s.cash < before, "Kaution muss abgebucht werden");
+  // Geleastes Gerät gehört der Airline nicht
+  assert.equal(act.sellAircraft(s, ac.id, T0).ok, false, "geleaste Maschine darf nicht verkäuflich sein");
+  assert.equal(companyValue(s, T0).fleet, 0, "Leasingflugzeug zählt nicht zum Vermögen");
+  // Der Rahmen begrenzt die Flotte: irgendwann sagt der Leasinggeber nein
+  let leased = 1;
+  while (act.leaseNew(s, "a320neo", 12, T0).ok && leased < 20) leased++;
+  assert.ok(leased >= 2 && leased < 20, `Rahmen greift nicht (${leased} Flugzeuge)`);
+  assert.ok(monthlyObligation(s) <= leaseFrame(s, T0).max * 1.001, "Verpflichtungen über dem Rahmen");
+  // Raten laufen zeitanteilig als Kosten – über zehn Tage muss die Summe zur Monatsrate passen
+  settle(s, T0 + 2 * H);
+  const base = summary(s, 60, T0 + 2 * H).cost.lease || 0;
+  settle(s, T0 + 2 * H + 10 * DAY);
+  const ten = (summary(s, 60, T0 + 2 * H + 10 * DAY).cost.lease || 0) - base;
+  const expect = monthlyObligation(s) / 30.4 * 10;
+  assert.ok(Math.abs(ten - expect) / expect < 0.02, `Leasingraten 10 Tage: ${Math.round(ten)} statt ${Math.round(expect)}`);
+  // Vertragsende: wird automatisch verlängert, solange keine Rückgabe gewünscht ist
+  const until = ac.lease.until, rate = ac.lease.rate;
+  settle(s, until + H);
+  assert.ok(ac.lease.until > until && ac.lease.rate > rate, "Verlängerung fehlt");
+  // Rückgabe: Kaution zurück, abzüglich Strafen
+  const cash = s.cash, ret = act.returnLease(s, ac.id, until + 2 * H);
+  assert.ok(ret.ok, ret.msg);
+  assert.ok(!s.fleet.includes(ac), "Flugzeug muss zurückgehen");
+  assert.ok(s.cash !== cash, "Rückgabe muss abgerechnet werden");
+});
 
 test("Wetter deterministisch, Verspätungen kommen vor", async () => {});
 const { weatherAt, weatherDelay } = await import("../js/sim/weather.js");

@@ -9,6 +9,7 @@ import { checkStatus, mostUrgent } from "../../sim/maintenance.js";
 import { typeOf, routeDistance } from "../../sim/flight.js";
 import { flightsPerDay } from "../../sim/engine.js";
 import { usedListings } from "../../sim/market.js";
+import { leaseFrame } from "../../sim/lease.js";
 import * as act from "../../sim/actions.js";
 
 const openBtn = (id, label) => html`<button class="btn sm p" data-act="open" data-id="${id}">${label}</button>`;
@@ -44,7 +45,9 @@ const market = {
   render(ctx) {
     const s = ctx.state, used = usedListings(ctx.now());
     const pending = s.fleet.filter(a => a.status === "delivery").length;
+    const fr = leaseFrame(s, ctx.now());
     return html`<dl class="kv"><dt>Kasse</dt><dd>${fmt.money(s.cash)}</dd>
+      <dt>Leasingrahmen frei</dt><dd class="${fr.free ? "acc" : "muted"}">${fmt.money(fr.free)} / Monat</dd>
       <dt>Gebrauchtangebote</dt><dd>${used.length}</dd>
       <dt>Sofort lieferbar</dt><dd>${Math.max(0, 5 - (s.ordered || 0))} Flugzeuge</dd>
       ${pending ? html`<dt>In Auslieferung</dt><dd>${pending}</dd>` : ""}</dl>

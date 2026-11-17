@@ -5,6 +5,8 @@ import { CABIN, FLIGHT, CHECKS } from "../../core/config.js";
 import { typeOf, seatUnits, totalSeats, effectiveRange, routeProblems, routeDistance } from "../../sim/flight.js";
 import { checkStatus, condition } from "../../sim/maintenance.js";
 import { aircraftValue, condEffects } from "../../sim/market.js";
+import { isLeased, buyoutPrice, returnSettlement, termOf } from "../../sim/lease.js";
+import { LEASE } from "../../core/config.js";
 import { sideView } from "../aircraftArt.js";
 import * as act from "../../sim/actions.js";
 import { seatmapSVG, setClass, moveBoundary, CLASS_COLORS } from "../seatmap.js";
@@ -73,7 +75,30 @@ export default {
         if (r) { ctx.toast(`Verkauft für ${fmt.money(r.value)}.`, "good"); v.detail = null; api.rerender(); }
       },
       locate: () => ctx.map.focusAircraft(id()),
-      maint: () => api.open("maint", { focus: id() })
+      maint: () => api.open("maint", { focus: id() }),
+      leaseReturn: () => {
+        const ac = ctx.state.fleet.find(a => a.id === id()), st = returnSettlement(ac, ctx.now());
+        const txt = st.isEarly
+          ? `${ac.reg} vorzeitig zurückgeben? Es werden ${fmt.money(st.earlyFee)} Restraten fällig${st.penalty ? ` und ${fmt.money(st.penalty)} für überfällige Checks` : ""}. Erstattung der Kaution: ${fmt.money(st.refund)}.`
+          : `${ac.reg} an ${ac.lease.lessor} zurückgeben?${st.penalty ? ` Für überfällige Checks werden ${fmt.money(st.penalty)} fällig.` : ""} Erstattung der Kaution: ${fmt.money(st.refund)}.`;
+        if (!confirm(txt)) return;
+        const r = ctx.run(act.returnLease, id(), ctx.now());
+        if (r) { ctx.toast(`${r.reg} zurückgegeben.${r.refund ? ` Kaution ${fmt.money(r.refund)} erstattet.` : ""}`, "info", 6000); v.detail = null; api.rerender(); }
+      },
+      leaseBuyout: () => {
+        const ac = ctx.state.fleet.find(a => a.id === id()), p = buyoutPrice(ac, ctx.now());
+        if (!confirm(`${ac.reg} für ${fmt.money(p)} aus dem Leasingvertrag herauskaufen? Danach gehört die Maschine deiner Airline.`)) return;
+        const r = ctx.run(act.buyoutLease, id(), ctx.now());
+        if (r) ctx.toast(`${ac.reg} übernommen für ${fmt.money(r.price)}.`, "good");
+      },
+      leaseExtend: el => { const r = ctx.run(act.extendLease, id(), +el.dataset.m, ctx.now()); if (r) ctx.toast(`Vertrag verlängert, neue Rate ${fmt.money(r.rate)} pro Monat.`, "good"); },
+      leaseEnd: el => { const r = ctx.run(act.setReturnAtEnd, id(), el.checked); if (r) ctx.toast(r.returnAtEnd ? "Wird am Vertragsende zurückgegeben." : "Wird am Vertragsende automatisch verlängert.", "info"); },
+      saleLeaseback: () => {
+        const ac = ctx.state.fleet.find(a => a.id === id());
+        if (!confirm(`${ac.reg} an eine Leasinggesellschaft verkaufen und zurückmieten? Du bekommst den Verkaufserlös sofort, zahlst dafür künftig Monatsraten.`)) return;
+        const r = ctx.run(act.saleLeaseback, id(), LEASE.defaultTerm, ctx.now());
+        if (r) ctx.toast(`${ac.reg} verkauft für ${fmt.money(r.value)} und zurückgemietet für ${fmt.money(r.rate)} pro Monat.`, "good", 7000);
+      }
     };
   },
 
@@ -128,6 +153,30 @@ function bindSeatmap(box, ctx, v) {
 }
 const svgX = (svg, cx) => { const p = svg.createSVGPoint(); p.x = cx; p.y = 0; return p.matrixTransform(svg.getScreenCTM().inverse()).x; };
 
+/** Vertragsdaten eines geleasten Flugzeugs mit Verlängern, Herauskaufen und Rückgabe. */
+function leaseBox(ctx, ac, now) {
+  if (!isLeased(ac)) return "";
+  const l = ac.lease, rest = l.until - now;
+  const st = returnSettlement(ac, now);
+  return html`<h3 style="margin:16px 0 8px;font-size:15px">Leasingvertrag</h3>
+    <div class="card">
+      <dl class="kv"><dt>Leasinggeber</dt><dd>${l.lessor}</dd>
+        <dt>Monatsrate</dt><dd class="acc">${fmt.money(l.rate)}</dd>
+        <dt>Laufzeit</dt><dd>${l.months} Monate${l.extensions ? ` · ${l.extensions}× verlängert` : ""}</dd>
+        <dt>Restlaufzeit</dt><dd class="${rest < 14 * 864e5 ? "warn" : ""}">${rest > 0 ? fmt.duration(rest) : "abgelaufen"}</dd>
+        <dt>Wartungsrücklage</dt><dd>$${fmt.int(l.reservePerFH)} je Flugstunde</dd>
+        <dt>Kaution</dt><dd>${fmt.money(l.deposit)}</dd>
+        ${st.penalty ? html`<dt>Offene Checks</dt><dd class="bad">${fmt.money(st.penalty)} bei Rückgabe</dd>` : ""}</dl>
+      <label class="row small" style="margin-top:8px"><input type="checkbox" data-act="leaseEnd" ${l.returnAtEnd ? "checked" : ""}>
+        <span class="grow">Am Vertragsende zurückgeben (sonst automatische Verlängerung zum etwas höheren Satz)</span></label>
+      <div class="row wrap" style="margin-top:10px">
+        ${LEASE.terms.map(t => html`<button class="btn sm" data-act="leaseExtend" data-m="${t.months}">+${t.months} Mon.</button>`)}
+        <span class="grow"></span>
+        <button class="btn sm" data-act="leaseBuyout">Herauskaufen · ${fmt.money(buyoutPrice(ac, now))}</button>
+        <button class="btn sm danger" data-act="leaseReturn" ${ac.status === "active" || ac.status === "check" ? "disabled" : ""}>Zurückgeben</button>
+      </div></div>`;
+}
+
 function confirmSell(ac, ctx) {
   // Eigener Bestätigungsdialog wäre schöner; confirm() reicht fürs Fundament.
   return window.confirm(`${ac.reg} für ca. ${fmt.money(aircraftValue(ac, ctx.now()) * 0.95)} verkaufen?`);
@@ -173,8 +222,11 @@ function detail(ctx, ac, v) {
     <h3 style="margin:16px 0 8px;font-size:15px">Datenblatt ${t.maker} ${t.name}</h3>
     <div class="card">${datasheet(t, ac, { open: ["Leistung"] })}</div>
     <div class="row wrap" style="margin-top:10px">
-      <button class="btn sm" data-act="aux" ${canEdit && (ac.aux || 0) < FLIGHT.aux.maxTanks ? "" : "disabled"}>Zusatztank einbauen (${fmt.money(FLIGHT.aux.priceM * 1e6)}, +${FLIGHT.aux.rangeBonus * 100} % Reichweite, −${fmt.int(FLIGHT.aux.payloadCostKg)} kg Nutzlast)</button>
+      <button class="btn sm" data-act="aux" ${canEdit && (ac.aux || 0) < FLIGHT.aux.maxTanks ? "" : "disabled"}>Zusatztank einbauen (${fmt.money(FLIGHT.aux.priceM * 1e6)}, +${Math.round(FLIGHT.aux.rangeBonus * 100)} % Reichweite, −${fmt.int(FLIGHT.aux.payloadCostKg)} kg Nutzlast)</button>
     </div>
     <div class="checks" style="margin-top:10px">${CHECKS.order.map(k => html`<div class="${cs[k].state}">${k}-Check<b>${fmt.fh(cs[k].rem)}</b></div>`)}</div>
-    <div class="row" style="margin-top:16px"><span class="grow"></span><button class="btn sm danger" data-act="sell" ${ac.status === "active" || ac.status === "check" ? "disabled" : ""}>Verkaufen</button></div>`;
+    ${leaseBox(ctx, ac, now)}
+    <div class="row" style="margin-top:16px"><span class="grow"></span>
+      ${isLeased(ac) ? "" : html`<button class="btn sm" data-act="saleLeaseback" ${ac.status === "delivery" ? "disabled" : ""} title="Verkaufen und zurückmieten – bringt sofort Geld">Sale-and-Leaseback</button>`}
+      <button class="btn sm danger" data-act="sell" ${isLeased(ac) || ac.status === "active" || ac.status === "check" ? "disabled" : ""}>Verkaufen</button></div>`;
 }

@@ -3,6 +3,7 @@
 
 import { condEffects } from "./market.js";
 import { cabinCrew, staffEffects } from "./staff.js";
+import { reserveForLeg } from "./lease.js";
 import { CABIN, CARGO, FEES, STAFF, CATERING, BAGS, FIXED, H } from "../core/config.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { typeOf, routeDistance, blockHours, cargoCapacityKg, totalSeats } from "./flight.js";
@@ -52,6 +53,7 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   cost.sales = rev.tickets * FEES.distribution;
   cost.catering = CABIN.classes.reduce((s, c) => s + b.pax[c] * cat.costPerPax[c], 0) * (km > 3000 ? 1.8 : 1);
   cost.maint = t.maintFH * (bh - 0.3);
+  cost.leaseReserve = reserveForLeg(ac, bh);   // Rücklage an den Leasinggeber, zusätzlich zur eigenen Reserve
   // Fehlt Verwaltungspersonal, läuft der Betrieb unrund: Handling und Vertrieb werden teurer.
   const sur = staffEffects(state).surcharge;
   if (sur) { cost.handling *= 1 + sur; cost.sales *= 1 + sur; }

@@ -271,6 +271,25 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.18 – Leasing** (vorgezogen aus Paket 6, löst die langsame Amortisation aus v0.17)
+- **Flugzeuge leasen statt kaufen** (`sim/lease.js`): Kaution plus Monatsrate statt Kaufpreis, dazu
+  Wartungsrücklagen pro Flugstunde an den Leasinggeber. So wachsen echte Airlines – die meisten besitzen
+  ihre Flotte gar nicht. Rate ≈ 0,95 % des Marktwerts im Monat, kürzere Laufzeiten sind teurer
+  (3/6/12/24 Monate). Geleaste Maschinen zählen nicht zum Unternehmenswert und lassen sich nicht verkaufen.
+- **Leasingrahmen**: Wie viel eine Airline leasen darf, hängt am Zahlungsstrom, nicht am Kontostand –
+  Grundbetrag plus Vielfaches des Betriebsergebnisses, skaliert mit der Reputation. Der Rahmen wächst mit
+  dem Erfolg und schrumpft wieder, wenn das Ergebnis einbricht.
+- **Vertragsende**: wird automatisch verlängert (etwas teurer), außer man stellt auf Rückgabe. Rückgabe,
+  Verlängerung und Herauskaufen gehen jederzeit im Hangar; überfällige Checks kosten bei der Rückgabe extra,
+  vorzeitige Rückgabe kostet Restraten.
+- **Sale-and-Leaseback**: eigenes Flugzeug an eine Leasinggesellschaft verkaufen und zurückmieten – bringt
+  sofort Kapital.
+- **Startkapital von 200 auf 12 Mio $ gesenkt** und `MARKET_FACTOR` zurück auf realistische 0,50.
+  Ein Flugzeug zu kaufen ist am Anfang bewusst außer Reichweite; gewachsen wird über Leasing, gekauft wird
+  später, wenn Kapital da ist (dann günstiger als Leasing – wie in der Realität).
+  Wachstum im Test: 2 Flugzeuge nach 4 Wochen, 5 nach 8, 11 nach 16 Wochen.
+- Tests: 16 (neu: Rate, Rahmen, Tagesbuchung, automatische Verlängerung und Rückgabe).
+
 **v0.17 – Airline-Zentrale und Kostenstruktur** (Paket 2 des Fahrplans)
 - **Zwei Panele statt Dock und Dropdown**: links „Airline" (Übersicht, Flotte, Personal, Kosten & Erlöse,
   Angebot an Bord, Reputation, Unternehmen, Spielstand), rechts „Betrieb" (Routen, Markt, Wartung, Kerosin,
