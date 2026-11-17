@@ -138,3 +138,25 @@
 .goal .tick { color: var(--good); font-weight: 700; }
 .goal-head { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 2px; }
 .goal-head h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink3); }
+
+/* Versionsknopf unten im Airline-Panel */
+.panel-foot { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink3); text-align: left; }
+.panel-foot:hover { background: rgba(255,255,255,.05); color: var(--ink2); }
+.panel-foot .pill { font-style: normal; }
+
+/* Änderungsverlauf */
+.cl { border-bottom: 1px solid var(--line); }
+.cl:last-child { border-bottom: 0; }
+.cl-head { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 10px 2px; text-align: left; }
+.cl-head:hover { background: rgba(255,255,255,.04); }
+.cl-head b { font: 650 14px var(--display); color: var(--accent); min-width: 48px; }
+.cl-head .grow { font-size: 13.5px; font-weight: 600; color: var(--ink2); }
+.cl.open .cl-head .grow { color: var(--ink); }
+.cl-head time { font-size: 11px; color: var(--ink3); white-space: nowrap; }
+.cl-head .pill { font-style: normal; }
+.cl-body { padding: 0 2px 14px 58px; }
+.cl-intro { font-size: 12.5px; color: var(--ink3); line-height: 1.45; margin-bottom: 10px; }
+.cl-body ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.cl-body li { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; line-height: 1.45; }
+.cl-body li .pill { font-style: normal; flex: none; margin-top: 1px; min-width: 56px; justify-content: center; }
+@media (max-width: 860px) { .cl-body { padding-left: 2px; } }

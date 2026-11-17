@@ -9,6 +9,8 @@ import { ICONS } from "./icons.js";
 import { html, raw, esc, delegate } from "./dom.js";
 import { prefs } from "../core/store.js";
 import { normalizeLivery } from "../art/livery.js";
+import { GAME } from "../core/config.js";
+import { hasUnseen, markSeen } from "./apps/changelog.js";
 
 const panels = new Map();   // side → { el, sections, view, open }
 let ctxRef = null;
@@ -27,6 +29,7 @@ export function definePanel(side, { title, sections }) {
   document.getElementById("panels").appendChild(el);
 
   el.addEventListener("click", e => {
+    if (e.target.closest("[data-changelog]")) { markSeen(); ctxRef.openApp("changelog"); render(side); return; }
     const head = e.target.closest("[data-panel-toggle]");
     if (head) { setOpen(side, !entry.open); return; }
     const sec = e.target.closest("[data-sec-toggle]");
@@ -52,6 +55,9 @@ export function setOpen(side, open) {
 }
 
 export const isPanelOpen = side => !!panels.get(side)?.open;
+
+/** Auf schmalen Bildschirmen liegen offene Panele über allem – vor einem Fenster müssen sie zu. */
+export function collapsePanels() { for (const side of panels.keys()) setOpen(side, false); }
 
 /** Abschnitt gezielt öffnen (z. B. aus dem HUD heraus). */
 export function openSection(side, id) {
@@ -99,7 +105,12 @@ function render(side) {
       ${isOpen ? html`<div class="psec-body">${sec.render(ctx, p.view)}</div>` : ""}
     </section>`;
   })}</div>` : html``;
-  p.el.innerHTML = head(ctx, p).s + body.s;
+  const foot = p.open && p.side === "left"
+    ? html`<button class="panel-foot" data-changelog title="Änderungen in dieser und früheren Versionen">
+        <span class="grow">Airline Manager ${GAME.label}</span>
+        ${hasUnseen() ? html`<i class="pill good">Was ist neu</i>` : html`<span class="small muted">Was ist neu</span>`}</button>`
+    : html``;
+  p.el.innerHTML = head(ctx, p).s + body.s + foot.s;
 
   // Handler des offenen Abschnitts verdrahten
   const sec = p.sections.find(s => s.id === p.view.open);

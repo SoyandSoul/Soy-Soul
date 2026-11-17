@@ -4,7 +4,7 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.19**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.20**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) ist als v0.17 fertig.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
@@ -203,7 +203,7 @@ Paket 9  (Online)        ── braucht Supabase
 
 ## Ablauf je Paket
 
-1. Umsetzen, Balance-Werte nach `js/core/config.js`
+1. Umsetzen, Balance-Werte nach `js/core/config.js`, Eintrag in `js/data/changelog.js`
 2. `node games/airline-manager/tests/sim.test.mjs` muss grün bleiben, neue Tests dazu
 3. Durchspielen im Browser, Screenshots zur Abnahme
 4. Version an drei Stellen hochzählen: `core/config.js` (GAME.label), `index.html` (ver der Spielkarte),

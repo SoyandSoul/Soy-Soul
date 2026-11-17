@@ -280,6 +280,17 @@ test("Streckenbewertung warnt vor Überversorgung", () => {
   assert.ok(summer.bookable > winter.bookable * 1.2, `Saison fehlt: Sommer ${summer.bookable}, Winter ${winter.bookable}`);
 });
 
+test("Änderungsverlauf passt zur Version", async () => {});
+const { CHANGELOG, LATEST, TAGS } = await import("../js/data/changelog.js");
+const { GAME } = await import("../js/core/config.js");
+assert.equal(GAME.label, LATEST, `core/config.js sagt ${GAME.label}, der Änderungsverlauf ${LATEST} – beide hochzählen`);
+assert.equal(new Set(CHANGELOG.map(e => e.v)).size, CHANGELOG.length, "Version doppelt im Änderungsverlauf");
+for (let i = 1; i < CHANGELOG.length; i++) assert.ok(CHANGELOG[i - 1].v > CHANGELOG[i].v, "Änderungsverlauf muss absteigend sortiert sein");
+for (const e of CHANGELOG) {
+  assert.ok(e.title && e.date && e.items.length, `${e.v}: unvollständig`);
+  for (const [tag, text] of e.items) { assert.ok(TAGS[tag], `${e.v}: unbekannte Markierung "${tag}"`); assert.ok(text.length > 20, `${e.v}: Text zu knapp`); }
+}
+
 test("Wetter deterministisch, Verspätungen kommen vor", async () => {});
 const { weatherAt, weatherDelay } = await import("../js/sim/weather.js");
 assert.deepEqual(weatherAt("OSL", T0), weatherAt("OSL", T0));

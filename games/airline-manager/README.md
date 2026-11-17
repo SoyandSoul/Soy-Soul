@@ -39,7 +39,8 @@ games/airline-manager/
 │  │  └─ util.js           deterministischer Zufall, Formatierung
 │  ├─ data/
 │  │  ├─ aircraft.js       38 Typen (Airbus, Boeing, Bombardier, Embraer, Beechcraft, Concorde) + Datenblatt
-│  │  └─ airports.js       137 Flughäfen: IATA/ICAO, Koordinaten, Bahnlänge, Nachfrage-Faktoren
+│  │  ├─ airports.js       137 Flughäfen: IATA/ICAO, Koordinaten, Bahnlänge, Nachfrage-Faktoren
+│  │  └─ changelog.js      Änderungsverlauf für den Knopf im Spiel (bei jeder Version ergänzen)
 │  ├─ sim/                 Spiellogik, ohne DOM
 │  │  ├─ engine.js         settle(): rechnet alles bis "jetzt" nach (Kern des Offline-Prinzips)
 │  │  ├─ actions.js        jede Spieleraktion mit Regelprüfung
@@ -270,6 +271,17 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
 
 ## Änderungen
+
+**v0.20 – Änderungsverlauf im Spiel**
+- Knopf unten im Airline-Panel („Airline Manager v0.20 · Was ist neu") öffnet den Verlauf aller Versionen
+  seit Projektbeginn (`data/changelog.js`, `ui/apps/changelog.js`). Nach einem Update erscheint dort ein
+  Hinweis, bis der Spieler ihn gelesen hat (`prefs: changelog-seen`).
+- **Beim Hochzählen der Version gehört ab jetzt ein Eintrag in `data/changelog.js` dazu** – ein Test prüft,
+  dass `GAME.label` und der oberste Eintrag übereinstimmen, dass die Liste absteigend sortiert ist und dass
+  jeder Eintrag Titel, Datum und mindestens einen Punkt mit gültiger Markierung hat.
+- Behoben: Auf schmalen Bildschirmen öffneten sich Fenster hinter dem Panel, weil das Panel dort die ganze
+  Breite einnimmt. Panele klappen jetzt ein, sobald ein Fenster aufgeht – betraf jeden „Öffnen"-Knopf.
+- Tests: 20.
 
 **v0.19 – Ziele, Streckenbewertung, Flottenvereinheitlichung**
 - **Ziele und Meilensteine** (`sim/goals.js`): 20 Ziele in fünf Gruppen (Aufbau, Betrieb, Flotte, Netz,

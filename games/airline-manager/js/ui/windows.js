@@ -12,6 +12,7 @@
 import { ICONS } from "./icons.js";
 import { delegate } from "./dom.js";
 import { prefs } from "../core/store.js";
+import { collapsePanels } from "./panels.js";
 
 const apps = new Map();
 const open = new Map(); // id → { el, body, view }
@@ -25,6 +26,8 @@ export const allApps = () => [...apps.values()];
 export function toggle(id, params) { isOpen(id) ? close(id) : openApp(id, params); }
 
 export function openApp(id, params = {}) {
+  // Schmaler Bildschirm: die Panele füllen ihn ganz aus, ein Fenster läge dahinter.
+  if (innerWidth <= 860) collapsePanels();
   const app = apps.get(id);
   if (open.has(id)) { const w = open.get(id); Object.assign(w.view, params); rerender(id); focus(id); return; }
   const el = document.createElement("section");
