@@ -4,11 +4,11 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.23**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.24**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
 > Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22, Paket 5 (Hub und
-> Ausstattung) als v0.23.
+> Ausstattung) als v0.23, Paket 6 (Finanzen) als v0.24.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
 > Flottenvereinheitlichung sind als v0.19 fertig. Offen daraus: Umsteiger am Drehkreuz, IROPS,
 > wartende Entscheidungen, Benachrichtigungen, geführter Einstieg – siehe unten.
@@ -128,14 +128,17 @@ Unterhalt (inklusive Schrittweiten-Unabhängigkeit), Lounge und Werft, Kabinenum
 
 ---
 
-## Paket 6 – Finanzen → v0.24
+## Paket 6 – Finanzen → v0.24 ✅
 
-Punkte 29, 30 · **Leasing ist als v0.18 schon erledigt**
+Punkte 29, 30 · erledigt · Leasing war als v0.18 schon da
 
-- Kredite mit Zinsen, Rückzahlung am Stück oder in Raten
-- Kerosin mit Diagrammen statt Zahlenkolonnen (Preisverlauf, Tanklagerstand, Verbrauch)
+- ✅ Kredite mit Zinsen, als Annuität (Raten) oder endfällig (am Stück)
+- ✅ Zinssatz aus Ruf und Verschuldung, Rahmen aus Ertrag und eigenem Flottenwert
+- ✅ Vorzeitige Ablösung, verpasste Raten mit Folgen statt Spielende
+- ✅ Kerosin mit Diagrammen: Preisverlauf, Tanklagerstand, Tagesverbrauch der letzten 14 Tage
 
-**Test:** Kredit aufnehmen, Raten über Spielzeit laufen lassen, Kasse muss stimmen.
+**Test:** erledigt – drei Tests in `sim.test.mjs` (Raten über 370 Tage, Schrittweiten-Unabhängigkeit
+über 20 Tage auf den Cent, Ablösung und verpasste Raten).
 
 ---
 

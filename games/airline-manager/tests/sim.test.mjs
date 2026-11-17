@@ -24,6 +24,7 @@ import { repBreakdown, repAdvice } from "../js/sim/reputation.js";
 import { levelOf, stage, nextStage, upkeepPerDay, hangarEffect, hubRep, loungeFactor, gateFactor } from "../js/sim/hub.js";
 import { seatBudget, retrofitQuote, fleetFitting } from "../js/sim/fitting.js";
 import { seatUnits } from "../js/sim/flight.js";
+import { creditLimit, interestRate, quote, annuity, totalDebt, openLoans, monthlyLoad, payoffQuote, MONTH } from "../js/sim/credit.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
 import { AIRCRAFT } from "../js/data/aircraft.js";
@@ -82,13 +83,21 @@ test("Offline-Nachrechnung: Flug um 13 Uhr, Login um 17 Uhr", () => {
 });
 
 test("Abrechnung ist unabhängig davon, wie oft man reinschaut", () => {
+  // Die wichtigste Invariante des ganzen Spiels: ohne Server darf das Ergebnis nicht davon
+  // abhängen, wie oft jemand den Tab öffnet. Über 14 Tage auf den Cent genau.
   const a = setup();
-  act.assign(a.s, a.s.fleet[0].id, a.route.id, a.start);
+  const route = act.createRoute(a.s, "FRA", "LHR").route;
+  act.hireAllOpen(a.s, a.start);
+  act.assign(a.s, a.s.fleet[0].id, route.id, a.start);
+  act.assign(a.s, a.s.fleet[1].id, a.route.id, a.start);
+  act.hireAllOpen(a.s, a.start);
   const b = { ...a, s: structuredClone(a.s) };
-  settle(a.s, a.start + 3 * DAY);
-  for (let h = 1; h <= 72; h++) settle(b.s, b.start + h * H);
+  settle(a.s, a.start + 14 * DAY);
+  for (let h = 1; h <= 14 * 24; h++) settle(b.s, b.start + h * H);
   assert.equal(a.s.flights.length, b.s.flights.length);
-  assert.ok(Math.abs(a.s.cash - b.s.cash) < 1, `${a.s.cash} vs ${b.s.cash}`);
+  assert.equal(a.s.cash.toFixed(2), b.s.cash.toFixed(2), `${a.s.cash} vs ${b.s.cash}`);
+  assert.equal(a.s.airline.rep.toFixed(6), b.s.airline.rep.toFixed(6), "auch die Reputation muss gleich laufen");
+  assert.deepEqual(a.s.goals.done, b.s.goals.done, "Ziele fallen zur selben Zeit");
 });
 
 test("Gut gewählte Strecke ist profitabel (Balance-Grundcheck)", () => {
@@ -589,6 +598,89 @@ test("Kabinenausstattung: Sitzbudget, Ruf und Umbaukosten", () => {
   assert.ok(act.retrofit(s2, s2.fleet[0].id, "slim", "none", st2).ok);
   assert.ok(seatBudget(s2.fleet[0]) > before);
   assert.ok(fleetFitting(s2).rep < 0);
+});
+
+
+test("Kredit: Rate, Zins und Tilgung über die Laufzeit", () => {
+  const { s, start } = setup(1);
+  const route = act.createRoute(s, "FRA", "LHR").route;
+  act.hireAllOpen(s, start);
+  act.assign(s, s.fleet[0].id, route.id, start);
+  act.hireAllOpen(s, start);
+  for (let d = 0; d < 30; d++) settle(s, start + (d + 1) * DAY);
+  const now = start + 30 * DAY;
+
+  const limit = creditLimit(s, now);
+  assert.ok(limit > 0, "eine profitable Airline bekommt einen Rahmen");
+  assert.ok(!act.takeLoan(s, limit * 2, 24, "annuity", now).ok, "über den Rahmen hinaus gibt es nichts");
+  assert.ok(!act.takeLoan(s, 100, 24, "annuity", now).ok, "Kleinbeträge auch nicht");
+  assert.ok(!act.takeLoan(s, 1e6, 7, "annuity", now).ok, "krumme Laufzeiten nicht");
+
+  // Annuität: Rate × Monate ergibt mehr als die Summe, Zins steckt drin
+  const q = quote(s, now, 4e6, 24, "annuity");
+  assert.ok(Math.abs(q.payment - annuity(4e6, q.rate, 24)) < 1);
+  assert.ok(q.interest > 0 && q.totalPaid > 4e6);
+  const bullet = quote(s, now, 4e6, 24, "bullet");
+  assert.ok(bullet.payment < q.payment, "endfällig ist monatlich billiger");
+  assert.ok(bullet.interest > q.interest, "dafür kostet es insgesamt mehr Zinsen");
+  assert.equal(bullet.balloon, 4e6);
+
+  const cash = s.cash;
+  const r = act.takeLoan(s, 4e6, 24, "annuity", now);
+  assert.ok(r.ok, r.msg);
+  assert.equal(Math.round(s.cash - cash), 4e6 - q.fee, "Auszahlung abzüglich Gebühr");
+  assert.equal(totalDebt(s), 4e6);
+  assert.ok(monthlyLoad(s) > 0);
+
+  // Nach zwölf Monatsraten ist rund die Hälfte getilgt, der Rest läuft weiter
+  for (let d = 0; d < 370; d++) settle(s, now + (d + 1) * DAY);
+  const loan = s.credit.loans[0];
+  assert.ok(loan.paidCount >= 12, `Raten gezahlt: ${loan.paidCount}`);
+  assert.ok(loan.rest < 4e6 * 0.6 && loan.rest > 0, `Restschuld ${Math.round(loan.rest)}`);
+  const sum = summary(s, 60, now + 370 * DAY);
+  assert.ok(sum.cost.interest > 0 && sum.cost.repay > 0, "Zinsen und Tilgung werden getrennt gebucht");
+});
+
+test("Kreditraten hängen nicht an der Schrittweite", () => {
+  const { s, start } = setup(1);
+  const route = act.createRoute(s, "FRA", "LHR").route;
+  act.hireAllOpen(s, start); act.assign(s, s.fleet[0].id, route.id, start); act.hireAllOpen(s, start);
+  for (let d = 0; d < 30; d++) settle(s, start + (d + 1) * DAY);
+  const now = start + 30 * DAY;
+  assert.ok(act.takeLoan(s, Math.min(3e6, creditLimit(s, now)), 12, "bullet", now).ok);
+  const a = structuredClone(s), b = structuredClone(s);
+  for (let d = 0; d < 20; d++) settle(a, now + (d + 1) * DAY);
+  for (let h = 1; h <= 20 * 24; h++) settle(b, now + h * H);
+  assert.ok(Math.abs(a.cash - b.cash) < 1, `${Math.round(a.cash)} vs ${Math.round(b.cash)}`);
+  assert.equal(Math.round(totalDebt(a)), Math.round(totalDebt(b)));
+});
+
+test("Kredit vorzeitig ablösen und verpasste Raten", () => {
+  const { s, start } = setup(1);
+  const route = act.createRoute(s, "FRA", "LHR").route;
+  act.hireAllOpen(s, start); act.assign(s, s.fleet[0].id, route.id, start); act.hireAllOpen(s, start);
+  for (let d = 0; d < 30; d++) settle(s, start + (d + 1) * DAY);
+  const now = start + 30 * DAY;
+  assert.ok(act.takeLoan(s, 3e6, 24, "annuity", now).ok);
+  const id = s.credit.loans[0].id;
+  const po = payoffQuote(s, id);
+  assert.ok(po.fee > 0 && po.total > po.rest, "Ablösen kostet Vorfälligkeitsentschädigung");
+  const cash = s.cash;
+  assert.ok(act.repayLoan(s, id, now).ok);
+  assert.equal(Math.round(cash - s.cash), po.total);
+  assert.equal(totalDebt(s), 0);
+  assert.equal(openLoans(s).length, 0);
+  assert.ok(!act.repayLoan(s, id, now).ok, "zweimal geht nicht");
+
+  // Verpasste Rate: Restschuld wächst, Ruf sinkt, kein Spielende
+  assert.ok(act.takeLoan(s, 3e6, 12, "annuity", now).ok);
+  s.cash = 0;
+  const rep = s.airline.rep;
+  settle(s, now + 32 * DAY);
+  const l = s.credit.loans[0];
+  assert.ok(l.missed >= 1, "die Rate wurde als verpasst gezählt");
+  assert.ok(l.rest > 3e6 * 0.9, "die Restschuld ist nicht gesunken");
+  assert.ok(s.airline.rep < rep, "und der Ruf hat gelitten");
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

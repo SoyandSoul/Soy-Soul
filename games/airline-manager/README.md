@@ -272,6 +272,23 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.24 – Kredite und Kerosin-Diagramme** (Paket 6)
+- `sim/credit.js`: Annuität und endfälliger Kredit. Zahlungen sind **feste Termine** (`nextDue`),
+  keine laufende Verzinsung – damit hängt wie beim Charter nichts an der Schrittweite.
+  `creditLimit` aus Ertrag der letzten 30 Tage, eigenem Flottenwert (Sicherheit) und Kasse,
+  minus dem Vielfachen der monatlichen Verpflichtungen. Firmenwert zählt bewusst nicht mit.
+- `interestRate` aus Grundzins, Ruf und Verschuldungsgrad. Verpasste Rate: Restschuld plus
+  Zuschlag, Laufzeit verlängert sich, Ruf sinkt – aber kein Spielende.
+- Neues Fenster **Bank** (`ui/apps/bank.js`), Finanzierungsblock im Airline-Panel.
+- `ui/chart.js`: kleine SVG-Diagramme (Linie, Säulen, Anteilsbalken) ohne Fremdpaket.
+  Kerosin zeigt damit den Tagesverbrauch der letzten 14 Tage und die Reichweite des Vorrats.
+- **Wichtige Korrektur an der Kernregel:** Ziele wurden bisher am Ende jedes `settle`-Durchlaufs
+  geprüft, also bei stündlichem Nachrechnen zu anderer Zeit als bei täglichem. Da die Belohnung
+  Reputation enthält und Reputation die Nachfrage steuert, lief das Ergebnis langsam auseinander
+  (gemessen 671 $ auf 17,7 Mio $ über 20 Tage). Die Prüfung sitzt jetzt **am Ereignis selbst**;
+  nur wenn die ganze Flotte steht, wird am Ende geprüft. Der Invariantentest läuft jetzt über
+  14 Tage und vergleicht Kasse, Reputation und Zielliste auf den Cent genau.
+
 **v0.23 – Drehkreuz, Technik und Kabine** (Paket 5)
 - `sim/hub.js`: Ausbau je Flughafen (`state.hub[IATA]`), drei Bereiche mit je vier Stufen, Konfiguration
   unter `HUB`. Investition einmal, danach Unterhalt pro Tag – zeitanteilig gebucht wie Gehälter.

@@ -1,8 +1,11 @@
 // Kerosin: Live-Preis (sekündlich), 48-h-Chart, Tanklager kaufen und ausbauen.
-import { html } from "../dom.js";
+import { html, raw } from "../dom.js";
 import { fmt } from "../../core/util.js";
 import { FUEL } from "../../core/config.js";
 import { fuelPrice, fuelHistory, depotCapKg, buyFuel, upgradeDepot } from "../../sim/fuel.js";
+import { barChart } from "../chart.js";
+import { DAY } from "../../core/config.js";
+import { dayKey } from "../../core/util.js";
 
 export default {
   id: "fuel", title: "Kerosin", icon: "fuel", width: 520,
@@ -24,6 +27,8 @@ export default {
         <div class="row" style="margin-top:8px"><span class="grow small muted" data-k="cost"></span><button class="btn p" data-act="buy" ${free <= 0 ? "disabled" : ""}>Kaufen</button></div>
         <p class="small muted" style="margin-top:8px">Flüge tanken aus dem Lager zum Durchschnittspreis. Ist das Lager leer, wird zum aktuellen Preis +${FUEL.spotPremium * 100} % nachgekauft.</p>
       </div>
+      <h3 class="rep-h">Verbrauch und Kosten</h3>
+      <div class="card">${raw(usageBlock(ctx))}</div>
       <div class="card" style="margin-top:10px"><div class="row"><div class="grow"><b>Lager ausbauen</b><div class="small muted">${next ? `Auf ${fmt.int(next.capT)} t für ${fmt.money(next.price)}` : "Maximale Größe erreicht."}</div></div>
         <button class="btn" data-act="upgrade" ${next ? "" : "disabled"}>Ausbauen</button></div></div>`;
   },
@@ -78,4 +83,31 @@ function draw(cv, data) {
   g.strokeStyle = "#ffb000"; g.lineWidth = 3; g.stroke();
   const last = data.length - 1;
   g.beginPath(); g.arc(X(last), Y(data[last][1]), 6, 0, Math.PI * 2); g.fillStyle = "#ffb000"; g.fill();
+}
+
+/**
+ * Tagesverbrauch und Reichweite des Vorrats. Die Kosten je Tag stehen im Buchungsjournal,
+ * die Kilogramm rechnen wir aus dem Schnitt zurück – genauer als eine zweite Statistik zu führen,
+ * die beim Nachrechnen auseinanderlaufen könnte.
+ */
+function usageBlock(ctx) {
+  const s = ctx.state, now = ctx.now();
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const t = now - i * DAY, k = dayKey(t);
+    const cost = s.fin.days[k]?.cost?.fuel || 0;
+    days.push({ v: cost, t: new Date(t).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) });
+  }
+  const spent = days.reduce((a, d) => a + d.v, 0);
+  const withData = days.filter(d => d.v > 0).length;
+  const perDay = withData ? spent / withData : 0;
+  const kgPerDay = perDay / Math.max(0.01, s.fuel.avgCost);
+  const reach = kgPerDay > 0 ? s.fuel.stockKg / kgPerDay : null;
+  return `${barChart(days, { label: v => fmt.money(v), marks: 4, color: "var(--accent)" })}
+    <div class="row wrap small muted" style="margin-top:8px">
+      <span>14 Tage: <b>${fmt.money(spent)}</b></span><span>·</span>
+      <span>im Schnitt <b>${fmt.money(perDay)}</b> am Tag</span><span>·</span>
+      <span>rund <b>${fmt.int(kgPerDay / 1000)} t</b> täglich</span>
+      ${reach != null ? `<span>·</span><span>Vorrat reicht <b class="${reach < 2 ? "warn" : ""}">${reach.toFixed(1)} Tage</b></span>` : ""}
+    </div>`;
 }

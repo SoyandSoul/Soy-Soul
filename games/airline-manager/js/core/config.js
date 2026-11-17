@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.23",
+  label: "v0.24",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -145,6 +145,26 @@ export const CATERING = {
 };
 
 export const BAGS = { defaultFee: 25, maxFee: 120, takeRate: 0.55, decay: 60, repPerUsd: 0.15, repCap: 15 };
+
+// Kredite. Der Zins ist der eigentliche Hebel: Wer wenig verdient, viel schuldet oder einen
+// schlechten Ruf hat, zahlt deutlich mehr. Ein Kredit ist nie gratis Geld.
+export const CREDIT = {
+  monthDays: 30.4,
+  terms: [12, 24, 60],
+  termPremium: { 12: 0, 24: 0.004, 60: 0.011 },
+  base: 0.049,                 // Grundzins pro Jahr
+  repSpan: 0.055,              // bis +5,5 Punkte bei Ruf 0
+  leverageSpan: 0.06,          // bis +6 Punkte, wenn der Rahmen ausgereizt ist
+  fee: 0.012,                  // Bearbeitungsgebühr auf die Summe
+  earlyFee: 0.02,              // Vorfälligkeitsentschädigung auf die Restschuld
+  profitMultiple: 6,           // Ertrag der letzten 30 Tage × … = Rahmen (gut ein halbes Jahr)
+  fleetShare: 0.5,             // eigene Flugzeuge sind Sicherheit
+  valueShare: 0.2,             // Kasse und Vorräte nur anteilig, Firmenwert gar nicht
+  loadMultiple: 5,             // minus das Vielfache der monatlichen Verpflichtungen
+  minAmount: 500_000,
+  missedPenalty: 0.03,         // Zuschlag auf die verpasste Rate
+  missedRep: 4                 // Rufverlust je verpasster Rate
+};
 
 // Drehkreuz-Ausbau. Einmal bauen, danach Unterhalt pro Tag – die nächste Stufe lohnt sich
 // deshalb erst ab einer gewissen Größe. Gilt je Flughafen, nicht für die Airline.

@@ -3,8 +3,8 @@
 
 import { AIRCRAFT_BY_ID } from "../data/aircraft.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
-import { CABIN, CONTRACT, FLIGHT, STAFF, BAGS, CATERING, ONBOARD, CHECKS, LEASE, HANDLERS, CHARTER, ADLIVERY, DAY, H } from "../core/config.js";
-import { uid } from "../core/util.js";
+import { CABIN, CONTRACT, FLIGHT, STAFF, BAGS, CATERING, ONBOARD, CHECKS, LEASE, HANDLERS, CHARTER, ADLIVERY, CREDIT, DAY, H } from "../core/config.js";
+import { uid, rand01 } from "../core/util.js";
 import { book } from "./ledger.js";
 import { canOrderNew, newOrderQuote, createAircraft, usedListings, aircraftValue, basePrice } from "./market.js";
 import { leaseQuote, makeContract, frameBlock, isLeased, returnSettlement, buyoutPrice, termOf } from "./lease.js";
@@ -20,6 +20,7 @@ import { startCheck, checkCost } from "./maintenance.js";
 import { headcount, staffNeed, staffHave, coverage, GROUPS, hireCost, severanceCost } from "./staff.js";
 import { normalizeLivery, liverySize } from "../art/livery.js";
 import { seatBudget, retrofitQuote, fittingOf } from "./fitting.js";
+import { creditLimit, quote, payoffQuote, MONTH } from "./credit.js";
 import { nextStage, levelOf, stage, isHub } from "./hub.js";
 
 const ok = (extra = {}) => ({ ok: true, ...extra });
@@ -213,6 +214,42 @@ export function bookCampaign(state, channel, tier, days, now) {
   });
   state.log.unshift({ t: now, kind: "good", text: `Werbung gebucht: ${q.label} für ${days} Tage, ${Math.round(q.total / 1e3)} k$.` });
   return ok({ quote: q });
+}
+
+// ---------- Kredite
+
+const BANKS = ["Hanseatische Verkehrsbank", "Aviation Capital", "Nordlicht Finanz", "Brüsseler Kreditanstalt", "Skyline Leasing & Finanz"];
+
+/** Kredit aufnehmen. Auszahlung sofort abzüglich Bearbeitungsgebühr, erste Rate in einem Monat. */
+export function takeLoan(state, amount, months, mode, now) {
+  amount = Math.round(+amount || 0);
+  if (amount < CREDIT.minAmount) return fail(`Unter ${Math.round(CREDIT.minAmount / 1e3)} k$ vergibt keine Bank einen Kredit.`);
+  const limit = creditLimit(state, now);
+  if (amount > limit) return fail(`Die Bank gibt derzeit höchstens ${Math.round(limit / 1e6 * 10) / 10} Mio $. Mehr Ertrag oder weniger laufende Verpflichtungen heben den Rahmen.`);
+  const q = quote(state, now, amount, months, mode);
+  if (!q) return fail("Diese Konditionen gibt es nicht.");
+  const loan = {
+    id: `cr${now.toString(36)}`, bank: BANKS[Math.floor(rand01("bank", now) * BANKS.length) % BANKS.length],
+    amount, rest: amount, rate: q.rate, months, mode, payment: q.payment,
+    start: now, nextDue: now + MONTH, paidCount: 0, missed: 0
+  };
+  state.credit.loans.unshift(loan);
+  book(state, now, "rev", "credit", amount);
+  book(state, now, "cost", "interest", q.fee);
+  state.log.unshift({ t: now, kind: "good", text: `${Math.round(amount / 1e6 * 10) / 10} Mio $ Kredit bei ${loan.bank} zu ${(q.rate * 100).toFixed(2)} % über ${months} Monate.` });
+  return ok({ loan, quote: q });
+}
+
+/** Kredit vorzeitig ablösen. */
+export function repayLoan(state, loanId, now) {
+  const q = payoffQuote(state, loanId);
+  if (!q) return fail("Dieser Kredit läuft nicht mehr.");
+  if (state.cash < q.total) return fail(`Dafür reicht die Kasse nicht – es fehlen ${Math.ceil((q.total - state.cash) / 1e3)} k$.`);
+  book(state, now, "cost", "repay", q.rest);
+  book(state, now, "cost", "interest", q.fee);
+  q.loan.rest = 0;
+  state.log.unshift({ t: now, kind: "good", text: `Kredit bei ${q.loan.bank} vorzeitig abgelöst (${Math.round(q.fee / 1e3)} k$ Vorfälligkeitsentschädigung).` });
+  return ok({ paid: q.total });
 }
 
 // ---------- Drehkreuz

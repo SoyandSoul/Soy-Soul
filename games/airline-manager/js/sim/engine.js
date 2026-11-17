@@ -9,7 +9,7 @@
 // Zufall (Nachfrage-Rauschen, Vorfälle) ist deterministisch aus Flugzeug-ID + Abflugzeit:
 // Neu laden würfelt nichts neu.
 
-import { GAME, H, DAY, USED, CHECKS, LEASE, CHARTER } from "../core/config.js";
+import { GAME, H, DAY, USED, CHECKS, LEASE, CHARTER, CREDIT } from "../core/config.js";
 import { rand01 } from "../core/util.js";
 import { bus } from "../core/events.js";
 import { typeOf, routeDistance, blockHours, turnaroundH } from "./flight.js";
@@ -24,6 +24,7 @@ import { rentPerDay, isLeased, returnSettlement, termOf } from "./lease.js";
 import { newlyReached, applyReward } from "./goals.js";
 import { turnaroundHours, handlerDelay } from "./handling.js";
 import { upkeepPerDay } from "./hub.js";
+import { dueLoans } from "./credit.js";
 
 const MAX_STEPS = 200_000;
 
@@ -95,6 +96,32 @@ function checkGoals(state, now, report, quiet) {
   }
 }
 
+/**
+ * Fällige Kreditraten. Termine liegen fest, deshalb ist das Ergebnis unabhängig davon,
+ * wie oft nachgerechnet wird. Fehlt das Geld, wächst die Restschuld und der Ruf leidet –
+ * ein Spielende daraus zu machen wäre hart für ein Spiel, das nebenher läuft.
+ */
+function payLoans(state, now, report, quiet) {
+  for (const e of dueLoans(state, now)) {
+    const total = e.interest + e.principal;
+    if (state.cash >= total) {
+      book(state, e.ts, "cost", "interest", e.interest);
+      if (e.principal) book(state, e.ts, "cost", "repay", e.principal);
+      if (e.last) log(state, e.ts, "good", `Kredit bei ${e.loan.bank} vollständig zurückgezahlt.`);
+    } else {
+      const penalty = total * CREDIT.missedPenalty;
+      e.loan.rest += e.principal + penalty;
+      e.loan.missed = (e.loan.missed || 0) + 1;
+      e.loan.months++;
+      state.airline.rep = Math.max(0, state.airline.rep - CREDIT.missedRep);
+      book(state, e.ts, "cost", "interest", Math.min(state.cash, e.interest));
+      log(state, e.ts, "warn", `Rate an ${e.loan.bank} konnte nicht bedient werden. ${Math.round(penalty / 1e3)} k$ Zuschlag, der Ruf leidet.`);
+      report.missedPayments = (report.missedPayments || 0) + 1;
+      if (!quiet) bus.emit("missedPayment", { loan: e.loan });
+    }
+  }
+}
+
 function log(state, ts, kind, text) {
   state.log.unshift({ t: ts, kind, text });
   if (state.log.length > 200) state.log.length = 200;
@@ -127,6 +154,7 @@ export function settle(state, now, { quiet = false } = {}) {
     state.lastFixedAt = now;
   }
   leaseRollover(state, now, quiet);
+  payLoans(state, now, report, quiet);
 
   // Personallage einmal pro Durchlauf bestimmen – sie ändert sich während des Nachrechnens kaum.
   const staffEff = staffEffects(state);
@@ -135,10 +163,16 @@ export function settle(state, now, { quiet = false } = {}) {
     for (const ac of state.fleet) { const t = nextEventAt(state, ac); if (t < at) { at = t; next = ac; } }
     if (!next || at > now) break;
     process(state, next, at, report, quiet, staffEff);
+    // Ziele direkt am Ereignis prüfen, nicht erst am Ende des Durchlaufs. Nur so fällt die
+    // Belohnung – und der Rufgewinn daraus – bei stündlichem und bei täglichem Nachrechnen
+    // auf dieselbe Sekunde. Sonst läuft die Reputation auseinander und mit ihr die Nachfrage.
+    checkGoals(state, at, report, quiet);
   }
 
   state.lastSettled = now;
-  checkGoals(state, now, report, quiet);
+  // Steht die ganze Flotte, gibt es überhaupt keine künftigen Ereignisse – dann muss am Ende
+  // geprüft werden, sonst bliebe eine frisch gegründete Airline ewig ohne erstes Ziel.
+  if (state.fleet.every(ac => !Number.isFinite(nextEventAt(state, ac)))) checkGoals(state, now, report, quiet);
   prune(state);
   return report;
 }

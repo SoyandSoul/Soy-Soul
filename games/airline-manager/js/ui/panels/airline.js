@@ -15,6 +15,7 @@ import { typeOf, routeDistance, positionAt } from "../../sim/flight.js";
 import { leaseFrame, monthlyObligation, isLeased } from "../../sim/lease.js";
 import { goalProgress, nextGoal, rewardText, GOAL_GROUPS } from "../../sim/goals.js";
 import { commonality, commonalityNote } from "../../sim/commonality.js";
+import { totalDebt, monthlyLoad, creditLimit } from "../../sim/credit.js";
 import { awareness, awarenessNote, awarenessFactor, activeCampaigns, channelOf } from "../../sim/marketing.js";
 import { charterOffers } from "../../sim/charter.js";
 import { liveryOffers, activeLiveries, liveryIncomePerDay } from "../../sim/adlivery.js";
@@ -272,8 +273,14 @@ const finance = {
         <dt>Ergebnis je Flug</dt><dd class="${st.perLeg.profit < 0 ? "bad" : "good"}">${sign(st.perLeg.profit)}</dd>
         <dt>Ergebnis je Flugzeug/Tag</dt><dd class="${st.perAircraftDay < 0 ? "bad" : ""}">${sign(st.perAircraftDay)}</dd></dl>`
       : html`<p class="small muted" style="margin-top:8px">Noch keine Flüge in diesem Zeitraum.</p>`}
-      <p class="small muted" style="margin-top:8px">Investitionen (Flugzeuge, Ausbau, Personalgewinnung) zählen nicht zum operativen Ergebnis.</p>`;
-  }
+      <h4 class="fhead">Finanzierung</h4>
+      <dl class="kv"><dt>Restschuld</dt><dd class="${totalDebt(ctx.state) ? "warn" : ""}">${fmt.money(totalDebt(ctx.state))}</dd>
+        <dt>Kreditraten</dt><dd>${fmt.money(monthlyLoad(ctx.state))} / Monat</dd>
+        <dt>Freier Rahmen</dt><dd>${fmt.money(creditLimit(ctx.state, ctx.now()))}</dd></dl>
+      <button class="btn sm" style="width:100%;margin-top:8px" data-act="bank">Bank öffnen</button>
+      <p class="small muted" style="margin-top:8px">Investitionen (Flugzeuge, Ausbau, Personalgewinnung) und Tilgung zählen nicht zum operativen Ergebnis.</p>`;
+  },
+  click: ctx => ({ bank: () => ctx.openApp("bank") })
 };
 
 // ---------------------------------------------------------------- Angebot an Bord

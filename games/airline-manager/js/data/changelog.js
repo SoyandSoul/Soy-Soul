@@ -6,6 +6,18 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.24", date: "17.11.2026", title: "Kredite und Kerosin-Diagramme",
+    intro: "Geld kam bisher nur aus dem Flugbetrieb oder gar nicht. Jetzt gibt es eine Bank – und sie rechnet nach.",
+    items: [
+      ["neu", "Kredite in zwei Formen: Annuität mit gleichbleibender Monatsrate oder endfällig mit reinen Zinszahlungen und der ganzen Summe am Schluss. Laufzeiten ein, zwei oder fünf Jahre."],
+      ["neu", "Der Zinssatz kommt aus dem Risiko: Ruf, bestehende Schulden und der ausgereizte Rahmen schlagen auf. Wer schon einen Kredit laufen hat, zahlt für den nächsten sichtbar mehr."],
+      ["neu", "Der Kreditrahmen wächst mit dem Ertrag der letzten 30 Tage und mit eigenen Flugzeugen. Geleaste gehören dem Leasinggeber und taugen nicht als Sicherheit – Kredit ist damit der Weg ins Eigentum, nicht an ihm vorbei."],
+      ["neu", "Vorzeitige Ablösung gegen Vorfälligkeitsentschädigung. Reicht die Kasse bei Fälligkeit nicht, wächst die Restschuld und der Ruf sinkt – ein Spielende gibt es nicht."],
+      ["neu", "Kerosin mit Diagrammen: Tagesverbrauch der letzten 14 Tage als Säulen, dazu Schnitt pro Tag und wie lange der Vorrat noch reicht."],
+      ["fix", "Die wichtigste Regel des Spiels war ganz leicht verletzt: Ziele wurden am Ende des Nachrechnens geprüft, also je nach Schrittweite zu leicht anderer Zeit. Weil die Belohnung Reputation enthält, lief damit die Nachfrage auseinander. Ziele fallen jetzt am Ereignis selbst – stündlich und täglich Nachrechnen liefert wieder auf den Cent dasselbe."]
+    ]
+  },
+  {
     v: "v0.23", date: "17.11.2026", title: "Drehkreuz, Technik und Kabine",
     intro: "Bisher war der eigene Flughafen nur ein Punkt auf der Karte. Jetzt gehört einem dort etwas – und man merkt es im Betrieb.",
     items: [

@@ -195,3 +195,9 @@
 .opt-row .opt span { font-size: 11px; }
 .opt-row .opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--raise)); }
 .opt-row .opt:disabled { opacity: .5; cursor: default; }
+
+/* SVG-Diagramme */
+.chart-svg { width: 100%; height: auto; display: block; margin-top: 8px; }
+.chart-svg .ax { stroke: var(--line2); stroke-width: 1; }
+.chart-svg .cl { fill: var(--ink3); font: 500 10px var(--mono); }
+.chart-svg .cl.mid { text-anchor: middle; }
