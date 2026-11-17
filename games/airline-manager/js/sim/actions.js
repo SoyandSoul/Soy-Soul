@@ -3,13 +3,16 @@
 
 import { AIRCRAFT_BY_ID } from "../data/aircraft.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
-import { CABIN, CONTRACT, FLIGHT, STAFF, BAGS, CATERING, CHECKS, LEASE, HANDLERS, DAY, H } from "../core/config.js";
+import { CABIN, CONTRACT, FLIGHT, STAFF, BAGS, CATERING, ONBOARD, CHECKS, LEASE, HANDLERS, CHARTER, ADLIVERY, DAY, H } from "../core/config.js";
 import { uid } from "../core/util.js";
 import { book } from "./ledger.js";
 import { canOrderNew, newOrderQuote, createAircraft, usedListings, aircraftValue, basePrice } from "./market.js";
 import { leaseQuote, makeContract, frameBlock, isLeased, returnSettlement, buyoutPrice, termOf } from "./lease.js";
 import { commonality } from "./commonality.js";
 import { rushCost, rushAllQuote, rushSaving } from "./handling.js";
+import { campaignQuote, activeCampaigns, channelOf } from "./marketing.js";
+import { charterOffers, fitProblems } from "./charter.js";
+import { liveryOffers, quoteFor, fitProblems as liveryProblems } from "./adlivery.js";
 import { routeProblems, seatUnits, typeOf } from "./flight.js";
 import { refFare } from "./demand.js";
 import { routeDistance } from "./flight.js";
@@ -56,6 +59,7 @@ export function sellAircraft(state, acId, now) {
   const ac = state.fleet.find(a => a.id === acId);
   if (!ac) return fail("Flugzeug nicht gefunden.");
   if (isLeased(ac)) return fail("Geleaste Flugzeuge gehören dem Leasinggeber – zurückgeben oder herauskaufen.");
+  if (ac.status === "charter") return fail("Das Flugzeug fliegt einen Charter – erst den Auftrag beenden.");
   if (ac.status === "active" || ac.status === "check") return fail("Erst von der Route nehmen bzw. Check abwarten.");
   const value = ac.status === "crashed" ? 0 : aircraftValue(ac, now) * 0.95;
   state.fleet = state.fleet.filter(a => a !== ac);
@@ -114,7 +118,9 @@ export function setRoutePricing(state, routeId, prices, seasonal) {
 export function assign(state, acId, routeId, now, start = now) {
   const ac = state.fleet.find(a => a.id === acId), route = state.routes.find(r => r.id === routeId);
   if (!ac || !route) return fail("Nicht gefunden.");
-  if (ac.status !== "idle") return fail("Flugzeug ist nicht verfügbar (Auslieferung, Check oder bereits im Einsatz).");
+  if (ac.status !== "idle") return fail("Flugzeug ist nicht verfügbar (Auslieferung, Check, Charter oder bereits im Einsatz).");
+  if (ac.adLivery && ac.adLivery.ready > now)
+    return fail(`${ac.reg} steht noch in der Lackiererei (bis ${new Date(ac.adLivery.ready).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}).`);
   const problems = routeProblems(ac, route);
   if (problems.length) return fail(problems.join(" · "));
   if (!Object.values(ac.cfg).some(Boolean)) return fail("Kabine hat keine Sitze.");
@@ -177,6 +183,124 @@ export function cancelContract(state, now) {
   book(state, now, "cost", "contract", CONTRACT.cancelFee);
   state.airline.contract = null;
   return ok();
+}
+
+/** Sortiment im Bordverkauf. */
+export function setOnboard(state, key) {
+  if (!ONBOARD.ranges[key]) return fail("Unbekanntes Sortiment.");
+  if (state.airline.onboard === key) return fail("Dieses Sortiment ist bereits eingestellt.");
+  state.airline.onboard = key;
+  return ok({ range: ONBOARD.ranges[key] });
+}
+
+/** Werbekampagne buchen. Bezahlt wird beim Buchen, die Wirkung läuft an und klingt danach ab. */
+export function bookCampaign(state, channel, tier, days, now) {
+  const q = campaignQuote(channel, tier, days);
+  if (!q) return fail("Diese Kampagne gibt es nicht.");
+  if (activeCampaigns(state, now).some(c => c.channel === channel))
+    return fail(`Auf ${channelOf(channel).label} läuft bereits eine Kampagne.`);
+  if (state.cash < q.total) return fail(`Dafür reicht die Kasse nicht – es fehlen ${Math.ceil((q.total - state.cash) / 1e3)} k$.`);
+  book(state, now, "cost", "marketing", q.total);
+  state.airline.marketing.campaigns.unshift({
+    id: `mk${now.toString(36)}${channel}`, channel, tier, days,
+    start: now, until: now + days * DAY,
+    perDay: q.perDay, total: q.total, gainPerDay: q.gainPerDay
+  });
+  state.log.unshift({ t: now, kind: "good", text: `Werbung gebucht: ${q.label} für ${days} Tage, ${Math.round(q.total / 1e3)} k$.` });
+  return ok({ quote: q });
+}
+
+// ---------- Charter
+
+/** Charterauftrag annehmen: Flugzeug verlässt seine Strecke und ist für die Laufzeit weg. */
+export function acceptCharter(state, offerId, acId, now) {
+  const offer = charterOffers(state, now).find(o => o.id === offerId);
+  if (!offer) return fail("Dieses Angebot gibt es nicht mehr.");
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!ac) return fail("Flugzeug nicht gefunden.");
+  const problems = fitProblems(ac, offer);
+  if (problems.length) return fail(problems.join(" · "));
+  // Mitten im Flug kann niemand umdrehen – der Charter beginnt nach der Rückkehr zum Drehkreuz.
+  if (ac.status === "active" && !(ac.ops.dir === 0 && ac.ops.dep > now))
+    return fail(`${ac.reg} ist unterwegs. Der Auftrag lässt sich nur vergeben, wenn das Flugzeug am Drehkreuz steht.`);
+  ac.charter = {
+    id: offer.id, operator: offer.operator, to: offer.to, city: offer.city, km: offer.km,
+    days: offer.days, total: offer.total, start: now, until: now + offer.days * DAY,
+    paid: offer.upfront, fh: offer.fh, resume: ac.ops?.routeId || null
+  };
+  ac.ops = null;
+  ac.status = "charter";
+  state.charter.taken.push(offer.id);
+  book(state, now, "rev", "charter", offer.upfront);
+  state.log.unshift({ t: now, kind: "good", text: `${ac.reg} fliegt ${offer.days} Tage für ${offer.operator} nach ${offer.city}. Anzahlung ${Math.round(offer.upfront / 1e3)} k$.` });
+  return ok({ offer });
+}
+
+/** Angebot ausblenden – es kommt an diesem Tag nicht wieder. */
+export function declineCharter(state, offerId) {
+  if (!state.charter.declined.includes(offerId)) state.charter.declined.push(offerId);
+  if (state.charter.declined.length > 60) state.charter.declined.splice(0, 30);
+  return ok();
+}
+
+/** Charter vorzeitig abbrechen: teuer und schlecht fürs Geschäft. */
+export function cancelCharter(state, acId, now) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!ac?.charter) return fail("Dieses Flugzeug fliegt keinen Charter.");
+  const rest = ac.charter.total - ac.charter.paid;
+  const fee = Math.round(rest * CHARTER.cancelShare);
+  if (state.cash < fee) return fail(`Die Vertragsstrafe von ${Math.round(fee / 1e3)} k$ ist nicht gedeckt.`);
+  book(state, now, "cost", "contract", fee);
+  state.airline.rep = Math.max(0, state.airline.rep - CHARTER.repBonus * 2);
+  state.log.unshift({ t: now, kind: "warn", text: `Charter für ${ac.charter.operator} abgebrochen. Vertragsstrafe ${Math.round(fee / 1e3)} k$, der Ruf leidet.` });
+  const resume = ac.charter.resume;
+  ac.charter = null;
+  ac.status = "idle";
+  if (resume && state.routes.some(r => r.id === resume)) assign(state, ac.id, resume, now);
+  return ok({ fee });
+}
+
+// ---------- Sonderlackierungen
+
+/** Werbefläche vermieten: Das Flugzeug fliegt weiter, muss aber erst in die Lackiererei. */
+export function acceptLivery(state, offerId, acId, now) {
+  const offer = liveryOffers(state, now).find(o => o.id === offerId);
+  if (!offer) return fail("Dieses Angebot gibt es nicht mehr.");
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!ac) return fail("Flugzeug nicht gefunden.");
+  const problems = liveryProblems(ac);
+  if (problems.length) return fail(problems.join(" · "));
+  const q = quoteFor(state, offer, ac, now);
+  ac.adLivery = {
+    id: offer.id, client: offer.client, branch: offer.branch, colors: offer.colors,
+    start: now, until: now + offer.days * DAY, days: offer.days,
+    perDay: q.perDay, total: q.total, paid: q.upfront, ready: now + q.paintH * H
+  };
+  // Lackiererei: der nächste Abflug verschiebt sich, ein freies Flugzeug ist so lange nicht einsetzbar.
+  if (ac.status === "active" && ac.ops) ac.ops.dep = Math.max(ac.ops.dep, ac.adLivery.ready);
+  state.adlivery.taken.push(offer.id);
+  book(state, now, "rev", "livery", q.upfront);
+  state.log.unshift({ t: now, kind: "good", text: `${ac.reg} wird für ${offer.client} lackiert: ${Math.round(q.upfront / 1e3)} k$ sofort, dann ${Math.round(q.perDay / 1e3)} k$ am Tag für ${offer.days} Tage.` });
+  return ok({ quote: q });
+}
+
+export function declineLivery(state, offerId) {
+  if (!state.adlivery.declined.includes(offerId)) state.adlivery.declined.push(offerId);
+  if (state.adlivery.declined.length > 40) state.adlivery.declined.splice(0, 20);
+  return ok();
+}
+
+/** Vorzeitig überlackieren: Vertragsstrafe, dafür wieder eigene Farben. */
+export function endLivery(state, acId, now) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!ac?.adLivery) return fail("Dieses Flugzeug trägt keine Sonderlackierung.");
+  const rest = ac.adLivery.total - ac.adLivery.paid;
+  const fee = Math.round(rest * ADLIVERY.cancelShare);
+  if (state.cash < fee) return fail(`Die Vertragsstrafe von ${Math.round(fee / 1e3)} k$ ist nicht gedeckt.`);
+  book(state, now, "cost", "contract", fee);
+  state.log.unshift({ t: now, kind: "warn", text: `Werbevertrag mit ${ac.adLivery.client} vorzeitig beendet. Vertragsstrafe ${Math.round(fee / 1e3)} k$.` });
+  ac.adLivery = null;
+  return ok({ fee });
 }
 
 export function setHandler(state, key) {
@@ -296,6 +420,7 @@ export function returnLease(state, acId, now) {
   const ac = state.fleet.find(a => a.id === acId);
   if (!isLeased(ac)) return fail("Kein Leasingflugzeug.");
   if (ac.status === "active") return fail("Erst von der Strecke nehmen.");
+  if (ac.status === "charter") return fail("Das Flugzeug fliegt einen Charter – erst den Auftrag beenden.");
   if (ac.status === "check") return fail("Der laufende Check muss abgeschlossen werden.");
   const st = returnSettlement(ac, now);
   if (st.due > state.cash) return fail(`Rückgabe kostet ${Math.round(st.due / 1e3)} k$ – nicht genug Geld.`);

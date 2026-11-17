@@ -6,6 +6,19 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.22", date: "17.11.2026", title: "Werbung, Charter und Sonderlackierungen",
+    intro: "Bisher gab es genau eine Art, Geld zu verdienen: Tickets verkaufen. Jetzt kommt alles dazu, was eine Airline sonst noch vermarktet.",
+    items: [
+      ["neu", "Bekanntheit als zweiter Wert neben der Reputation: Die sagt, wie gut über euch geredet wird – die Bekanntheit, ob überhaupt jemand an euch denkt. Sie füllt leere Sitze, schafft aber keine Nachfrage, wo die Flugzeuge schon voll sind."],
+      ["neu", "Werbekampagnen in vier Kanälen: TV & Radio (teuer, breit, drei Tage Anlauf), Plakat (solide Dauerwirkung), Zeitung (kleine Reichweite, Geschäftsreisende und Ruf) und Online (sofort und günstig, verpufft schnell, zieht Urlauber). Dazu drei Tarife und drei Laufzeiten."],
+      ["neu", "Charteraufträge von Reiseveranstaltern: Flugzeug und Crew für ein paar Tage vermieten. Der Veranstalter zahlt Kerosin und Gebühren – dafür fehlt das Flugzeug im Liniendienst. Die Oberfläche stellt beides nebeneinander, damit die Rechnung ehrlich bleibt."],
+      ["neu", "Sonderlackierungen: Firmen mieten die Außenhaut als Werbefläche. Das Flugzeug fliegt und verdient normal weiter, die eigene Marke verschwindet aber darunter – jede Werbemaschine kostet Ruf."],
+      ["neu", "Sortiment im Bordverkauf wählbar: schlicht, Standard oder Marken und Region. Mehr Auswahl heißt mehr Umsatz, dünnere Marge und besseren Ruf."],
+      ["neu", "Reputation ist aufgeschlüsselt: jeder Baustein mit Hinweis, was ihn hebt, sortiert nach dem, was gerade am meisten schadet."],
+      ["fix", "Werbewirkung und Bekanntheit werden wie Kerosinpreis und Wetter aus der Zeit gerechnet, nicht mitgeschleppt – stündlich reinschauen ergibt auf die Kommastelle dasselbe wie drei Tage Pause."]
+    ]
+  },
+  {
     v: "v0.21", date: "17.11.2026", title: "Abflüge und Flugabrechnung",
     intro: "Flüge liefen bisher im Hintergrund durch – man sah weder, was gerade am Gate steht, noch was eine Strecke tatsächlich einbringt.",
     items: [

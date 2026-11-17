@@ -4,10 +4,10 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.21**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.22**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
-> Flugabrechnung) als v0.21.
+> Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
 > Flottenvereinheitlichung sind als v0.19 fertig. Offen daraus: Umsteiger am Drehkreuz, IROPS,
 > wartende Entscheidungen, Benachrichtigungen, geführter Einstieg – siehe unten.
@@ -91,18 +91,20 @@ Vorziehen, Sterne und Teilnoten), dazu Browsercheck auf Desktop und Telefon.
 
 ---
 
-## Paket 4 – Erlöse und Reputation → v0.22
+## Paket 4 – Erlöse und Reputation → v0.22 ✅
 
-Punkte 10, 11, 12, 13, 14 · **braucht Paket 2**
+Punkte 10, 11, 12, 13, 14 · erledigt
 
-- Buy on Board: verschiedene Angebote, unterschiedliche Margen
-- Catering: Umfang wählbar, kostenlos oder kostenpflichtig
-- Charterangebote von Reiseveranstaltern: ganze Flugzeuge, ungewöhnliche Ziele, viel Aufwand, viel Ertrag
-- Werbung: TV und Radio, Plakat, Zeitung, Online – je eigene Wirkung und Kosten
-- Sonderlackierungen an Firmen verkaufen
-- Reputation im Detail aufgeschlüsselt, mit Tipps zur Verbesserung
+- ✅ Buy on Board: Sortiment wählbar (schlicht · Standard · Marken und Region) mit eigenen Margen
+- ✅ Catering: Umfang wie bisher wählbar, jetzt mit dem Sortiment kombinierbar
+- ✅ Charterangebote von Reiseveranstaltern: ganzes Flugzeug für mehrere Tage, ungewöhnliche Ziele
+- ✅ Werbung in vier Kanälen mit je eigener Wirkung, Anlaufzeit, Nachwirkung und Klassengewichtung
+- ✅ Sonderlackierungen an Firmen vermieten
+- ✅ Reputation aufgeschlüsselt, jeder Baustein mit Hinweis, sortiert nach Schadenshöhe
 
-**Test:** Reputation über mehrere Wochen Spielzeit beobachten, Werbung muss spürbar, aber nicht zu stark wirken.
+**Test:** erledigt – sechs Tests in `sim.test.mjs`, darunter eine Messung über 28 Tage: gezielte Werbung
+bringt mehr als sie kostet, das größte Budget füllt zwar die Flugzeuge, kostet unterm Strich aber mehr.
+Die Zeitunabhängigkeit der Bekanntheit ist eigens geprüft (240 Einzelschritte gegen einen Sprung).
 
 ---
 

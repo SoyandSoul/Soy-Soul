@@ -2,7 +2,7 @@
 // Gespeichert wird nur im Browser (localStorage). Kein Konto, keine E-Mail.
 // Für Gerätewechsel gibt es Export/Import als Text (ui/panels/airline.js) und optional Cloud-Save (net/backend.js).
 
-import { GAME, FUEL, REPUTATION, CATERING, BAGS, HANDLERS } from "./config.js";
+import { GAME, FUEL, REPUTATION, CATERING, BAGS, HANDLERS, ONBOARD } from "./config.js";
 import { whiteLivery, normalizeLivery } from "../art/livery.js";
 import { AIRCRAFT_BY_ID, LEGACY_TYPES } from "../data/aircraft.js";
 import { staffNeed, GROUPS } from "../sim/staff.js";
@@ -28,6 +28,8 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
       bagFee: BAGS.defaultFee,
       training: 0,
       frameBonus: 0,                          // dauerhafter Leasingrahmen aus erreichten Zielen
+      marketing: { campaigns: [] },           // Werbekampagnen; Bekanntheit wird daraus gerechnet (sim/marketing.js)
+      onboard: ONBOARD.defaultRange,          // Sortiment im Bordverkauf
       rep: REPUTATION.start,
       safety: { crashes: [], incidents: [], since: now },
       shares: GAME.startShares
@@ -41,6 +43,8 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
     flights: [],                              // letzte Flüge (Logbuch)
     log: [],                                  // Ereignisse für die UI
     market: { boughtUsed: [] },
+    charter: { taken: [], declined: [] },     // Charteraufträge, siehe sim/charter.js
+    adlivery: { taken: [], declined: [] },    // Sonderlackierungen, siehe sim/adlivery.js
     ordered: 0,                               // Zähler für Sofort-Lieferungen
     staff: { cockpit: 0, cabin: 0, ground: 0, admin: 0 },  // wird gleich auf den Startbedarf gesetzt
     // Dauerhafte Statistik über die ganze Laufzeit (state.flights ist gedeckelt, taugt dafür nicht)
@@ -90,6 +94,13 @@ export function migrate(s) {
   }
   s.goals ??= { done: [], seen: [] };
   s.airline.handler ??= HANDLERS.default;      // v0.21: Bodenabfertiger
+  // v0.22: Werbung, Charter, Sonderlackierungen, Bordverkauf
+  s.airline.marketing ??= { campaigns: [] };
+  s.airline.marketing.campaigns ??= [];
+  s.airline.onboard ??= ONBOARD.defaultRange;
+  s.charter ??= { taken: [], declined: [] };
+  s.adlivery ??= { taken: [], declined: [] };
+  for (const ac of s.fleet) { ac.charter ??= null; ac.adLivery ??= null; }
   return s;
 }
 

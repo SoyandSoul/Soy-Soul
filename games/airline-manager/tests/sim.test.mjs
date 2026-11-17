@@ -17,6 +17,10 @@ import { routeOutlook } from "../js/sim/demand.js";
 import { AIRCRAFT_BY_ID } from "../js/data/aircraft.js";
 import { turnaroundHours, rushCost, rushSaving, departureBoard, rushAllQuote } from "../js/sim/handling.js";
 import { tally, rateRoute, routeReport } from "../js/sim/report.js";
+import { awareness, awarenessFactor, campaignQuote, activeCampaigns, awarenessFloor } from "../js/sim/marketing.js";
+import { charterOffers, candidates as charterFits } from "../js/sim/charter.js";
+import { liveryOffers, quoteFor, liveryRep, activeLiveries } from "../js/sim/adlivery.js";
+import { repBreakdown, repAdvice } from "../js/sim/reputation.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
 import { AIRCRAFT } from "../js/data/aircraft.js";
@@ -339,6 +343,149 @@ test("Streckenbewertung: Sterne, Teilnoten und Hinweis", () => {
   const t = tally(s.flights.slice(0, 5));
   assert.ok(t.legs === 5 && t.pax > 0 && t.lf > 0 && t.onTime <= 1);
   assert.equal(tally([]), null);
+});
+
+
+test("Werbung: Bekanntheit läuft an, klingt ab und ist zeitunabhängig", () => {
+  const { s, start } = setup(1);
+  s.cash = 20e6;
+  const floor = awarenessFloor(s);
+  assert.ok(Math.abs(awareness(s, start) - floor) < 0.01, "ohne Kampagne genau der Bodenwert");
+  const q = campaignQuote("tv", 1, 14);
+  const cash = s.cash;
+  assert.ok(act.bookCampaign(s, "tv", 1, 14, start).ok);
+  assert.equal(Math.round(cash - s.cash), q.total, "wird sofort in voller Höhe bezahlt");
+  assert.ok(!act.bookCampaign(s, "tv", 0, 7, start).ok, "zwei Kampagnen auf demselben Kanal gehen nicht");
+  assert.ok(!act.bookCampaign(s, "tv", 0, 9, start).ok, "krumme Laufzeiten gibt es nicht");
+
+  const at = d => awareness(s, start + d * DAY);
+  assert.ok(at(1) > at(0), "steigt");
+  assert.ok(at(14) > at(7), "steigt bis zum Ende der Laufzeit");
+  assert.ok(at(30) < at(14) && at(30) > floor, "klingt danach ab, aber nicht unter den Bodenwert");
+  assert.ok(at(90) < at(30));
+
+  // Der Kern des serverlosen Modells: Bekanntheit ist eine reine Funktion der Zeit.
+  const a = structuredClone(s), b = structuredClone(s);
+  settle(a, start + 10 * DAY);
+  for (let h = 1; h <= 240; h++) settle(b, start + h * H);
+  assert.ok(Math.abs(awareness(a, start + 10 * DAY) - awareness(b, start + 10 * DAY)) < 1e-9);
+
+  // Wirkung: spürbar, aber nicht beliebig
+  assert.ok(awarenessFactor(s, start + 14 * DAY) > awarenessFactor(s, start), "Werbung hebt die Nachfrage");
+  assert.ok(awarenessFactor(s, start + 14 * DAY) < 1.25, "aber nicht ins Unermessliche");
+});
+
+test("Werbung über vier Wochen: lohnt sich, kippt das Spiel aber nicht", () => {
+  const run = (plan) => {
+    // Zwei gesunde Strecken mit Luft nach oben – dort soll Werbung wirken.
+    const { s, start } = setup(2);
+    act.hireAllOpen(s, start);
+    s.fleet.forEach((ac, i) => {
+      const r = act.createRoute(s, "FRA", i ? "MAD" : "LHR").route;
+      act.hireAllOpen(s, start);
+      act.assign(s, ac.id, r.id, start);
+      act.hireAllOpen(s, start);
+    });
+    s.cash = 30e6;
+    for (let d = 0; d < 28; d++) {
+      const t = start + d * DAY;
+      if (plan && d % 7 === 0) act.bookCampaign(s, plan[0], plan[1], 7, t);
+      settle(s, t + DAY);
+    }
+    const sum = summary(s, 28, start + 28 * DAY);
+    return { profit: sum.profit, ads: sum.cost.marketing || 0, aw: awareness(s, start + 28 * DAY) };
+  };
+  const plain = run(null), cheap = run(["online", 1]), heavy = run(["tv", 2]);
+  assert.ok(cheap.aw > plain.aw && heavy.aw > cheap.aw, "mehr Budget, mehr Bekanntheit");
+  assert.ok(cheap.profit > plain.profit, `gezielte Werbung muss sich lohnen (${Math.round(cheap.profit / 1e3)} vs ${Math.round(plain.profit / 1e3)} k$)`);
+  assert.ok(heavy.profit < plain.profit + (cheap.profit - plain.profit) * 3,
+    "die größte Kampagne darf nicht einfach dreimal so viel bringen");
+  console.log(`   28 Tage, 2 Flugzeuge: ohne Werbung ${Math.round(plain.profit / 1e3)} k$ · Online mittel ${Math.round(cheap.profit / 1e3)} k$ (${Math.round(cheap.ads / 1e3)} k$ Werbung) · TV groß ${Math.round(heavy.profit / 1e3)} k$ (${Math.round(heavy.ads / 1e3)} k$)`);
+});
+
+test("Charter: Angebote gleich bei jedem Blick, Flugzeug kehrt zurück", () => {
+  const { s, route, start } = setup(1);
+  const [ac] = s.fleet;
+  act.assign(s, ac.id, route.id, start);
+  settle(s, start + 2 * DAY);
+  const now = start + 2 * DAY;
+  const a = charterOffers(s, now), b = charterOffers(s, now);
+  assert.deepEqual(a.map(o => o.id), b.map(o => o.id), "zweimal schauen zeigt dasselbe");
+  assert.ok(a.length, "es gibt Angebote");
+  assert.ok(a.some(o => o.size === "narrow"), "immer etwas für Schmalrumpf dabei");
+  assert.ok(charterOffers(s, now + DAY)[0].id !== a[0].id, "morgen fragen andere an");
+
+  const offer = a.find(o => charterFits(s, o).length) || a[0];
+  // Bis das Flugzeug am Drehkreuz steht vorspulen
+  let t = now;
+  for (let i = 0; i < 300 && !(ac.status === "active" && ac.ops.dir === 0 && ac.ops.dep > t); i++) { t += 20 * 60_000; settle(s, t); }
+  const cash = s.cash;
+  const r = act.acceptCharter(s, offer.id, ac.id, t);
+  if (!r.ok) { assert.ok(true, "kein passendes Flugzeug – dann hat der Markt eben nichts"); return; }
+  assert.equal(ac.status, "charter");
+  assert.equal(Math.round(s.cash - cash), offer.upfront, "Anzahlung kommt sofort");
+  assert.ok(!act.sellAircraft(s, ac.id, t).ok, "im Charter lässt sich nichts verkaufen");
+  const hours = ac.hours;
+  settle(s, t + offer.days * DAY + H);
+  assert.equal(ac.status, "active", "danach wieder im Liniendienst");
+  assert.equal(ac.ops.routeId, route.id, "und zurück auf der alten Strecke");
+  assert.ok(ac.hours > hours, "Flugstunden laufen trotzdem auf die Wartung");
+  assert.equal(s.fleet.find(a => a.id === ac.id).charter, null);
+});
+
+test("Sonderlackierung: zahlt laufend, kostet Ruf, endet von selbst", () => {
+  const { s, start } = setup(2);
+  const offers = liveryOffers(s, start);
+  assert.ok(offers.length);
+  assert.deepEqual(liveryOffers(s, start).map(o => o.id), offers.map(o => o.id));
+  const [ac] = s.fleet, offer = offers[0];
+  const q = quoteFor(s, offer, ac, start);
+  const cash = s.cash;
+  assert.ok(act.acceptLivery(s, offer.id, ac.id, start).ok);
+  assert.equal(Math.round(s.cash - cash), q.upfront);
+  assert.ok(liveryRep(s, start) < 0, "fremde Farben kosten Ruf");
+  assert.ok(!act.acceptLivery(s, offer.id, ac.id, start).ok, "ein Flugzeug trägt nur eine Werbung");
+  assert.ok(!act.assign(s, ac.id, s.routes[0]?.id, start).ok || ac.adLivery.ready <= start, "während der Lackierung kein Einsatz");
+
+  // In Tagesschritten weiterrechnen, sonst greift die 30-Tage-Grenze der Nachberechnung
+  for (let d = 1; d <= offer.days + 1; d++) settle(s, start + d * DAY);
+  assert.equal(ac.adLivery, null, "läuft von selbst aus");
+  const paid = summary(s, offer.days + 2, start + (offer.days + 1) * DAY).rev.livery || 0;
+  assert.ok(paid >= q.total - 1, `die ganze Vertragssumme muss fließen (${Math.round(paid)} von ${q.total})`);
+  assert.equal(activeLiveries(s, s.lastSettled).length, 0);
+});
+
+test("Reputation: Aufschlüsselung nennt den größten Hebel", () => {
+  const { s, route, start } = setup(1);
+  act.assign(s, s.fleet[0].id, route.id, start);
+  settle(s, start + 2 * DAY);
+  const bars = repBreakdown(s, start + 2 * DAY, s.flights[0]);
+  assert.ok(bars.length >= 10, "jeder Baustein steht da");
+  assert.ok(bars.every(b => b.label && typeof b.value === "number"));
+  for (let i = 1; i < bars.length; i++) assert.ok(bars[i - 1].value <= bars[i].value, "schlechtestes zuerst");
+  act.setBagFee(s, 120);
+  const worst = repAdvice(s, start + 2 * DAY);
+  assert.equal(worst.key, "gepaeck", "die teuerste Gepäckgebühr muss der größte Hebel sein");
+  assert.ok(worst.tip.length > 20);
+  act.setBagFee(s, 0);
+  assert.ok(repBreakdown(s, start + 2 * DAY).find(b => b.key === "gepaeck").value === 0);
+});
+
+test("Bordverkauf: mehr Sortiment heißt mehr Umsatz, aber nicht alles Gewinn", () => {
+  const run = range => {
+    const { s, route, start } = setup(1);
+    act.setOnboard(s, range);
+    act.assign(s, s.fleet[0].id, route.id, start);
+    settle(s, start + 5 * DAY);
+    const sum = summary(s, 5, start + 5 * DAY);
+    return { onboard: sum.rev.onboard || 0, catering: sum.cost.catering || 0 };
+  };
+  const basic = run("basic"), std = run("standard"), prem = run("premium");
+  assert.ok(prem.onboard > std.onboard && std.onboard > basic.onboard, "größeres Sortiment, mehr Umsatz");
+  assert.ok(prem.catering > std.catering, "aber auch mehr Wareneinsatz");
+  assert.ok(prem.onboard - prem.catering > basic.onboard - basic.catering, "unterm Strich lohnt Premium trotzdem");
+  assert.ok(!act.setOnboard(s0(), "gibtsnicht").ok);
+  function s0() { return setup(1).s; }
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

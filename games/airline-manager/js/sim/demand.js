@@ -9,6 +9,7 @@ import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { clamp, rand01 } from "../core/util.js";
 import { routeDistance, blockHours, typeOf } from "./flight.js";
 import { distanceKm } from "./geo.js";
+import { awarenessFactor } from "./marketing.js";
 
 const TAU = Math.PI * 2;
 
@@ -81,7 +82,7 @@ export function effectivePrice(route, cls, ts) {
  * Gebuchte Passagiere für EINEN Flug.
  * flightsPerDay = wie oft die eigene Airline diese Richtung täglich fliegt (Nachfrage wird geteilt).
  */
-export function bookings({ route, dir, cfg, ts, rep, flightsPerDay, legKey }) {
+export function bookings({ route, dir, cfg, ts, rep, flightsPerDay, legKey, aware = null }) {
   const km = routeDistance(route);
   const [from, to] = dir === 0 ? [route.from, route.to] : [route.to, route.from];
   const m = dailyMarket(from, to, ts, km);
@@ -96,7 +97,8 @@ export function bookings({ route, dir, cfg, ts, rep, flightsPerDay, legKey }) {
     if (!seats) { out[c] = 0; continue; }
     const priceF = Math.pow(refFare(km, c) / Math.max(1, price), CABIN.elasticity[c]);
     // Unbesetzte Premium-Nachfrage rutscht teilweise eine Klasse tiefer – vereinfacht über "spill" ignoriert.
-    const demand = m.total * split[c] * GAME.marketShare / Math.max(1, flightsPerDay) * priceF * repF * noise;
+    const awF = aware?.[c] ?? 1;                  // Bekanntheit: füllt leere Sitze, schafft aber keine neuen
+    const demand = m.total * split[c] * GAME.marketShare / Math.max(1, flightsPerDay) * priceF * repF * awF * noise;
     out[c] = clamp(Math.round(demand), 0, seats);
   }
   return { pax: out, prices, market: m, km };
@@ -127,7 +129,7 @@ export function routeOutlook(state, from, to, type, cfg, now, extra = 1) {
     market += dailyMarket(from, to, ts, km).total + dailyMarket(to, from, ts, km).total;
   }
   market = market / 7 / 2;                                    // mittlere Nachfrage je Richtung und Tag
-  const bookable = market * GAME.marketShare * repDemandFactor(state.airline.rep);
+  const bookable = market * GAME.marketShare * repDemandFactor(state.airline.rep) * awarenessFactor(state, now);
 
   const seats = CABIN.classes.reduce((s, c) => s + (cfg?.[c] || 0), 0) || type.seats;
   const cycleH = 2 * (blockHours(km, type) + FLIGHT.turnaroundMin[type.size] / 60);

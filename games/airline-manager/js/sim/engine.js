@@ -9,7 +9,7 @@
 // Zufall (Nachfrage-Rauschen, Vorfälle) ist deterministisch aus Flugzeug-ID + Abflugzeit:
 // Neu laden würfelt nichts neu.
 
-import { GAME, H, DAY, USED, CHECKS, LEASE } from "../core/config.js";
+import { GAME, H, DAY, USED, CHECKS, LEASE, CHARTER } from "../core/config.js";
 import { rand01 } from "../core/util.js";
 import { bus } from "../core/events.js";
 import { typeOf, routeDistance, blockHours, turnaroundH } from "./flight.js";
@@ -40,9 +40,16 @@ export function flightsPerDay(state, route) {
 }
 
 function nextEventAt(state, ac) {
+  const own = statusEventAt(state, ac);
+  // Eine auslaufende Sonderlackierung ist ein eigener Termin, unabhängig davon, was das Flugzeug tut.
+  return ac.adLivery ? Math.min(own, ac.adLivery.until) : own;
+}
+
+function statusEventAt(state, ac) {
   switch (ac.status) {
     case "delivery": return ac.availableAt;
     case "check": return ac.check.until;
+    case "charter": return ac.charter.until;
     case "active": {
       const r = state.routes.find(r => r.id === ac.ops.routeId);
       return ac.ops.dep + blockHours(routeDistance(r), typeOf(ac)) * H;
@@ -59,7 +66,7 @@ function leaseRollover(state, now, quiet) {
   for (const ac of [...state.fleet]) {
     if (!isLeased(ac) || ac.status === "crashed" || ac.lease.until > now) continue;
     const l = ac.lease;
-    if (l.returnAtEnd && ac.status !== "active" && ac.status !== "check") {
+    if (l.returnAtEnd && ac.status !== "active" && ac.status !== "check" && ac.status !== "charter") {
       const st = returnSettlement(ac, now);
       if (st.refund) book(state, now, "rev", "insurance", st.refund);
       if (st.due) book(state, now, "cost", "leaseFee", st.due);
@@ -135,10 +142,34 @@ export function settle(state, now, { quiet = false } = {}) {
 }
 
 function process(state, ac, ts, report, quiet, staffEff) {
+  // Sonderlackierung ausgelaufen: Restsumme kassieren, Flugzeug bekommt die eigenen Farben zurück.
+  if (ac.adLivery && ac.adLivery.until <= ts) {
+    const d = ac.adLivery, rest = d.total - d.paid;
+    if (rest > 0) book(state, ts, "rev", "livery", rest);
+    log(state, ts, "good", `${ac.reg} trägt wieder die eigenen Farben. ${d.client} zahlt die Restsumme von ${Math.round(rest / 1e3)} k$.`);
+    ac.adLivery = null;
+    return;
+  }
   if (ac.status === "delivery") {
     ac.status = "idle"; ac.availableAt = null;
     log(state, ts, "good", `${ac.reg} (${typeOf(ac).name}) wurde ausgeliefert.`);
     if (!quiet) bus.emit("delivered", { aircraft: ac });
+    return;
+  }
+  if (ac.status === "charter") {
+    const ch = ac.charter, rest = ch.total - ch.paid;
+    book(state, ts, "rev", "charter", rest);
+    addFlightHours(ac, ch.fh);
+    state.airline.rep = Math.min(100, state.airline.rep + CHARTER.repBonus);
+    log(state, ts, "good", `${ac.reg} ist aus ${ch.city} zurück. ${ch.operator} zahlt die Restsumme von ${Math.round(rest / 1e3)} k$.`);
+    report.charters = (report.charters || 0) + 1;
+    ac.charter = null;
+    ac.status = "idle";
+    if (ch.resume && state.routes.some(r => r.id === ch.resume)) {
+      ac.ops = { routeId: ch.resume, dir: 0, dep: ts };
+      ac.status = "active";
+    }
+    if (!quiet) bus.emit("charterDone", { aircraft: ac, charter: ch });
     return;
   }
   if (ac.status === "check") {

@@ -272,6 +272,30 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.22 – Werbung, Charter und Sonderlackierungen** (Paket 4)
+- `sim/marketing.js`: Bekanntheit 0–100 als **reine Funktion der Zeit**, nicht als mitgeschleppter Wert.
+  Je Kampagne ein Vorrat nach `dS/dt = g − λS` (λ aus der Halbwertszeit des Kanals), Anlauf als Faktor,
+  Summe über alle Kampagnen plus Grundbekanntheit aus der Zahl der Ziele. Dadurch bleibt die Invariante
+  „stündlich reinschauen = einmal reinschauen" erhalten; bezahlt wird beim Buchen, nicht zeitanteilig.
+  `awarenessFactor` liegt bei einer jungen Airline auf 1,0 – Werbung ist Aufschlag, kein Pflichtprogramm.
+- `sim/charter.js`: tagesfeste ACMI-Angebote aus Datum, Drehkreuz und Ruf. Index 0 immer Schmalrumpf,
+  Index 2 immer Großraum, damit nie ein Tag ohne brauchbares Angebot dasteht. Neuer Flugzeugstatus
+  `charter`; `nextEventAt` liefert das Vertragsende, `process` zahlt die Restsumme, bucht die Flugstunden
+  auf die Wartung und setzt das Flugzeug auf seine alte Strecke zurück. Verkauf und Leasingrückgabe sind
+  währenddessen gesperrt.
+- `sim/adlivery.js`: wochenfeste Angebote, Tagessatz aus Sitzzahl × Bekanntheit × Ruf. Der Vertrag hängt
+  am Flugzeug (`ac.adLivery`), nicht am Status – `nextEventAt` nimmt deshalb das Minimum aus Statustermin
+  und Vertragsende. Rufabzug über `liveryRep`, gedeckelt bei `ADLIVERY.repMax`.
+- `ONBOARD` in der Konfiguration: Sortiment im Bordverkauf mit `salesMul` und `costShare`
+  (Wareneinsatz als Anteil vom Umsatz, läuft über die Catering-Kostenstelle).
+- `repBreakdown` / `repAdvice` in `sim/reputation.js`: jeder Baustein mit Hinweistext, sortiert nach
+  Schadenshöhe. `bestAtZero` markiert die Bausteine, bei denen 0 schon das Beste ist.
+- Neues Fenster **Vermarktung** (`ui/apps/marketing.js`) mit den drei Reitern, neue Panel-Sektion
+  **Vermarktung**, Sortimentwahl unter **Service**, Reputationsbereich mit aufklappbaren Hinweisen.
+- Gemessen über 28 Tage, zwei Flugzeuge auf gesunden Strecken: ohne Werbung 3,73 Mio $ Ergebnis,
+  mit Online/mittel 4,10 Mio $ (189 k$ Werbung), mit TV/groß 3,60 Mio $ (1,51 Mio $ Werbung).
+  Gezielte Werbung lohnt sich, das größte Budget füllt die Flugzeuge, kostet aber mehr als es bringt.
+
 **v0.21 – Abflüge und Flugabrechnung** (Paket 3)
 - `sim/handling.js`: Bodenabfertigung als Airline-Einstellung (`airline.handler`, Konfiguration unter
   `HANDLERS`). Der gewählte Abfertiger skaliert die Standzeit (`turnaroundHours(state, ac)`, ersetzt

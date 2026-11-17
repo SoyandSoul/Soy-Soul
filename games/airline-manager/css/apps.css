@@ -171,3 +171,14 @@
 .fl-bars { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 11px; color: var(--ink3); }
 .fl-bars b { color: var(--ink2); font-weight: 600; }
 @media (max-width: 720px) { .fl-head { flex-wrap: wrap; } .fl-head .fl-route { min-width: 100%; } }
+
+/* Vermarktung: Angebotskarten zum Aufklappen */
+.offer { padding: 0; overflow: hidden; }
+.offer > .row { padding: 12px 14px; cursor: pointer; gap: 10px; align-items: center; }
+.offer.open > .row { border-bottom: 1px solid var(--line); }
+.offer-body { padding: 12px 14px; background: var(--raise); }
+.pickrow { gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line2); }
+.pickrow:first-child { border-top: 0; }
+.swatch { width: 26px; height: 26px; border-radius: 7px; flex: 0 0 auto; }
+.tabs.sm button { padding: 5px 10px; font-size: 12px; }
+.opt-list label.off { opacity: .55; }

@@ -3,18 +3,21 @@
 
 import { html, raw } from "../dom.js";
 import { fmt } from "../../core/util.js";
-import { STAFF, CATERING, BAGS, CONTRACT, FLIGHT } from "../../core/config.js";
+import { STAFF, CATERING, ONBOARD, BAGS, CONTRACT, FLIGHT, MARKETING } from "../../core/config.js";
 import { AIRPORT_BY_IATA, searchAirports } from "../../data/airports.js";
 import { CONTRACT_MAKERS } from "../../data/aircraft.js";
 import { statement, REV_BLOCKS } from "../../sim/finance.js";
 import { staffNeed, staffHave, coverage, staffEffects, salaryPerDay, GROUPS } from "../../sim/staff.js";
 import { COST, REV } from "../../sim/ledger.js";
 import { companyValue } from "../../sim/stocks.js";
-import { repFactors, repTarget } from "../../sim/reputation.js";
+import { repBreakdown, repTarget } from "../../sim/reputation.js";
 import { typeOf, routeDistance, positionAt } from "../../sim/flight.js";
 import { leaseFrame, monthlyObligation, isLeased } from "../../sim/lease.js";
 import { goalProgress, nextGoal, rewardText, GOAL_GROUPS } from "../../sim/goals.js";
 import { commonality, commonalityNote } from "../../sim/commonality.js";
+import { awareness, awarenessNote, awarenessFactor, activeCampaigns, channelOf } from "../../sim/marketing.js";
+import { charterOffers } from "../../sim/charter.js";
+import { liveryOffers, activeLiveries, liveryIncomePerDay } from "../../sim/adlivery.js";
 import { departureBoard, rushAllQuote, rushSaving, handlerOf } from "../../sim/handling.js";
 import { tally, legsSince } from "../../sim/report.js";
 import { HANDLERS } from "../../core/config.js";
@@ -90,10 +93,11 @@ const goals = {
 const fmtGoal = g => g.target >= 1000 ? `${fmt.int(g.cur)} von ${fmt.int(g.target)}` : g.target === 1 ? "noch offen" : `${fmt.dec(g.cur)} von ${g.target}`;
 
 // ---------------------------------------------------------------- Flotte
-const FLEET_GROUPS = [["air", "In der Luft"], ["ground", "Am Boden"], ["idle", "Ohne Strecke"], ["check", "In Wartung"], ["delivery", "In Auslieferung"]];
+const FLEET_GROUPS = [["air", "In der Luft"], ["ground", "Am Boden"], ["charter", "Im Charter"], ["idle", "Ohne Strecke"], ["check", "In Wartung"], ["delivery", "In Auslieferung"]];
 
 /** In welche Gruppe gehört ein Flugzeug? Maßgeblich ist die Spieluhr, nicht die Systemzeit. */
 function fleetGroup(ctx, ac) {
+  if (ac.status === "charter") return "charter";
   if (ac.status === "check") return "check";
   if (ac.status === "delivery") return "delivery";
   if (ac.status !== "active" || !ac.ops) return "idle";
@@ -111,12 +115,13 @@ function aircraftRow(ctx, ac) {
     if (p?.phase === "air") { detail = `${p.from.iata} → ${p.to.iata} · noch ${fmt.duration(p.eta - now)}`; cls = "air"; }
     else if (r) { detail = `${ac.ops.dir === 0 ? r.from : r.to} · Abflug ${fmt.time(ac.ops.dep)}`; cls = "ground"; }
     if (ac.ops.delay) detail += ` · +${ac.ops.delay.min}′`;
-  } else if (ac.status === "check") { detail = `${ac.check.type}-Check bis ${fmt.dateTime(ac.check.until)}`; cls = "check"; }
+  } else if (ac.status === "charter") { detail = `${ac.charter.city} für ${ac.charter.operator} · zurück ${fmt.date(ac.charter.until)}`; cls = "charter"; }
+  else if (ac.status === "check") { detail = `${ac.check.type}-Check bis ${fmt.dateTime(ac.check.until)}`; cls = "check"; }
   else if (ac.status === "delivery") { detail = `Übergabe ${fmt.dateTime(ac.availableAt)}`; cls = "delivery"; }
   else detail = "steht am Drehkreuz";
   return html`<button class="acrow ${cls}" data-act="focus" data-id="${ac.id}">
     <i class="dot"></i>
-    <span class="grow"><b>${ac.reg}</b>${isLeased(ac) ? html`<i class="tag">Leasing</i>` : ""}<small>${t.name}${ac.name ? ` · ${ac.name}` : ""}</small></span>
+    <span class="grow"><b>${ac.reg}</b>${isLeased(ac) ? html`<i class="tag">Leasing</i>` : ""}${ac.adLivery ? html`<i class="tag ad" style="border-color:${ac.adLivery.colors[0]};color:${ac.adLivery.colors[0]}">${ac.adLivery.client}</i>` : ""}<small>${t.name}${ac.name ? ` · ${ac.name}` : ""}</small></span>
     <span class="acdet">${detail}</span></button>`;
 }
 
@@ -285,6 +290,12 @@ const offer = {
       <div class="opt-list">${Object.entries(CATERING.modes).map(([k, m]) => html`<label><input type="radio" name="catering" value="${k}" data-act="catering" ${a.catering === k ? "checked" : ""}>
       <div><b>${m.label}</b> <span class="pill ${m.rep > 0 ? "good" : m.rep < 0 ? "bad" : ""}">Reputation ${m.rep > 0 ? "+" : ""}${m.rep}</span>
       <div class="small muted">${k === "free" ? "Essen und Getränke in allen Klassen inklusive. Teuer, Passagiere lieben es." : k === "mixed" ? "Premium-Klassen inklusive, Economy kauft an Bord." : "Alles kostenpflichtig – Extra-Umsatz, aber weniger Zufriedenheit."}</div></div></label>`)}</div>
+      <h4 class="fhead">Sortiment im Bordverkauf</h4>
+      <div class="opt-list">${Object.entries(ONBOARD.ranges).map(([k, m]) => html`<label><input type="radio" name="onboard" value="${k}" data-act="onboard" ${a.onboard === k ? "checked" : ""}>
+        <div><b>${m.label}</b> <span class="pill ${m.rep > 0 ? "good" : m.rep < 0 ? "bad" : ""}">Ruf ${m.rep > 0 ? "+" : ""}${m.rep}</span>
+        <div class="small muted">${m.note}</div>
+        <div class="small muted">Umsatz ${Math.round(m.salesMul * 100)} % · davon Wareneinsatz ${Math.round(m.costShare * 100)} %</div></div></label>`)}</div>
+      <p class="small muted">Wirkt nur dort, wo überhaupt verkauft wird – bei „Inklusive" bleibt der Bordverkauf klein.</p>
       <div class="card" style="margin-top:10px"><div class="row"><b class="grow">Gepäckgebühr Economy</b><b data-bag class="acc">$${a.bagFee}</b></div>
         <input type="range" min="0" max="${BAGS.maxFee}" step="5" value="${a.bagFee}" data-act="bag" style="margin-top:8px">
         <p class="small muted">Höhere Gebühren bringen pro Koffer mehr, aber weniger Passagiere zahlen sie – und die Reputation sinkt (bis −${BAGS.repCap}).</p></div>`;
@@ -292,7 +303,8 @@ const offer = {
   change: ctx => ({
     catering: el => ctx.run(act.setCatering, el.value),
     bag: el => ctx.run(act.setBagFee, el.value),
-    handler: el => { const r = ctx.run(act.setHandler, el.value); if (r) ctx.toast(`${r.handler.label} beauftragt.`, "good"); }
+    handler: el => { const r = ctx.run(act.setHandler, el.value); if (r) ctx.toast(`${r.handler.label} beauftragt.`, "good"); },
+    onboard: el => { const r = ctx.run(act.setOnboard, el.value); if (r) ctx.toast(`Sortiment: ${r.range.label}.`, "good"); }
   }),
   input: () => ({ bag: el => { el.closest(".card").querySelector("[data-bag]").textContent = "$" + el.value; } })
 };
@@ -302,19 +314,63 @@ const LABELS = { abfertigung: "Bodenabfertigung", preis: "Preisfairness", komfor
 
 const reputation = {
   id: "rep", title: "Reputation", icon: "airline",
-  render(ctx) {
+  render(ctx, v) {
     const s = ctx.state, now = ctx.now(), last = s.flights[0];
-    const f = repFactors(s, now, last), target = repTarget(s, now, last);
-    const tips = Object.entries(f).filter(([, x]) => x < -0.5).sort((a, b) => a[1] - b[1]).slice(0, 3);
+    const bars = repBreakdown(s, now, last), target = repTarget(s, now, last);
+    const open = v.repTip;
     return html`<div class="row"><div class="grow"><div class="big-price">${s.airline.rep.toFixed(1)}</div>
       <div class="small muted">Ziel aktuell ${target.toFixed(1)} – die Reputation nähert sich mit jedem Flug an.</div></div></div>
-      <div class="rep-bars" style="margin-top:10px">${Object.entries(f).map(([k, x]) => {
-        const w = Math.min(50, Math.abs(x) * 2.5);
-        return html`<div><span>${LABELS[k] || k}</span><div class="track"><i style="${x >= 0 ? `left:50%;width:${w}%;background:var(--good)` : `right:50%;width:${w}%;background:var(--bad)`}"></i></div><b class="r mono">${x >= 0 ? "+" : ""}${x.toFixed(1)}</b></div>`;
+      <div class="rep-bars" style="margin-top:10px">${bars.map(b => {
+        const w = Math.min(50, Math.abs(b.value) * 2.5);
+        return html`<div class="repline ${open === b.key ? "open" : ""}" data-act="repTip" data-key="${b.key}" title="Tippen für den Hinweis">
+          <span>${b.label}</span>
+          <div class="track"><i style="${b.value >= 0 ? `left:50%;width:${w}%;background:var(--good)` : `right:50%;width:${w}%;background:var(--bad)`}"></i></div>
+          <b class="r mono">${b.value >= 0 ? "+" : ""}${b.value.toFixed(1)}</b></div>
+          ${open === b.key && b.tip ? html`<p class="reptip small">${b.tip}</p>` : ""}`;
       })}</div>
-      ${tips.length ? html`<div class="note info" style="margin-top:10px"><b>Größte Baustellen</b><span>${tips.map(([k]) => LABELS[k] || k).join(" · ")}</span></div>` : ""}
-      <p class="small muted" style="margin-top:8px">Reputation steuert die Nachfrage: bei 0 nur 60 %, bei 100 bis zu 140 %.</p>`;
-  }
+      ${(() => { const worst = bars.find(b => b.value < -0.5); return worst
+        ? html`<div class="note warn" style="margin-top:10px"><b>Größter Hebel: ${worst.label}</b><span>${worst.tip}</span></div>`
+        : html`<div class="note good" style="margin-top:10px"><b>Nichts zieht gerade nach unten</b><span>Weiter so – Ruf wächst von selbst, solange nichts passiert.</span></div>`; })()}
+      <p class="small muted" style="margin-top:8px">Reputation steuert die Nachfrage: bei 0 nur 60 %, bei 100 bis zu 140 %. Eine Zeile antippen zeigt, was dahintersteckt.</p>`;
+  },
+  click: (ctx, v, api) => ({
+    repTip: el => { v.repTip = v.repTip === el.dataset.key ? null : el.dataset.key; api.rerender(); }
+  })
+};
+
+// ---------------------------------------------------------------- Vermarktung
+const vermarktung = {
+  id: "market", title: "Vermarktung", icon: "offer",
+  badge(ctx) {
+    const now = ctx.now();
+    const n = charterOffers(ctx.state, now).length + liveryOffers(ctx.state, now).length;
+    return n ? { n } : null;
+  },
+  render(ctx) {
+    const s = ctx.state, now = ctx.now();
+    const aw = awareness(s, now), note = awarenessNote(s, now), f = awarenessFactor(s, now);
+    const running = activeCampaigns(s, now);
+    const flying = s.fleet.filter(a => a.charter);
+    const painted = activeLiveries(s, now);
+    const anfragen = charterOffers(s, now).length + liveryOffers(s, now).length;
+    return html`
+      <div class="row"><b class="grow">Bekanntheit</b><b class="acc mono">${Math.round(aw)} / 100</b></div>
+      <div class="track aw"><i style="width:${aw}%"></i><u style="left:${note.floor}%"></u></div>
+      <div class="row wrap small muted" style="margin-top:6px">
+        <span>${note.stand}</span><span>·</span>
+        <span>Nachfrage <b class="${f >= 1 ? "good" : "warn"}">${f >= 1 ? "+" : ""}${Math.round((f - 1) * 100)} %</b></span>
+      </div>
+      <table class="t" style="margin-top:10px"><tbody>
+        <tr><td>Werbung</td><td class="r">${running.length
+          ? `${running.length} ${running.length === 1 ? "Kampagne" : "Kampagnen"} · noch ${Math.max(1, Math.ceil((Math.max(...running.map(c => c.until)) - now) / 86400000))} Tage`
+          : "keine"}</td></tr>
+        <tr><td>Charter</td><td class="r">${flying.length ? flying.map(a => a.reg).join(", ") : "keine"}</td></tr>
+        <tr><td>Lackierungen</td><td class="r">${painted.length ? `${painted.length} · ${fmt.money(liveryIncomePerDay(s, now))}/Tag` : "keine"}</td></tr>
+      </tbody></table>
+      <button class="btn p" style="width:100%;margin-top:10px" data-act="openMarket">
+        ${anfragen ? `Vermarktung öffnen · ${anfragen} Anfragen` : "Vermarktung öffnen"}</button>`;
+  },
+  click: ctx => ({ openMarket: () => ctx.openApp("marketing") })
 };
 
 // ---------------------------------------------------------------- Unternehmen
@@ -381,4 +437,4 @@ const account = {
   })
 };
 
-export const AIRLINE_SECTIONS = [overview, goals, departures, fleet, staff, finance, offer, reputation, company, account];
+export const AIRLINE_SECTIONS = [overview, goals, departures, fleet, staff, finance, offer, vermarktung, reputation, company, account];

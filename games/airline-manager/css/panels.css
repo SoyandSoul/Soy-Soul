@@ -168,3 +168,17 @@
 .dep small { display: block; font-size: 11px; color: var(--ink3); }
 .dep-left { font: 600 12px var(--mono); color: var(--ink2); white-space: nowrap; }
 .dep.late .dep-left { color: var(--warn); }
+
+/* Bekanntheit: Balken mit Markierung für den Grundwert ohne Werbung */
+.track.aw { height: 10px; background: var(--raise2); border-radius: 99px; position: relative; margin-top: 6px; overflow: hidden; }
+.track.aw i { position: absolute; left: 0; top: 0; bottom: 0; min-width: 4px; background: linear-gradient(90deg, var(--brand), var(--accent)); border-radius: 99px; }
+.track.aw u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink3); opacity: .8; }
+.acrow.charter .dot { background: var(--brand); }
+.tag.ad { border: 1px solid; background: none; }
+.repline { display: grid; grid-template-columns: 110px 1fr 46px; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 5px; cursor: pointer; }
+.repline.open span:first-child { color: var(--ink); font-weight: 600; }
+.reptip { margin: -2px 0 8px; padding: 8px 10px; background: var(--raise); border-radius: 8px; color: var(--ink2); }
+/* Tabellen in Panel-Sektionen dürfen nicht über die Panelbreite hinauslaufen */
+.psec-body .t { width: 100%; table-layout: fixed; }
+.psec-body .t td { word-break: break-word; }
+.psec-body .t td.r { white-space: normal; }

@@ -6,7 +6,8 @@ import { cabinCrew, staffEffects } from "./staff.js";
 import { reserveForLeg } from "./lease.js";
 import { commonality } from "./commonality.js";
 import { handlerOf } from "./handling.js";
-import { CABIN, CARGO, FEES, STAFF, CATERING, BAGS, FIXED, H } from "../core/config.js";
+import { awarenessFactor } from "./marketing.js";
+import { CABIN, CARGO, FEES, STAFF, CATERING, ONBOARD, BAGS, FIXED, H } from "../core/config.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { typeOf, routeDistance, blockHours, cargoCapacityKg, totalSeats } from "./flight.js";
 import { bookings } from "./demand.js";
@@ -26,18 +27,21 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   const t = typeOf(ac), km = routeDistance(route), bh = blockHours(km, t);
   const from = AIRPORT_BY_IATA[dir === 0 ? route.from : route.to], to = AIRPORT_BY_IATA[dir === 0 ? route.to : route.from];
   const legKey = ac.id + ":" + dep;
-  const b = bookings({ route, dir, cfg: ac.cfg, ts: dep, rep: state.airline.rep, flightsPerDay, legKey });
+  const aware = {};
+  for (const c of CABIN.classes) aware[c] = awarenessFactor(state, dep, c);
+  const b = bookings({ route, dir, cfg: ac.cfg, ts: dep, rep: state.airline.rep, flightsPerDay, legKey, aware });
   const paxTotal = CABIN.classes.reduce((s, c) => s + b.pax[c], 0);
   const seats = totalSeats(ac.cfg);
   const lf = seats ? paxTotal / seats : 0;
   const cat = CATERING.modes[state.airline.catering];
+  const range = ONBOARD.ranges[state.airline.onboard] || ONBOARD.ranges[ONBOARD.defaultRange];
 
   // --- Einnahmen
   const rev = { tickets: 0, cargo: 0, onboard: 0, bags: 0 };
   for (const c of CABIN.classes) rev.tickets += b.pax[c] * b.prices[c];
   const cargoKg = cargoCapacityKg(ac, km, paxTotal) * CARGO.loadFactor[Math.max(from.tier, to.tier)] * (0.85 + 0.3 * rand01("cargo", legKey));
   rev.cargo = cargoKg * (CARGO.yieldBase + CARGO.yieldPerKm * km);
-  for (const c of CABIN.classes) rev.onboard += b.pax[c] * cat.salesPerPax[c] * (km > 1500 ? 1.4 : 1);
+  for (const c of CABIN.classes) rev.onboard += b.pax[c] * cat.salesPerPax[c] * range.salesMul * (km > 1500 ? 1.4 : 1);
   const bagTake = BAGS.takeRate * Math.exp(-state.airline.bagFee / BAGS.decay);
   rev.bags = (b.pax.y + b.pax.w * 0.5) * bagTake * state.airline.bagFee;
 
@@ -53,7 +57,9 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   cost.handling = (FEES.turnaroundBase[t.size] + paxTotal * FEES.handlingPerPax) * handlerOf(state).costFactor;
   cost.nav = FEES.navPerKm * km * Math.sqrt(t.mtowT / 50);
   cost.sales = rev.tickets * FEES.distribution;
-  cost.catering = CABIN.classes.reduce((s, c) => s + b.pax[c] * cat.costPerPax[c], 0) * (km > 3000 ? 1.8 : 1);
+  // Catering = Bordverpflegung plus Wareneinsatz des Bordverkaufs
+  cost.catering = CABIN.classes.reduce((s, c) => s + b.pax[c] * cat.costPerPax[c], 0) * (km > 3000 ? 1.8 : 1)
+    + rev.onboard * range.costShare;
   cost.maint = t.maintFH * (bh - 0.3) * commonality(state).maint;   // einheitliche Flotte = günstigere Technik
   cost.leaseReserve = reserveForLeg(ac, bh);   // Rücklage an den Leasinggeber, zusätzlich zur eigenen Reserve
   // Fehlt Verwaltungspersonal, läuft der Betrieb unrund: Handling und Vertrieb werden teurer.

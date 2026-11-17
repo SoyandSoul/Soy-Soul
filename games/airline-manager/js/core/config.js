@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.21",
+  label: "v0.22",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -145,6 +145,109 @@ export const CATERING = {
 };
 
 export const BAGS = { defaultFee: 25, maxFee: 120, takeRate: 0.55, decay: 60, repPerUsd: 0.15, repCap: 15 };
+
+// Charter: ein Veranstalter mietet Flugzeug und Crew (ACMI). Er zahlt Kerosin und Gebühren,
+// wir stellen Flugzeug, Besatzung, Wartung, Versicherung. Viel Geld, aber das Flugzeug ist weg.
+export const CHARTER = {
+  offersPerDay: 3,
+  minDays: 3, maxDays: 12,
+  minKm: 900, maxKm: 11000,
+  narrowKm: 4200,                              // bis hierhin reicht ein Schmalrumpfflugzeug
+  wideFromKm: 4800,                            // ab hier fragen Veranstalter Großraumflugzeuge an
+  minTourism: 0.45,                            // nur touristische Ziele
+  dayRatePerSeat: { narrow: 420, wide: 470, jumbo: 430 },   // je Sitz und Tag; grob so viel wie eine gut laufende Strecke
+  refSeats: { narrow: 170, wide: 290, jumbo: 410 },
+  seatTolerance: 0.8,                          // so viele Sitze muss das Flugzeug mindestens haben
+  farBonus: 0.2,                               // Zuschlag für weite Ziele
+  repMin: 0.78, repSpan: 0.42,                 // Ruf 0..100 → Satz 0,78 … 1,20
+  upfront: 0.4,                                // Anzahlung beim Annehmen, Rest bei Rückkehr
+  fhPerDay: { narrow: 8.5, wide: 11, jumbo: 11 },
+  cancelShare: 0.6,                            // Vertragsstrafe bei Abbruch, Anteil der Restsumme
+  repBonus: 2.5,                               // Rufgewinn nach sauber geflogenem Auftrag
+  operators: [
+    "Sonnenflug Reisen", "Adriatic Holidays", "Blautour", "Nordstern Reisen", "Condor Travel Group",
+    "Mediterrane Touristik", "Albatros Fernreisen", "Pauschal & Co.", "Baltic Sun", "Orienta Travel"
+  ]
+};
+
+// Sonderlackierungen: Firmen mieten die Außenhaut als Werbefläche. Das Flugzeug fliegt normal weiter,
+// die eigene Marke verschwindet aber darunter – deshalb kostet jedes bemalte Flugzeug Ruf.
+export const ADLIVERY = {
+  offersPerWeek: 3,
+  terms: [30, 60, 90],
+  perSeatPerDay: { narrow: 20, wide: 27, jumbo: 31 },   // je Sitzplatz Maximalbestuhlung
+  reachMin: 0.55, reachSpan: 0.9,                       // Bekanntheit und Ruf machen die Fläche wertvoll
+  upfrontDays: 20,                                      // Einmalzahlung beim Abschluss
+  haggle: 0.18,                                         // Streuung der Angebote
+  paintHours: { narrow: 20, wide: 30, jumbo: 36 },      // so lange steht das Flugzeug in der Lackiererei
+  repPerAircraft: 1.2, repMax: 6,
+  cancelShare: 0.5,
+  clients: [
+    { name: "Nordbank", branch: "Finanzen", colors: ["#0b3d91", "#f2b705"] },
+    { name: "Vitafit", branch: "Sportartikel", colors: ["#00a86b", "#ffffff"] },
+    { name: "Kaffeerösterei Hansen", branch: "Lebensmittel", colors: ["#5b3a29", "#e8d8c3"] },
+    { name: "Stromwerk", branch: "Energie", colors: ["#16a34a", "#0f172a"] },
+    { name: "Pixelfabrik", branch: "Spiele", colors: ["#7c3aed", "#22d3ee"] },
+    { name: "Hafenwerft", branch: "Industrie", colors: ["#334155", "#f97316"] },
+    { name: "Tourismusverband Tirol", branch: "Tourismus", colors: ["#0ea5e9", "#ffffff"] },
+    { name: "Blütenhof", branch: "Molkerei", colors: ["#fef3c7", "#1d4ed8"] }
+  ]
+};
+
+// Sortiment im Bordverkauf. Wirkt nur dort, wo überhaupt verkauft wird (siehe CATERING.modes).
+// costShare = Wareneinsatz als Anteil vom Umsatz: viel Umsatz heißt nicht viel Gewinn.
+export const ONBOARD = {
+  defaultRange: "standard",
+  ranges: {
+    basic:    { label: "Schlicht", salesMul: 0.65, costShare: 0.30, rep: -2,
+                note: "Kaffee, Wasser, Riegel. Wenig Umsatz, aber fast alles davon bleibt." },
+    standard: { label: "Standard", salesMul: 1, costShare: 0.45, rep: 0,
+                note: "Getränke, Snacks, belegte Brötchen. Der Normalfall." },
+    premium:  { label: "Marken & Region", salesMul: 1.7, costShare: 0.58, rep: 4,
+                note: "Markenprodukte und regionale Spezialitäten. Deutlich mehr Umsatz, dünnere Marge – und die Gäste reden darüber." }
+  }
+};
+
+// Werbung. Bekanntheit 0..100 füllt leere Sitze – wo schon alles voll ist, bringt sie wenig.
+// Deshalb darf der Hebel spürbar sein, ohne das Spiel zu kippen.
+export const MARKETING = {
+  base: 8,                  // Grundbekanntheit einer frisch gegründeten Airline
+  floorPerDest: 1.6,        // je bedientem Ziel
+  floorMax: 42,             // ohne Werbung ist irgendwann Schluss
+  maxAw: 100,
+  demandRef: 12,            // Bekanntheit einer jungen Airline = Nachfragefaktor 1,0
+  demandSpan: 0.25,         // je 100 Punkte darüber: +25 % Nachfrage (bei 100 also rund +22 %)
+  repPer10: 0.5,            // Ruf: bis zu +5 bei voller Bekanntheit
+  // gainPerDay = Punkte pro Tag im kleinsten Tarif, halfLifeDays = wie lange es nachwirkt
+  channels: {
+    tv: {
+      label: "TV & Radio", costPerDay: 9000, gainPerDay: 1.1, halfLifeDays: 14, ramp: 3, rep: 0,
+      bias: { f: 1, j: 1, w: 1, y: 1 },
+      note: "Teuer und breit. Braucht drei Tage Anlauf, wirkt dann auf alle Klassen gleich und lange nach."
+    },
+    ooh: {
+      label: "Plakat", costPerDay: 3400, gainPerDay: 0.8, halfLifeDays: 10, ramp: 2, rep: 0.5,
+      bias: { f: 1.05, j: 1.1, w: 1.05, y: 0.95 },
+      note: "Großflächen am Drehkreuz und in der Innenstadt. Solide Dauerwirkung, nichts Spektakuläres."
+    },
+    print: {
+      label: "Zeitung", costPerDay: 1900, gainPerDay: 0.4, halfLifeDays: 12, ramp: 1, rep: 1.4,
+      bias: { f: 1.3, j: 1.3, w: 1.1, y: 0.9 },
+      note: "Kleine Reichweite, aber die richtigen Leute: Geschäftsreisende – und der Ruf steigt mit."
+    },
+    online: {
+      label: "Online", costPerDay: 2600, gainPerDay: 1.6, halfLifeDays: 4, ramp: 0, rep: -0.4,
+      bias: { f: 0.85, j: 0.9, w: 1.05, y: 1.2 },
+      note: "Wirkt sofort und günstig, verpufft aber genauso schnell. Zieht vor allem Urlauber."
+    }
+  },
+  tiers: [
+    { label: "klein", mul: 1 },
+    { label: "mittel", mul: 2.6 },
+    { label: "groß", mul: 6 }
+  ],
+  terms: [7, 14, 30]
+};
 
 export const FUEL = {
   basePerKg: 0.78,
