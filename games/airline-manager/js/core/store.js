@@ -1,10 +1,11 @@
 // Spielstand: Aufbau, Laden, Speichern, Migration.
 // Gespeichert wird nur im Browser (localStorage). Kein Konto, keine E-Mail.
-// Für Gerätewechsel gibt es Export/Import als Text (ui/apps/airline.js) und optional Cloud-Save (net/backend.js).
+// Für Gerätewechsel gibt es Export/Import als Text (ui/panels/airline.js) und optional Cloud-Save (net/backend.js).
 
 import { GAME, FUEL, REPUTATION, CATERING, BAGS } from "./config.js";
 import { whiteLivery, normalizeLivery } from "../art/livery.js";
 import { AIRCRAFT_BY_ID, LEGACY_TYPES } from "../data/aircraft.js";
+import { staffNeed, GROUPS } from "../sim/staff.js";
 
 const mem = new Map(); // Fallback, falls localStorage fehlt (Node-Tests, privater Modus)
 const storage = {
@@ -14,7 +15,7 @@ const storage = {
 };
 
 export function newGame({ name, iata, hub, player, now = Date.now() }) {
-  return {
+  const s = {
     v: GAME.version,
     created: now,
     player,                                   // { code, secret } aus net/player.js
@@ -39,9 +40,14 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
     log: [],                                  // Ereignisse für die UI
     market: { boughtUsed: [] },
     ordered: 0,                               // Zähler für Sofort-Lieferungen
+    staff: { cockpit: 0, cabin: 0, ground: 0, admin: 0 },  // wird gleich auf den Startbedarf gesetzt
     lastSettled: now,
     lastFixedAt: now
   };
+  // Zum Start ist der Bedarf gedeckt – wachsen muss die Mannschaft erst mit der Flotte (sim/staff.js).
+  const need = staffNeed(s);
+  for (const g of GROUPS) s.staff[g] = need[g];
+  return s;
 }
 
 /** Ältere Speicherstände auf das aktuelle Format heben. Jede Version bekommt einen eigenen Schritt. */
@@ -57,6 +63,13 @@ export function migrate(s) {
     if (LEGACY_TYPES[ac.typeId]) ac.typeId = LEGACY_TYPES[ac.typeId];
     if (!AIRCRAFT_BY_ID[ac.typeId]) ac.typeId = "a320neo";
     ac.cond ??= null; // v0.16: Zustand gebrauchter Flugzeuge (null = neu gekauft, siehe sim/market.js)
+  }
+  // v0.17: Personal wird selbst eingestellt. Bestehende Airlines starten mit gedecktem Bedarf,
+  // damit niemand nach dem Update plötzlich unterbesetzt dasteht.
+  if (!s.staff) {
+    s.staff = { cockpit: 0, cabin: 0, ground: 0, admin: 0 };
+    const need = staffNeed(s);
+    for (const g of GROUPS) s.staff[g] = need[g];
   }
   return s;
 }

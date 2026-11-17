@@ -9,6 +9,7 @@ import { fuelPrice } from "../js/sim/fuel.js";
 import { usedListings } from "../js/sim/market.js";
 import { checkStatus } from "../js/sim/maintenance.js";
 import { summary } from "../js/sim/ledger.js";
+import { staffNeed, coverage, salaryPerDay, GROUPS } from "../js/sim/staff.js";
 import { sharePrice } from "../js/sim/stocks.js";
 import { AIRCRAFT } from "../js/data/aircraft.js";
 import { AIRPORTS } from "../js/data/airports.js";
@@ -37,6 +38,7 @@ function setup() {
   const r = act.orderNew(s, "a320neo", 2, T0); assert.ok(r.ok, r.msg);
   settle(s, T0 + 2 * H);
   const route = act.createRoute(s, "FRA", "PMI").route;
+  const hired = act.hireAllOpen(s, T0 + 2 * H); assert.ok(hired.ok, hired.msg);
   return { s, route, start: T0 + 2 * H };
 }
 
@@ -62,14 +64,52 @@ test("Abrechnung ist unabhängig davon, wie oft man reinschaut", () => {
   assert.ok(Math.abs(a.s.cash - b.s.cash) < 1, `${a.s.cash} vs ${b.s.cash}`);
 });
 
-test("Strecke ist profitabel (Balance-Grundcheck)", () => {
-  const { s, route, start } = setup();
+test("Gut gewählte Strecke ist profitabel (Balance-Grundcheck)", () => {
+  // Ein Flugzeug auf einer nachfragestarken Strecke – so sieht vernünftiges Spiel aus.
+  const { s, start } = setup();
+  const route = act.createRoute(s, "FRA", "LHR").route;
+  act.assign(s, s.fleet[0].id, route.id, start);
+  let legs = 0;
+  for (let d = 1; d <= 28; d++) legs += settle(s, start + d * DAY).legs;
+  const sum = summary(s, 30, start + 28 * DAY), margin = sum.profit / sum.opRev;
+  console.log(`   28 Tage, 1× A320neo FRA–LHR: ${Math.round(sum.profit / 1e3)} k$ Gewinn aus ${legs} Flügen, Marge ${(margin * 100).toFixed(0)} %, Rep ${s.airline.rep.toFixed(1)}`);
+  assert.ok(sum.profit > 0, "Strecke muss Gewinn abwerfen");
+  assert.ok(margin > 0.12 && margin < 0.55, `Marge ${(margin * 100).toFixed(0)} % liegt außerhalb des spielbaren Bandes`);
+  assert.ok(sharePrice(s, start + 28 * DAY) > 0);
+});
+
+test("Zu viel Kapazität auf einer dünnen Strecke lohnt sich nicht", () => {
+  // Gegenprobe: dieselbe Flotte auf eine nachfrageschwache Ferienstrecke – Auslastung und Ergebnis brechen ein.
+  const { s, route, start } = setup();                       // route = FRA–PMI
   for (const ac of s.fleet) act.assign(s, ac.id, route.id, start);
-  settle(s, start + 7 * DAY);
-  const sum = summary(s, 30, start + 7 * DAY);
-  console.log("   7 Tage, 2× A320neo FRA–PMI:", Math.round(sum.profit / 1e3), "k$ Gewinn,", s.flights.length, "Flüge, Rep", s.airline.rep.toFixed(1));
-  assert.ok(sum.profit > 0);
-  assert.ok(sharePrice(s, start + 7 * DAY) > 0);
+  for (let d = 1; d <= 28; d++) settle(s, start + d * DAY);
+  const lf = s.flights.reduce((a, f) => a + f.lf, 0) / s.flights.length;
+  console.log(`   28 Tage, 2× A320neo FRA–PMI: Auslastung ${(lf * 100).toFixed(0)} %, Ergebnis ${Math.round(summary(s, 30, start + 28 * DAY).profit / 1e3)} k$`);
+  assert.ok(lf < 0.55, "Überversorgung muss die Auslastung drücken");
+});
+
+test("Personal: ohne Crew kein Einsatz, Gehälter laufen als Tageskosten", () => {
+  const s = newGame({ name: "Test Air", iata: "TA", hub: "FRA", player: { code: "c", secret: "x" }, now: T0 });
+  act.orderNew(s, "a320neo", 2, T0);
+  settle(s, T0 + 2 * H);
+  const route = act.createRoute(s, "FRA", "LHR").route;
+  const bad = act.assign(s, s.fleet[0].id, route.id, T0 + 2 * H);
+  assert.equal(bad.ok, false, "ohne Personal darf kein Flugzeug in Dienst gehen");
+  assert.match(bad.msg, /Personal/);
+  const hired = act.hireAllOpen(s, T0 + 2 * H);
+  assert.ok(hired.ok && hired.total > 0, "offene Stellen müssen besetzbar sein");
+  assert.ok(act.assign(s, s.fleet[0].id, route.id, T0 + 2 * H).ok, "mit Personal muss es gehen");
+  // Eine neue Destination hebt den Bedarf an Bodenpersonal – erst nach dem Nachbesetzen ist alles gedeckt.
+  assert.ok(coverage(s).ground < 1, "neues Ziel muss zusätzliches Bodenpersonal verlangen");
+  act.hireAllOpen(s, T0 + 2 * H);
+  const need = staffNeed(s), cov = coverage(s);
+  for (const g of GROUPS) assert.ok(cov[g] >= 1, `${g} unterbesetzt: ${cov.have[g]}/${need[g]}`);
+  // Gehälter müssen auch ohne Flugbetrieb anfallen
+  const before = s.cash;
+  settle(s, T0 + 2 * H + 1 * DAY);
+  const day = summary(s, 2, T0 + 2 * H + DAY).cost.staff;
+  assert.ok(day > 0 && Math.abs(day - salaryPerDay(s).total) / day < 0.05, `Tagesgehälter ${day}`);
+  assert.ok(s.cash !== before);
 });
 
 test("Auto-Check greift, Zähler werden zurückgesetzt", () => {

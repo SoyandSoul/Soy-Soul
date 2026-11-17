@@ -2,6 +2,7 @@
 // (Kerosin, Crew, Start-/Landegebühren, Turnaround, Catering, Wartungsreserve).
 
 import { condEffects } from "./market.js";
+import { cabinCrew, staffEffects } from "./staff.js";
 import { CABIN, CARGO, FEES, STAFF, CATERING, BAGS, FIXED, H } from "../core/config.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { typeOf, routeDistance, blockHours, cargoCapacityKg, totalSeats } from "./flight.js";
@@ -13,25 +14,6 @@ export function pilotsFor(blockH) {
   let p = 2;
   for (const [h, n] of STAFF.extraPilots) if (blockH >= h) p = n;
   return p;
-}
-
-/** Kabinencrew: gesetzliches Minimum + Service-Aufschlag für Premiumklassen */
-export function cabinCrew(ac) {
-  const c = ac.cfg, min = typeOf(ac).crew.cabin;
-  return Math.max(min, Math.ceil((c.y || 0) / 50 + (c.w || 0) / 30 + (c.j || 0) / 12 + (c.f || 0) / 6));
-}
-
-/** Mitarbeiterzahl der Airline (für Schulungskosten und Anzeige) */
-export function headcount(state) {
-  let pilots = 0, cabin = 0, techs = 0;
-  for (const ac of state.fleet) {
-    if (ac.status === "crashed") continue;
-    const t = typeOf(ac);
-    pilots += 2 * STAFF.crewSetsPerAircraft * (t.rangeKm > 9000 ? 1.5 : 1);
-    cabin += cabinCrew(ac) * STAFF.crewSetsPerAircraft;
-    techs += t.crew.techs;
-  }
-  return { pilots: Math.round(pilots), cabin: Math.round(cabin), techs, total: Math.round(pilots + cabin + techs) };
 }
 
 /**
@@ -60,15 +42,19 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   const fuelKg = (t.fuelKgH * bh * (0.88 + 0.12 * lf) + (cargoKg / 1000) * 30 * bh) * (1 + condEffects(ac.cond).fuel);
   const cost = {};
   cost.fuel = consumeFuel(state, fuelKg, dep);
+  // Gehälter laufen als Tageskosten (sim/engine.js); pro Flug fallen nur noch Spesen an.
   const wage = 1 + STAFF.training.wageBonus * state.airline.training;
   const pilots = pilotsFor(bh), cabin = cabinCrew(ac);
-  cost.crew = (pilots * STAFF.pilotPerH + cabin * STAFF.cabinPerH) * bh * wage;
+  cost.crew = (pilots * STAFF.allowancePerH.pilot + cabin * STAFF.allowancePerH.cabin) * bh * wage;
   cost.fees = t.mtowT * (FEES.landingPerT[from.tier] + FEES.landingPerT[to.tier]) / 2 + paxTotal * FEES.paxFee[from.tier];
   cost.handling = FEES.turnaroundBase[t.size] + paxTotal * FEES.handlingPerPax;
   cost.nav = FEES.navPerKm * km * Math.sqrt(t.mtowT / 50);
   cost.sales = rev.tickets * FEES.distribution;
   cost.catering = CABIN.classes.reduce((s, c) => s + b.pax[c] * cat.costPerPax[c], 0) * (km > 3000 ? 1.8 : 1);
   cost.maint = t.maintFH * (bh - 0.3);
+  // Fehlt Verwaltungspersonal, läuft der Betrieb unrund: Handling und Vertrieb werden teurer.
+  const sur = staffEffects(state).surcharge;
+  if (sur) { cost.handling *= 1 + sur; cost.sales *= 1 + sur; }
 
   return {
     t: dep, arr: dep + bh * H, acId: ac.id, reg: ac.reg, type: t.name, routeId: route.id,

@@ -6,7 +6,10 @@ import { CONTRACT, USED, CHECKS, GAME, DAY, H } from "../core/config.js";
 import { rng, dayKey } from "../core/util.js";
 
 /** Marktpreis-Faktor: Airlines zahlen in der Realität deutlich unter Liste. 1 = voller Listenpreis. */
-export const MARKET_FACTOR = 0.55;
+// Was eine Airline tatsächlich zahlt, als Anteil vom Listenpreis.
+// Echte Großkunden bekommen 45–55 % Rabatt; darunter ist bewusste Spielbalance, damit eine Maschine
+// in rund einem Jahr Echtzeit statt in drei Jahren verdient ist. Hochdrehen macht das Spiel härter.
+export const MARKET_FACTOR = 0.30;
 
 export const listPrice = type => type.priceM * 1e6;
 export const basePrice = type => listPrice(type) * MARKET_FACTOR;

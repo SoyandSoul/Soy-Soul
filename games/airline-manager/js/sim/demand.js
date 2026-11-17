@@ -47,9 +47,14 @@ export function classSplit(bizAvg, km) {
   return { f, j, w, y: Math.max(0.4, 1 - f - j - w) };
 }
 
+/**
+ * Referenzpreis einer Klasse. Der Ertrag je Kilometer sinkt mit der Entfernung (wie in der Realität):
+ * eine Stunde Kurzstrecke bringt deutlich mehr pro Kilometer als eine Stunde über dem Atlantik.
+ */
 export function refFare(km, cls) {
   const r = CABIN.refFare;
-  return (r.base + r.perKm * km) * r.mul[cls];
+  const taper = Math.pow(Math.min(1, r.taperFrom / Math.max(1, km)), r.taperExp);
+  return (r.base + r.perKm * km * taper) * r.mul[cls];
 }
 
 export const repDemandFactor = rep => REPUTATION.demandMin + REPUTATION.demandSpan * rep / 100;

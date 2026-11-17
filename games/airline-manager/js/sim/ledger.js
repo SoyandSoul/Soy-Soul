@@ -4,9 +4,9 @@ import { dayKey } from "../core/util.js";
 
 export const REV = { tickets: "Tickets", cargo: "Fracht", onboard: "Bordverkauf", bags: "Gepäckgebühren", insurance: "Versicherung", stocks: "Aktienverkauf" };
 export const COST = {
-  fuel: "Kerosin", crew: "Personal", fees: "Start-/Landegebühren", handling: "Turnaround & Handling", nav: "Flugsicherung", sales: "Vertrieb", catering: "Catering",
+  fuel: "Kerosin", staff: "Gehälter", crew: "Crew-Spesen", fees: "Start-/Landegebühren", handling: "Turnaround & Handling", nav: "Flugsicherung", sales: "Vertrieb", catering: "Catering",
   maint: "Wartungsreserve", checks: "Checks A–D", fixed: "Fixkosten (Techniker, Versicherung, Parken)",
-  training: "Schulungen", aircraft: "Flugzeugkäufe", upgrades: "Ausbau", stocks: "Aktienkäufe", contract: "Verträge"
+  training: "Schulungen", recruit: "Personalgewinnung", aircraft: "Flugzeugkäufe", upgrades: "Ausbau", stocks: "Aktienkäufe", contract: "Verträge"
 };
 
 const KEEP_DAYS = 60;
@@ -25,7 +25,7 @@ export function prune(state) {
 }
 
 /** Summen über die letzten n Tage. Investitionen (Flugzeuge, Aktien, Ausbau) zählen nicht zum operativen Ergebnis. */
-const CAPEX = new Set(["aircraft", "stocks", "upgrades"]);
+const CAPEX = new Set(["aircraft", "stocks", "upgrades", "recruit"]);
 const NONOP_REV = new Set(["stocks", "insurance"]);
 
 export function summary(state, days = 30, now = Date.now()) {

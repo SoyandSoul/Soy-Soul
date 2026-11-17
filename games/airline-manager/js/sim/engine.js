@@ -19,6 +19,7 @@ import { updateRep } from "./reputation.js";
 import { addFlightHours, legRisk, mostUrgent, startCheck, finishCheck } from "./maintenance.js";
 import { aircraftValue } from "./market.js";
 import { weatherDelay } from "./weather.js";
+import { salaryPerDay, staffEffects } from "./staff.js";
 
 const MAX_STEPS = 200_000;
 
@@ -66,20 +67,23 @@ export function settle(state, now, { quiet = false } = {}) {
     report.capped = true;
   }
 
-  // Fixkosten zeitanteilig
+  // Fixkosten und Gehälter zeitanteilig
   const hrs = (now - state.lastFixedAt) / H;
   if (hrs > 0) {
     let fixed = 0;
     for (const ac of state.fleet) if (ac.status !== "crashed" && ac.status !== "delivery") fixed += fixedPerHour(ac) * hrs;
     book(state, now, "cost", "fixed", fixed);
+    book(state, now, "cost", "staff", salaryPerDay(state).total / 24 * hrs);
     state.lastFixedAt = now;
   }
 
+  // Personallage einmal pro Durchlauf bestimmen – sie ändert sich während des Nachrechnens kaum.
+  const staffEff = staffEffects(state);
   for (let step = 0; step < MAX_STEPS; step++) {
     let next = null, at = Infinity;
     for (const ac of state.fleet) { const t = nextEventAt(state, ac); if (t < at) { at = t; next = ac; } }
     if (!next || at > now) break;
-    process(state, next, at, report, quiet);
+    process(state, next, at, report, quiet, staffEff);
   }
 
   state.lastSettled = now;
@@ -87,7 +91,7 @@ export function settle(state, now, { quiet = false } = {}) {
   return report;
 }
 
-function process(state, ac, ts, report, quiet) {
+function process(state, ac, ts, report, quiet, staffEff) {
   if (ac.status === "delivery") {
     ac.status = "idle"; ac.availableAt = null;
     log(state, ts, "good", `${ac.reg} (${typeOf(ac).name}) wurde ausgeliefert.`);
@@ -140,19 +144,22 @@ function process(state, ac, ts, report, quiet) {
   if (state.flights.length > 150) state.flights.length = 150;
   if (ac.status === "crashed") return;
 
-  // Nächstes Leg planen
+  // Nächstes Leg planen. Verspätung kommt aus drei Quellen: Defekt, Wetter am Ankunftsort, fehlendes Personal.
   const arrivedHome = ac.ops.dir === 1;
   const turn = turnaroundH(typeOf(ac)) * H;
   ac.ops.dir = 1 - ac.ops.dir;
-  ac.ops.dep = leg.arr + turn + faultDelay;
-  if (faultDelay) ac.ops.delay = { min: Math.round(faultDelay / 60_000), reason: "technischem Defekt", at: leg.to };
-  // Wetter am Ankunftsflughafen kann den Turnaround verlängern
+
+  const sources = [];
+  if (faultDelay) sources.push({ min: Math.round(faultDelay / 60_000), reason: "technischem Defekt" });
   const wd = weatherDelay(leg.to, leg.arr, ac.id);
-  if (!faultDelay) ac.ops.delay = wd;
-  if (wd) {
-    ac.ops.dep += wd.min * 60_000;
-    if (wd.min >= 45) log(state, leg.arr, "warn", `${ac.reg} in ${wd.at}: ${wd.min} min Verspätung wegen ${wd.reason}.`);
-  }
+  if (wd) sources.push({ min: wd.min, reason: wd.reason });
+  if (staffEff?.delayMin) sources.push({ min: staffEff.delayMin, reason: staffEff.flight >= staffEff.ground ? "fehlendem Flugpersonal" : "fehlendem Bodenpersonal" });
+
+  const totalMin = sources.reduce((a, d) => a + d.min, 0);
+  ac.ops.dep = leg.arr + turn + totalMin * 60_000;
+  const worst = sources.sort((a, b) => b.min - a.min)[0];
+  ac.ops.delay = worst ? { min: totalMin, reason: worst.reason, at: leg.to } : null;
+  if (totalMin >= 45) log(state, leg.arr, "warn", `${ac.reg} in ${leg.to}: ${totalMin} min Verspätung wegen ${worst.reason}.`);
   if (!arrivedHome) return;
 
   if (ac.unassign) { ac.ops = null; ac.unassign = false; ac.status = "idle"; return; }

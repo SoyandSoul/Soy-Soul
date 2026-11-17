@@ -9,7 +9,8 @@
 .maplibregl-popup-close-button { color: var(--ink2); font-size: 18px; padding: 2px 8px; }
 
 /* ---------- HUD */
-.hud { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 20; display: flex; gap: 8px; align-items: stretch; pointer-events: none; }
+/* Das HUD sitzt mittig zwischen den beiden Panelen (css/panels.css). */
+.hud { position: fixed; top: 12px; left: 384px; right: 384px; z-index: 20; display: flex; gap: 8px; align-items: stretch; justify-content: center; pointer-events: none; }
 .hud > * { pointer-events: auto; }
 .glass { background: var(--panel); backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
 .hud .brand { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 8px; }
@@ -22,20 +23,10 @@
 .hud .stats div:hover { background: rgba(255,255,255,.04); }
 .hud .stats span { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink3); }
 .hud .stats b { font: 650 15px var(--display); white-space: nowrap; }
-.hud .clock { margin-left: auto; padding: 8px 14px; display: flex; flex-direction: column; justify-content: center; text-align: right; }
+.hud .clock { padding: 8px 14px; display: flex; flex-direction: column; justify-content: center; text-align: right; }
 .hud .clock b { font: 600 16px var(--mono); }
 .hud .clock span { font-size: 11px; color: var(--ink3); }
 .tick-up { color: var(--good) !important; } .tick-down { color: var(--bad) !important; }
-
-/* ---------- Dock */
-.dock { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; gap: 2px; padding: 6px; max-width: calc(100vw - 24px); overflow-x: auto; }
-.dock button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 10px 5px; border-radius: 10px; color: var(--ink2); min-width: 66px; transition: background .15s, color .15s; }
-.dock button:hover { background: rgba(255,255,255,.06); color: var(--ink); }
-.dock button[aria-pressed="true"] { background: rgba(255,176,0,.14); color: var(--accent); }
-.dock svg { width: 22px; height: 22px; }
-.dock span { font-size: 11px; font-weight: 600; }
-.dock .badge { position: absolute; top: 3px; right: 10px; min-width: 16px; height: 16px; border-radius: 8px; padding: 0 4px; font: 700 10px/16px var(--font); color: #fff; background: var(--bad); }
-.dock .badge.warn { background: var(--warn); color: #241700; }
 
 /* ---------- Fenster */
 #windows { position: fixed; inset: 0; pointer-events: none; z-index: 25; }
@@ -68,7 +59,8 @@
 .flightcard footer { display: flex; gap: 6px; padding: 0 14px 14px; }
 
 /* ---------- Toasts */
-#toasts { position: fixed; top: 84px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+/* Unten, seit das Dock weg ist – dort verdecken Meldungen keine Paneldaten. */
+#toasts { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
 .toast { pointer-events: auto; padding: 10px 16px; border-radius: 12px; background: var(--panel-solid); border: 1px solid var(--line2); box-shadow: var(--shadow); font-weight: 550; max-width: min(520px, 90vw); animation: winIn .25s var(--ease); }
 .toast.good { border-color: color-mix(in srgb, var(--good) 50%, transparent); }
 .toast.warn { border-color: color-mix(in srgb, var(--warn) 60%, transparent); }
@@ -98,31 +90,7 @@
 }
 
 /* ---------- Airline-Dropdown */
-.am-btn { display: flex; align-items: center; gap: 10px; padding: 3px 8px 3px 3px; border-radius: 11px; text-align: left; transition: background .15s; }
-.am-btn:hover, .am-btn[aria-expanded="true"] { background: rgba(255,255,255,.06); }
-.am-btn .am-name b { display: block; font: 650 15px var(--display); line-height: 1.1; }
-.am-btn .am-name small { color: var(--ink3); font: 12px var(--mono); }
-.am-btn .chev { color: var(--ink3); transition: transform .2s var(--ease); }
-.am-btn[aria-expanded="true"] .chev { transform: rotate(180deg); color: var(--accent); }
-.airmenu { position: fixed; top: 74px; left: 12px; z-index: 70; width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 170px); overflow: auto; padding: 14px; border-color: var(--line2); animation: menuIn .2s var(--ease); transform-origin: top left; }
-@keyframes menuIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
-.am-head { display: grid; grid-template-columns: 170px 1fr; gap: 14px; align-items: center; }
-.am-head b { display: block; font: 700 22px var(--display); letter-spacing: -.01em; }
-.am-art { background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,.1), transparent 70%); border-radius: 12px; padding: 4px; }
-.am-art svg { width: 100%; height: auto; display: block; }
-.am-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0; }
-.am-stats div { background: var(--raise); border-radius: 10px; padding: 7px 10px; }
-.am-stats span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink3); }
-.am-stats b { font: 650 15px var(--display); }
-.am-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.am-grid button { display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border-radius: 12px; background: var(--raise); border: 1px solid transparent; transition: border-color .15s, background .15s; }
-.am-grid button:hover, .am-grid button:focus-visible { border-color: rgba(255,176,0,.45); background: var(--raise2); }
-.am-grid svg { width: 26px; height: 26px; color: var(--accent); flex: none; }
-.am-grid b { display: block; font-size: 14px; }
-.am-grid small { color: var(--ink3); font-size: 12px; }
-.am-foot { margin-top: 10px; text-align: right; }
 .dock .badge.info { background: var(--info); }
-@media (max-width: 720px) { .am-grid { grid-template-columns: 1fr; } .am-stats { grid-template-columns: 1fr 1fr; } .am-head { grid-template-columns: 110px 1fr; } }
-.fc-delay { margin: 0 14px 8px; padding: 6px 10px; border-radius: 9px; background: color-mix(in srgb, var(--bad) 16%, transparent); color: #ffb3bb; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+@media (max-width: 720px) { .fc-delay { margin: 0 14px 8px; padding: 6px 10px; border-radius: 9px; background: color-mix(in srgb, var(--bad) 16%, transparent); color: #ffb3bb; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .fc-clock { width: 14px; height: 14px; border-radius: 50%; background: var(--bad); position: relative; flex: none; }
 .fc-clock::after { content: ""; position: absolute; left: 6px; top: 3px; width: 2px; height: 5px; background: #fff; box-shadow: 2px 3px 0 -0px #fff; }

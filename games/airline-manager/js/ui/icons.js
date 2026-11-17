@@ -13,5 +13,14 @@ export const ICONS = {
   log: s('<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 12h7M9 16h7"/>'),
   close: s('<path d="M6 6l12 12M18 6L6 18"/>'),
   back: s('<path d="M15 18l-6-6 6-6"/>'),
-  plane: s('<path d="M10.5 3.5c0-.8.7-1.5 1.5-1.5s1.5.7 1.5 1.5V9l7 4v2l-7-2v4.5l2 1.5v1.5L12 20l-3.5 1v-1.5l2-1.5V13l-7 2v-2l7-4z"/>')
+  plane: s('<path d="M10.5 3.5c0-.8.7-1.5 1.5-1.5s1.5.7 1.5 1.5V9l7 4v2l-7-2v4.5l2 1.5v1.5L12 20l-3.5 1v-1.5l2-1.5V13l-7 2v-2l7-4z"/>'),
+  overview: s('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/>'),
+  fleet: s('<path d="M3 17h18"/><path d="M8 13.5 6.2 7.8a.8.8 0 0 1 .8-1l1 .1L10 11h3.3l1.5-3.6 1.6.3L15.6 11H19a2 2 0 0 1 0 4H7z"/>'),
+  staff: s('<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15 14c3 0 6 1.8 6 5"/>'),
+  finance: s('<path d="M4 19h16"/><path d="M7 15v-4M12 15V7M17 15v-6"/>'),
+  offer: s('<path d="M4 11h16"/><path d="M5 11a7 7 0 0 1 14 0"/><path d="M3 15h18"/>'),
+  contract: s('<path d="M6 3h9l4 4v14H6z"/><path d="M9 13l2 2 4-4"/>'),
+  hub: s('<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/>'),
+  account: s('<rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'),
+  paint: s('<path d="M4 20c2 0 4-1 4-4l9-9 3 3-9 9c-3 0-4 2-4 4"/><path d="M14 6l4 4"/>')
 };

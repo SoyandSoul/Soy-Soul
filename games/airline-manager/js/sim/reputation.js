@@ -5,6 +5,7 @@ import { REPUTATION as R, CATERING, BAGS, STAFF, CABIN, DAY } from "../core/conf
 import { clamp } from "../core/util.js";
 import { refFare } from "./demand.js";
 import { seatUnits } from "./flight.js";
+import { staffEffects } from "./staff.js";
 
 const decay = (ts, list, cfg) => list.reduce((s, t) => s + cfg.hit * Math.pow(0.5, (ts - t) / (cfg.halfLifeDays * DAY)), 0);
 
@@ -23,6 +24,7 @@ export function repFactors(state, ts, leg) {
   f.bordservice = CATERING.modes[a.catering].rep;
   f.gepaeck = -Math.min(BAGS.repCap, a.bagFee * BAGS.repPerUsd);
   f.schulung = STAFF.training.rep[a.training];
+  f.personal = staffEffects(state).repMalus;   // Unterbesetzung → Verspätungen, unzufriedene Gäste
   f.sicherheit = decay(ts, a.safety.crashes, R.crash) + decay(ts, a.safety.incidents, R.incident);
   const last = Math.max(a.safety.since, ...a.safety.crashes, ...a.safety.incidents);
   f.unfallfrei = Math.min(R.safeBonusMax, (ts - last) / DAY / R.safeBonusPerDays);

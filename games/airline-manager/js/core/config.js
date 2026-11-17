@@ -10,7 +10,7 @@ export const GAME = {
   startCash: 200_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.16",
+  label: "v0.17",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -36,7 +36,9 @@ export const CABIN = {
   units: { f: 5, j: 3, w: 1.35, y: 1 },
   denseThreshold: 0.93,              // Auslastung des Budgets, ab der die Kabine als "eng" gilt (Reputation -)
   // Referenzpreis = base + perKm × Distanz, multipliziert pro Klasse
-  refFare: { base: 60, perKm: 0.07, mul: { f: 6, j: 3.6, w: 1.7, y: 1 } },
+  // Referenzpreis = base + perKm × km, wobei der Ertrag je km ab taperFrom degressiv abnimmt
+  // (Langstrecke bringt pro Kilometer weniger als Kurzstrecke – siehe sim/demand.js → refFare).
+  refFare: { base: 60, perKm: 0.105, taperFrom: 900, taperExp: 0.30, mul: { f: 6, j: 3.6, w: 1.7, y: 1 } },
   elasticity: { f: 0.6, j: 0.8, w: 1.2, y: 1.5 }
 };
 
@@ -50,30 +52,56 @@ export const DEMAND = {
 };
 
 export const CARGO = {
-  yieldBase: 0.2, yieldPerKm: 0.00025, // USD pro kg
+  yieldBase: 0.09, yieldPerKm: 0.00011, // USD pro kg (Beifracht im Bauch, nicht Frachterbetrieb)
   loadFactor: [0, 0.35, 0.45, 0.55, 0.65, 0.75] // nach Flughafen-Tier (max beider Enden)
 };
 
 export const FEES = {
-  landingPerT: [0, 4, 5, 6, 8, 10],          // USD pro t MTOW, nach Tier
-  paxFee: [0, 6, 9, 12, 16, 20],             // USD pro abfliegendem Passagier
+  landingPerT: [0, 3.2, 4, 4.8, 6.4, 8],     // USD pro t MTOW, nach Tier
+  paxFee: [0, 5, 7, 9.5, 13, 16],            // USD pro abfliegendem Passagier
   handlingPerPax: 6,
   turnaroundBase: { narrow: 900, wide: 2500, jumbo: 4000 },
   navPerKm: 0.6,                             // Flugsicherung: USD pro km × √(MTOW/50 t)
   distribution: 0.08                         // Vertrieb (GDS, Provisionen, Zahlungsgebühren) vom Ticketumsatz
 };
 
+// Personal. Vier Gruppen, die der Spieler selbst einstellt – der Bedarf wächst mit Flotte und Zielen.
+// (Techniker laufen weiter automatisch über FIXED/techPerDay; sie werden im Technikhangar-Paket eigenständig.)
 export const STAFF = {
-  pilotPerH: 250, cabinPerH: 70,             // pro Blockstunde
+  groups: {
+    cockpit: { label: "Cockpit",     short: "Piloten",       salaryPerDay: 780, hireFee: 9000, severance: 14000 },
+    cabin:   { label: "Kabine",      short: "Flugbegleiter", salaryPerDay: 315, hireFee: 2400, severance: 3600 },
+    ground:  { label: "Boden",       short: "Bodenpersonal", salaryPerDay: 270, hireFee: 1400, severance: 2100 },
+    admin:   { label: "Verwaltung",  short: "Büro",          salaryPerDay: 470, hireFee: 3600, severance: 5400 }
+  },
+  // Personalbedarf. Cockpit/Kabine decken Schichten, Urlaub und Reserve ab (deshalb Vielfache der Flugcrew).
+  need: {
+    cockpitPerAircraft: { narrow: 10, wide: 18, jumbo: 24 },
+    cabinSets: 5,                            // × vorgeschriebene Kabinenbesatzung des Typs
+    groundPerAircraft: 3,
+    groundPerDestination: 5,                 // eigene Station je angeflogenem Ziel
+    adminPerAircraft: 3,
+    adminShare: 0.10                         // + 10 % der übrigen Belegschaft
+  },
+  // Unterbesetzung: ab unter 95 % Besetzung wird es spürbar, bei 0 % gelten die vollen Werte.
+  shortage: {
+    grace: 0.95,
+    delayMinFlightCrew: 150,                 // Cockpit/Kabine fehlen → Verspätung je Umlauf
+    delayMinGround: 90,                      // Boden fehlt → längerer Turnaround
+    repMalus: 20,
+    adminSurcharge: 0.15,
+    minToAssign: 0.6                         // unter 60 % Besetzung lässt sich kein Flugzeug in Dienst stellen                     // fehlende Verwaltung verteuert Handling und Vertrieb
+  },
+  allowancePerH: { pilot: 60, cabin: 20 },   // Spesen pro Blockstunde zusätzlich zum Gehalt
+  hireDelayH: 0,                             // Einstellung wirkt sofort (Lieferzeiten gibt es schon bei Flugzeugen)
   techPerDay: 420,                           // fix pro Techniker und Tag
-  extraPilots: [[8, 3], [12, 4]],            // ab x Blockstunden y Piloten (Ruhecrew)
+  extraPilots: [[8, 3], [12, 4]],            // ab x Blockstunden y Piloten im Cockpit (Ruhecrew)
   training: {                                // Schulungsstufen, Gebühr pro Mitarbeiter beim Aufstieg
     levels: ["Basis", "Standard", "Premium", "Exzellenz"],
     feePerEmployee: [0, 2500, 6000, 12000],
-    wageBonus: 0.05,                         // +5 % Lohn pro Stufe
+    wageBonus: 0.05,                         // +5 % Gehalt pro Stufe
     rep: [0, 4, 8, 12]
-  },
-  crewSetsPerAircraft: 5                     // für die Mitarbeiterzählung (Schichten/Rotation)
+  }
 };
 
 export const FIXED = { insurancePerMPerDay: 25, parkingPerDay: { narrow: 150, wide: 400, jumbo: 700 } };

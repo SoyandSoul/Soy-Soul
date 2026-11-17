@@ -63,5 +63,6 @@ export const fmt = {
     return (neg ? "−" : "") + (d ? d + " T " : "") + (d || h ? h + " h " : "") + m + " min";
   },
   time: ts => new Date(ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-  dateTime: ts => new Date(ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+  dateTime: ts => new Date(ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+  date: ts => new Date(ts).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
 };

@@ -68,7 +68,9 @@ games/airline-manager/
 │  │  ├─ render.js         Zeichentrick-Renderer (Konturen, Glanz, Fenster, Livery pro Bauteil)
 │  │  ├─ livery.js         Livery-Format (Bauteil-Koordinaten → passt auf jeden Typ)
 │  │  └─ path.js           geglättete Konturen, Pinselstriche, Vereinfachung
-│     └─ apps/             hangar, shop, routes, maint, fuel, airline, stocks, leaderboard, logbook
+│     ├─ panels.js         zwei Panele oben (links Airline, rechts Betrieb)
+│     ├─ panels/            airline.js (Übersicht, Flotte, Personal, Kosten …), ops.js (Routen, Markt, Technik …)
+│     └─ apps/             hangar, shop, routes, maint, fuel, stocks, leaderboard, logbook
 ├─ lib/                    MapLibre GL (Kopie aus history-shots)
 ├─ data/profiles.json      abgepauste Blaupausen-Profile aller 38 Typen (tools/trace_profiles.py)
 ├─ tools/
@@ -268,6 +270,31 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
 
 ## Änderungen
+
+**v0.17 – Airline-Zentrale und Kostenstruktur** (Paket 2 des Fahrplans)
+- **Zwei Panele statt Dock und Dropdown**: links „Airline" (Übersicht, Flotte, Personal, Kosten & Erlöse,
+  Angebot an Bord, Reputation, Unternehmen, Spielstand), rechts „Betrieb" (Routen, Markt, Wartung, Kerosin,
+  Börse & Rangliste, Logbuch) mit Live-Kurzstatus. Abschnitte klappen einzeln auf, die Karte bleibt dazwischen
+  frei (`ui/panels.js`, `ui/panels/`). Das untere Dock und das alte Airline-Dropdown entfallen.
+- **Personal wird selbst eingestellt** (`sim/staff.js`): Cockpit, Kabine, Boden und Verwaltung haben je einen
+  Bedarf, der mit Flotte und angeflogenen Zielen wächst. Gehälter laufen als Tageskosten, pro Flug fallen nur
+  noch Spesen an. Unterbesetzung kostet Pünktlichkeit und Reputation, fehlende Verwaltung verteuert Handling
+  und Vertrieb. Unter 60 % Besetzung lässt sich kein Flugzeug mehr in Dienst stellen. Techniker laufen weiter
+  automatisch mit – sie bekommen mit dem Technikhangar (Paket 5) ein eigenes System.
+- **Kostenstruktur** (`sim/finance.js`): Erlöse und Kosten in Blöcken wie in einem Geschäftsbericht
+  (Personal, Flugbetrieb, Technik, Vertrieb & Service, Investitionen), umschaltbar auf 1/7/30 Tage, dazu
+  Kennzahlen je Flug und je Flugzeug und Tag.
+- **Balance überarbeitet**, damit die Kostenanteile denen echter Airlines ähneln:
+  Gehälter jetzt 16–18 % statt 9 % der Betriebskosten, Flughafengebühren gesenkt (waren 18 %, real 10–12 %),
+  Beifracht von 30 % auf ~10 % des Umsatzes zurückgenommen (Beifracht im Bauch, kein Frachterbetrieb).
+  Neu ist ein **degressiver Kilometerertrag** (`CABIN.refFare.taperFrom/taperExp`): Langstrecke bringt pro
+  Kilometer weniger als Kurzstrecke – vorher war Langstrecke mit 53 % Marge klar überlegen.
+  `MARKET_FACTOR` von 0,55 auf 0,30 gesenkt, damit eine Maschine in rund einem Jahr Echtzeit verdient ist.
+  Richtwerte (1 Flugzeug, 28 Tage): A320neo FRA–LHR 34 % Marge, E175 FRA–CDG 20 %, A350 FRA–JFK 41 %.
+  Eine überversorgte dünne Strecke bleibt bewusst defizitär.
+- Meldungen (Toasts) erscheinen jetzt unten, wo vorher das Dock saß.
+- Tests: 15 (neu: gut gewählte Strecke profitabel mit Margenband, Überversorgung drückt die Auslastung,
+  Personal blockiert Einsätze und Gehälter laufen als Tageskosten).
 
 **v0.16**
 - Flotte auf die 38 Typen umgestellt, für die Seitenansichten vorliegen: Airbus A220–A380, Boeing 717–787,

@@ -88,7 +88,7 @@ export function refreshAll() { for (const id of open.keys()) rerender(id); }
 export function tickAll() { for (const [id, w] of open) apps.get(id).tick?.(w.body, ctxRef, w.view); }
 
 // ---------- Freien Platz finden
-const TOP = 84, DOCK_H = 96, STEP = 16;
+const TOP = 84, DOCK_H = 24, STEP = 16;
 const rectOf = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 
@@ -99,6 +99,7 @@ function place(el, saved) {
   const others = [...open.values()].map(o => o.el).filter(o => o !== el).map(rectOf);
   const fc = document.getElementById("flightcard");
   if (fc && !fc.hidden) others.push(rectOf(fc));
+  for (const p of document.querySelectorAll("#panels .panel")) others.push(rectOf(p));
   const cost = (x, y) => others.reduce((s, o) => s + overlap({ x, y, w, h }, o), 0);
   let best = null;
   const consider = (x, y, bias) => { const c = cost(x, y) * 1000 + bias; if (!best || c < best.c) best = { x, y, c }; };

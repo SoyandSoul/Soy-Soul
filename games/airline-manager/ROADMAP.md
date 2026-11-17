@@ -4,7 +4,10 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.16**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.17**
+
+> **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) ist als v0.17 fertig.
+> **Zurückgestellt:** Paket 1 (Flugzeugformen) – auf Noahs Wunsch später, zusammen mit den Norebbo-Vorlagen.
 
 ---
 
@@ -23,7 +26,7 @@ Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.16**
 
 ---
 
-## Paket 1 – Flugzeugformen 1:1 → v0.17
+## Paket 1 – Flugzeugformen 1:1 → zurückgestellt
 
 Die Formen kommen aus Noahs Seitenansichten. Rumpf und Seitenleitwerk sind schon pixelgenau abgepaust
 (Deckung 86–93 %), **Flügel, Höhenleitwerk und Triebwerksform sind noch berechnet** – genau die Teile,
@@ -37,11 +40,15 @@ die ein Flugzeug falsch aussehen lassen.
 
 **Test:** Overlay-Vergleich je Typ, dazu Sichtprüfung aller 38 Typen nebeneinander.
 **Rechtlich:** Nur die Umrisse der echten Flugzeuge werden übernommen – die Form eines A320 ist frei.
-Die Bilder selbst kommen nicht ins Repo.
+Die Bilder selbst kommen nicht ins Repo. Als Pausvorlage sind Norebbos weiße Templates vorgesehen; der Autor
+erlaubt die Nutzung für eigene Lackierungen, verlangt aber, die Bilder nicht unverändert weiterzuverbreiten,
+und freut sich über eine Quellenangabe. Dann gehört Norebbo in README und Credits.
+
+**Offen:** Noah lädt die „all white"-Vorlagen herunter und legt sie in den Bilderordner.
 
 ---
 
-## Paket 2 – Airline-Zentrale und Kostenstruktur → v0.18
+## Paket 2 – Airline-Zentrale und Kostenstruktur → ✅ v0.17
 
 Punkte 5, 9, 16, 27 · **das größte Paket, Grundlage für Paket 3 und 4**
 
@@ -53,11 +60,15 @@ Punkte 5, 9, 16, 27 · **das größte Paket, Grundlage für Paket 3 und 4**
 - Personal anwerben, wenn die Flotte wächst – zu wenig Personal bremst den Betrieb
 - Etwas mehr Farbe, ohne bunt zu werden
 
-**Test:** Spielstand über mehrere Spieltage, Kostenseite muss plausibel bleiben (nicht zu leicht, nicht zu hart).
+**Test:** erledigt – Margen gemessen über 28 Spieltage, Kostenanteile gegen echte Airline-Strukturen geprüft.
+
+**Offener Punkt aus diesem Paket:** Die Amortisation einer Maschine liegt trotz gesenktem `MARKET_FACTOR`
+noch bei rund einem Jahr Echtzeit. Wenn das Wachstum schneller gehen soll, sind **Leasing** (statt Kauf, passt
+zu Paket 6) oder ein weiter gesenkter `MARKET_FACTOR` die Stellschrauben. Noahs Entscheidung.
 
 ---
 
-## Paket 3 – Abflug und Flugabrechnung → v0.19
+## Paket 3 – Abflug und Flugabrechnung → v0.18
 
 Punkte 6, 8 · **braucht Paket 2**
 
@@ -72,7 +83,7 @@ Punkte 6, 8 · **braucht Paket 2**
 
 ---
 
-## Paket 4 – Erlöse und Reputation → v0.20
+## Paket 4 – Erlöse und Reputation → v0.19
 
 Punkte 10, 11, 12, 13, 14 · **braucht Paket 2**
 
@@ -87,7 +98,7 @@ Punkte 10, 11, 12, 13, 14 · **braucht Paket 2**
 
 ---
 
-## Paket 5 – Hub und Ausstattung → v0.21
+## Paket 5 – Hub und Ausstattung → v0.20
 
 Punkte 15, 25, 28
 
@@ -102,7 +113,7 @@ Punkte 15, 25, 28
 
 ---
 
-## Paket 6 – Finanzen → v0.22
+## Paket 6 – Finanzen → v0.21
 
 Punkte 29, 30
 
@@ -113,7 +124,7 @@ Punkte 29, 30
 
 ---
 
-## Paket 7 – Karte und Bodenbetrieb → v0.23
+## Paket 7 – Karte und Bodenbetrieb → v0.22
 
 Punkte 17, 18
 
@@ -127,7 +138,7 @@ wird es ein vereinfachtes Schema geben.
 
 ---
 
-## Paket 8 – Welt und Ereignisse → v0.24
+## Paket 8 – Welt und Ereignisse → v0.23
 
 Punkte 19, 20, 23, 26
 
@@ -141,7 +152,7 @@ Punkte 19, 20, 23, 26
 
 ---
 
-## Paket 9 – Börse und Rangliste online → v0.25
+## Paket 9 – Börse und Rangliste online → v0.24
 
 Punkte 21, 24, 32 · **braucht Supabase – ohne Server nicht umsetzbar**
 

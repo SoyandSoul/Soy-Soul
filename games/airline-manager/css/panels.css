@@ -1,0 +1,118 @@
+/* Zwei Panele am oberen Rand: links "Airline", rechts "Betrieb". Sie klappen nach unten auf,
+   die Karte bleibt dazwischen frei. Ersetzt das alte Dock unten und das Airline-Dropdown. */
+
+:root {
+  /* Blockfarben für Kosten und Erlöse – gedeckt, aber unterscheidbar */
+  --c-rev: #34c27a; --c-rev2: #2bb3a3;
+  --c-staff: #8b7bf0; --c-ops: #ffb000; --c-tech: #4c8dff; --c-market: #f06ba8; --c-muted: #6c7788;
+}
+
+#panels { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 28; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; gap: 8px; }
+.panel { pointer-events: auto; width: 360px; max-width: calc(50vw - 20px); display: flex; flex-direction: column;
+  background: var(--panel); backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.panel.open { max-height: calc(100vh - 24px); }
+
+.panel-headrow { display: flex; align-items: center; }
+.panel-back { display: grid; place-items: center; width: 32px; height: 32px; margin-left: 9px; border-radius: 9px; background: var(--raise2); color: var(--ink2); flex: none; }
+.panel-back:hover { background: var(--raise); color: var(--ink); }
+.panel-back svg { width: 16px; height: 16px; }
+.panel-headrow .panel-head { padding-left: 9px; }
+.fblock.off { opacity: .72; }
+.fblock.off .fshare { min-width: 0; }
+.panel-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; text-align: left; }
+.panel-head:hover { background: rgba(255,255,255,.04); }
+.panel-head .tail { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font: 800 13px var(--display); flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); }
+.panel-title { flex: 1; min-width: 0; }
+.panel-title b { display: block; font: 650 15px var(--display); line-height: 1.15; }
+.panel-title small { display: block; color: var(--ink3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-title.r { text-align: right; }
+.panel-head .chev { color: var(--ink3); flex: none; transition: transform .2s var(--ease); }
+.panel-head .chev.up { transform: rotate(180deg); }
+
+.panel-body { overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--line); }
+
+/* ---------- Abschnitte */
+.psec { border-bottom: 1px solid var(--line); }
+.psec:last-child { border-bottom: 0; }
+.psec-head { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 12px; font-size: 13.5px; font-weight: 600; color: var(--ink2); text-align: left; }
+.psec-head:hover { background: rgba(255,255,255,.04); color: var(--ink); }
+.psec.open > .psec-head { color: var(--ink); background: rgba(255,255,255,.03); }
+.psec-head svg { width: 18px; height: 18px; color: var(--ink3); flex: none; }
+.psec.open > .psec-head svg { color: var(--accent); }
+.psec-head .chev { width: 15px; height: 15px; }
+.psec-head .badge { min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px; font: 700 10px/18px var(--font); color: #fff; background: var(--info); text-align: center; flex: none; }
+.psec-head .badge.warn { background: var(--warn); color: #241700; }
+.psec-head .badge.bad { background: var(--bad); }
+.psec-body { padding: 2px 12px 14px; }
+
+/* ---------- Kacheln */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tiles.two { grid-template-columns: 1fr 1fr; }
+.tile { background: var(--raise); border-radius: var(--r-sm); padding: 8px 10px; }
+.tile span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink3); }
+.tile b { font: 650 17px var(--display); }
+.tile b small { font: 400 11px var(--font); color: var(--ink3); }
+
+/* ---------- Hinweiszeile */
+.note { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding: 9px 11px; border-radius: var(--r-sm); background: var(--raise); border-left: 3px solid var(--ink3); }
+.note b { display: block; font-size: 13px; }
+.note span { flex: 1; min-width: 120px; font-size: 12px; color: var(--ink3); }
+.note.warn { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--raise)); }
+.note.bad { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--raise)); }
+.note.good { border-left-color: var(--good); background: color-mix(in srgb, var(--good) 9%, var(--raise)); }
+.note.info { border-left-color: var(--info); background: color-mix(in srgb, var(--info) 10%, var(--raise)); }
+
+/* ---------- Flugzeug- und Streckenzeilen */
+.fgroup { margin-top: 10px; }
+.fgroup h4 { display: flex; align-items: center; gap: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink3); margin-bottom: 4px; }
+.fgroup h4 span { background: var(--raise2); border-radius: 99px; padding: 0 6px; font-size: 10px; }
+.acrow { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border-radius: var(--r-sm); text-align: left; }
+.acrow:hover { background: rgba(255,255,255,.05); }
+.acrow b { font-size: 13px; font-weight: 650; }
+.acrow small { display: block; font-size: 11px; color: var(--ink3); }
+.acrow .acdet { font-size: 11.5px; color: var(--ink2); text-align: right; white-space: nowrap; }
+.acrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink3); flex: none; }
+.acrow.air .dot { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.acrow.ground .dot { background: var(--good); }
+.acrow.check .dot { background: var(--ink3); }
+.acrow.delivery .dot { background: var(--info); }
+.acrow.bad .acdet { color: var(--bad); }
+
+/* ---------- Personal */
+.sgrp { margin-top: 12px; }
+.sgrp .bar { margin-top: 5px; }
+
+/* ---------- Kosten & Erlöse */
+.fhead { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink3); margin: 14px 0 6px; }
+.fblock { margin-bottom: 9px; }
+.fblock b { font-size: 13px; }
+.fblock .bar { margin-top: 4px; }
+.fblock .fshare { font-size: 11px; color: var(--ink3); min-width: 34px; text-align: right; }
+.fparts { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font-size: 11px; color: var(--ink3); }
+.fparts b { font-size: 11px; color: var(--ink2); font-weight: 600; }
+.tabs.sm { margin-bottom: 10px; }
+.tabs.sm button { padding: 4px 10px; font-size: 12px; }
+
+/* ---------- Logbuch */
+.loglist { list-style: none; font-size: 12px; }
+.loglist li { padding: 6px 0; border-bottom: 1px solid var(--line); color: var(--ink2); line-height: 1.35; }
+.loglist li:last-child { border-bottom: 0; }
+.loglist time { display: block; font: 10px var(--mono); color: var(--ink3); }
+.loglist li.bad { color: #ffb3bb; } .loglist li.warn { color: #ffd79a; } .loglist li.good { color: #9ae7bf; }
+
+/* ---------- Schmale Fenster: Panele werden zu Vollbreite-Blättern */
+/* Schmaler Platz: HUD rückt unter die Panelköpfe */
+@media (max-width: 1180px) {
+  .hud { left: 12px; right: 12px; top: 64px; }
+  .hud .stats div { min-width: 78px; padding: 3px 9px; }
+}
+@media (max-width: 860px) {
+  #panels { left: 8px; right: 8px; top: 8px; }
+  .panel { width: auto; max-width: none; flex: 1; }
+  .panel.open { position: fixed; left: 8px; right: 8px; top: 8px; max-height: calc(100vh - 16px); z-index: 40; }
+  .panel-right.open { left: 8px; }
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .hud { top: 60px; }
+  .hud .clock { display: none; }
+}

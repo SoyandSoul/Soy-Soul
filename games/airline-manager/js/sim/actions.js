@@ -11,7 +11,7 @@ import { routeProblems, seatUnits, typeOf } from "./flight.js";
 import { refFare } from "./demand.js";
 import { routeDistance } from "./flight.js";
 import { startCheck, checkCost } from "./maintenance.js";
-import { headcount } from "./economy.js";
+import { headcount, staffNeed, staffHave, coverage, GROUPS, hireCost, severanceCost } from "./staff.js";
 import { normalizeLivery, liverySize } from "../art/livery.js";
 
 const ok = (extra = {}) => ({ ok: true, ...extra });
@@ -116,6 +116,14 @@ export function assign(state, acId, routeId, now, start = now) {
   if (!Object.values(ac.cfg).some(Boolean)) return fail("Kabine hat keine Sitze.");
   ac.ops = { routeId, dir: 0, dep: Math.max(now, start) };
   ac.status = "active";
+  // Ohne Crew fliegt nichts: mit dem neuen Einsatz steigt der Personalbedarf – reicht er nicht, zurückrollen.
+  const cov = coverage(state), min = STAFF.shortage.minToAssign;
+  const short = GROUPS.filter(g => cov[g] < min);
+  if (short.length) {
+    ac.ops = null; ac.status = "idle";
+    const miss = short.map(g => `${Math.max(1, cov.need[g] - cov.have[g])} ${STAFF.groups[g].short}`).join(" und ");
+    return fail(`Zu wenig Personal für diesen Einsatz – es fehlen ${miss}. Erst einstellen (Airline → Personal).`);
+  }
   return ok();
 }
 
@@ -188,6 +196,44 @@ export function upgradeTraining(state, now) {
 }
 
 export const hubPrice = iata => AIRPORT_BY_IATA[iata].tier * 5e6;
+
+// ---------- Personal
+
+export function hire(state, group, n, now) {
+  if (!GROUPS.includes(group)) return fail("Unbekannte Personalgruppe.");
+  n = Math.max(0, Math.round(+n || 0));
+  if (!n) return fail("Bitte eine Anzahl angeben.");
+  const cost = hireCost(group, n);
+  if (cost > state.cash) return fail(`Einstellung kostet ${Math.round(cost / 1000)} k$ an Werbung und Schulung – nicht genug Geld.`);
+  book(state, now, "cost", "recruit", cost);
+  state.staff[group] = staffHave(state)[group] + n;
+  return ok({ group, n, cost });
+}
+
+export function fire(state, group, n, now) {
+  if (!GROUPS.includes(group)) return fail("Unbekannte Personalgruppe.");
+  const have = staffHave(state)[group];
+  n = Math.max(0, Math.min(have, Math.round(+n || 0)));
+  if (!n) return fail("Niemand zu entlassen.");
+  const cost = severanceCost(group, n);
+  if (cost > state.cash) return fail(`Abfindungen kosten ${Math.round(cost / 1000)} k$ – nicht genug Geld.`);
+  book(state, now, "cost", "recruit", cost);
+  state.staff[group] = have - n;
+  return ok({ group, n, cost });
+}
+
+/** Alle offenen Stellen auf einmal besetzen. */
+export function hireAllOpen(state, now) {
+  const need = staffNeed(state), have = staffHave(state);
+  const open = {};
+  let total = 0, cost = 0;
+  for (const g of GROUPS) { const d = Math.max(0, need[g] - have[g]); if (d) { open[g] = d; total += d; cost += hireCost(g, d); } }
+  if (!total) return fail("Alle Stellen sind besetzt.");
+  if (cost > state.cash) return fail(`${total} Stellen kosten ${Math.round(cost / 1000)} k$ an Werbung und Schulung – nicht genug Geld.`);
+  book(state, now, "cost", "recruit", cost);
+  for (const [g, d] of Object.entries(open)) state.staff[g] = have[g] + d;
+  return ok({ open, total, cost });
+}
 
 export function addHub(state, iata, now) {
   if (state.airline.hubs.includes(iata)) return fail("Schon dein Drehkreuz.");
