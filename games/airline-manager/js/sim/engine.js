@@ -243,7 +243,7 @@ function process(state, ac, ts, report, quiet, staffEff) {
   st.pax += leg.paxTotal; st.legs++; st.km += leg.km;
   if (!st.dest.includes(leg.to)) st.dest.push(leg.to);
   if (leg.delay >= 30) st.lastBigDelay = leg.arr;
-  if (mostUrgent(ac, leg.arr)?.overdue) st.lastOverdue = leg.arr;
+  if (mostUrgent(ac, leg.arr)?.state === "overdue") st.lastOverdue = leg.arr;   // war ".overdue" – das Feld gibt es nicht
   route.stats ||= { legs: 0, pax: 0, profit: 0 };
   route.stats.legs++; route.stats.pax += leg.paxTotal; route.stats.profit += leg.profit;
 

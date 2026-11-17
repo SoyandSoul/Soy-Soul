@@ -6,6 +6,16 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.28", date: "17.11.2026", title: "Geführter Einstieg und Benachrichtigungen",
+    intro: "Drei Dinge, die das Spiel freundlicher machen, ohne es zu verändern.",
+    items: [
+      ["neu", "Erste Schritte: eine Liste im Airline-Panel, die sich selbst abhakt. Jeder Schritt sagt, warum er dran ist und wo er zu finden ist – besonders der erste, seit man mit 12 Mio startet und leasen muss statt zu kaufen. Wer sie nicht braucht, blendet sie aus; wer durch ist, sieht sie nie wieder."],
+      ["neu", "Browser-Benachrichtigungen, und zwar nur, wenn wirklich etwas wartet: Flugzeug ohne Strecke, überfällige Wartung, auslaufender Leasingvertrag, ungedeckte Kreditrate, Kasse im Minus. Nur im Hintergrund, höchstens eine auf einmal und dieselbe Sache höchstens alle sechs Stunden. Einzuschalten unter Airline → Spielstand."],
+      ["fix", "Ein Zähler für überfällige Wartung griff nie: Die Abfrage fragte nach einem Feld, das es nicht gibt. Damit war das Ziel Technisch sauber von Anfang an erfüllt, statt verdient werden zu müssen."],
+      ["besser", "Ein Balance-Werkzeug liegt jetzt fest im Projekt (tools/balance.mjs). Es rechnet acht typische Spielsituationen durch und zeigt Marge, Auslastung, Pünktlichkeit und Bewertung nebeneinander – nach jeder Änderung an den Zahlen einmal laufen lassen."]
+    ]
+  },
+  {
     v: "v0.27", date: "17.11.2026", title: "Bewertung, Rangliste und Beteiligungen",
     intro: "Die Rangliste zeigte bisher Kurs, Flotte und Reputation. Jetzt gibt es eine richtige Bewertung – und man kann sich an anderen Airlines beteiligen.",
     items: [

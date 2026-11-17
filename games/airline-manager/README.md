@@ -274,6 +274,19 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.28 – Geführter Einstieg und Benachrichtigungen** (aus Paket 10)
+- `sim/firststeps.js`: sieben Schritte, abgeleitet aus dem Spielstand – nichts zusätzlich gespeichert
+  außer dem Ausblenden-Flag in `prefs`. Panel-Abschnitte können sich jetzt über `hidden(ctx)`
+  selbst verbergen; „Erste Schritte" verschwindet, sobald alles erledigt ist.
+- `ui/notify.js`: `pending(state, now)` sammelt, was eine Entscheidung verlangt; `check` meldet
+  höchstens eine Sache auf einmal, nur bei verstecktem Tab und mit sechs Stunden Sperre je Thema.
+  Die Erlaubnis wird nur aus einem Klick heraus angefragt, wie Browser es verlangen.
+- `tools/balance.mjs`: acht Szenarien (Referenz, Überversorgung, Netz, Leasingwachstum, Werbung,
+  Service, Drehkreuz, Kredit) in einer Tabelle. `node games/airline-manager/tools/balance.mjs`,
+  mit `--tage` und `--szenario` steuerbar. Flugzeug-IDs werden festgesetzt, damit Läufe vergleichbar sind.
+- Fehler behoben: `mostUrgent(...)?.overdue` gibt es nicht – das Feld heißt `state === "overdue"`.
+  Dadurch wurde `stats.lastOverdue` nie gesetzt und das Ziel „Technisch sauber" war von Anfang an erfüllt.
+
 **v0.27 – Bewertung, Rangliste und Beteiligungen** (Paket 9)
 - `sim/rating.js`: drei Kennzahlen, bewusst nur aus dem, was eine Airline *veröffentlicht* –
   damit funktionieren sie für fremde Airlines genauso wie für die eigene. Die Teilskalen laufen

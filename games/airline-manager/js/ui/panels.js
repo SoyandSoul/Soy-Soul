@@ -94,7 +94,9 @@ function render(side) {
   const p = panels.get(side), ctx = ctxRef;
   if (!p || !ctx?.state) return;
   p.el.classList.toggle("open", p.open);
-  const body = p.open ? html`<div class="panel-body">${p.sections.map(sec => {
+  // Abschnitte können sich selbst ausblenden (z. B. „Erste Schritte", sobald alles erledigt ist).
+  const visible = p.sections.filter(sec => !sec.hidden?.(ctx));
+  const body = p.open ? html`<div class="panel-body">${visible.map(sec => {
     const isOpen = p.view.open === sec.id;
     const b = sec.badge?.(ctx);
     return html`<section class="psec ${isOpen ? "open" : ""}" data-sec="${sec.id}">

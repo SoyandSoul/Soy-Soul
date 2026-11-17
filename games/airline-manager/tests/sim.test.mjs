@@ -34,6 +34,8 @@ import { describe as describeAirport, bestRoutes } from "../js/sim/airportInfo.j
 import { stars, sizeScore, efficiencyScore, rate, qualifies, profileOf } from "../js/sim/rating.js";
 import { buyShares, sellShares, maxShares, stakeIn, demoMarket } from "../js/sim/stocks.js";
 import { STOCKS, RATING } from "../js/core/config.js";
+import { steps } from "../js/sim/firststeps.js";
+import { pending } from "../js/ui/notify.js";
 import { AIRPORT_BY_IATA } from "../js/data/airports.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
@@ -873,6 +875,51 @@ test("Beteiligungen: höchstens 49 Prozent, jederzeit verkaufbar", () => {
   assert.ok(s.cash > cash);
   assert.equal(stakeIn(s, listing), 0);
   assert.ok(!buyShares(s, { code: s.player.code, price: 10 }, 10, start).ok, "eigene Aktien nicht");
+});
+
+
+test("Geführter Einstieg hakt sich selbst ab", () => {
+  const s0 = newGame({ name: "Neu Air", iata: "NA", hub: "FRA", player: { code: "AL-NEW-001", secret: "x" }, now: T0 });
+  const first = steps(s0, T0);
+  assert.equal(first.progress, 0, "frisch gegründet ist nichts erledigt");
+  assert.equal(first.next.id, "lease", "der erste Schritt ist das Leasen");
+  assert.ok(first.next.why.length > 30 && first.next.where.includes("→"));
+
+  const { s, route, start } = setup(2);
+  const mid = steps(s, start);
+  assert.ok(mid.list.find(x => x.id === "lease").done);
+  assert.ok(mid.list.find(x => x.id === "route").done);
+  assert.ok(!mid.list.find(x => x.id === "assign").done, "zugewiesen ist noch nichts");
+
+  act.assign(s, s.fleet[0].id, route.id, start);
+  settle(s, start + 2 * DAY);
+  const late = steps(s, start + 2 * DAY);
+  assert.ok(late.list.find(x => x.id === "assign").done);
+  assert.ok(late.list.find(x => x.id === "firstleg").done);
+  assert.ok(late.progress > mid.progress);
+  assert.ok(late.done || late.next, "entweder fertig oder es gibt einen nächsten Schritt");
+});
+
+test("Benachrichtigungen melden nur, was eine Entscheidung braucht", () => {
+  const { s, route, start } = setup(2);
+  // Zwei Flugzeuge ohne Strecke → eine Meldung
+  const idle = pending(s, start);
+  assert.ok(idle.some(x => x.id === "idle"), "Flugzeug ohne Strecke wird gemeldet");
+
+  act.assign(s, s.fleet[0].id, route.id, start);
+  act.assign(s, s.fleet[1].id, route.id, start);
+  assert.ok(!pending(s, start).some(x => x.id === "idle"), "beide im Einsatz, nichts zu melden");
+
+  // Überfällige Wartung
+  s.fleet[0].maint.A.fh = 99999;
+  assert.ok(pending(s, start).some(x => x.id.startsWith("check-")), "überfällige Wartung wird gemeldet");
+
+  // Negative Kasse
+  s.cash = -1;
+  assert.ok(pending(s, start).some(x => x.id === "cash"));
+  // Auslaufendes Leasing
+  s.fleet[0].lease.until = start + DAY;
+  assert.ok(pending(s, start).some(x => x.id.startsWith("lease-")));
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

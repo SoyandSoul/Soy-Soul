@@ -16,6 +16,9 @@ import { leaseFrame, monthlyObligation, isLeased } from "../../sim/lease.js";
 import { goalProgress, nextGoal, rewardText, GOAL_GROUPS } from "../../sim/goals.js";
 import { commonality, commonalityNote } from "../../sim/commonality.js";
 import { totalDebt, monthlyLoad, creditLimit } from "../../sim/credit.js";
+import { steps } from "../../sim/firststeps.js";
+import { supported as notifySupported, enabled as notifyOn, enable as notifyEnable, disable as notifyDisable, permission as notifyPermission } from "../notify.js";
+import { prefs } from "../../core/store.js";
 import { awareness, awarenessNote, awarenessFactor, activeCampaigns, channelOf } from "../../sim/marketing.js";
 import { charterOffers } from "../../sim/charter.js";
 import { liveryOffers, activeLiveries, liveryIncomePerDay } from "../../sim/adlivery.js";
@@ -345,6 +348,31 @@ const reputation = {
   })
 };
 
+// ---------------------------------------------------------------- Erste Schritte
+const firstSteps = {
+  id: "first", title: "Erste Schritte", icon: "contract",
+  // Verschwindet von selbst, sobald alles erledigt ist – und auf Wunsch sofort.
+  hidden: ctx => prefs.get("steps-hidden", false) || steps(ctx.state, ctx.now()).done,
+  badge(ctx) { const st = steps(ctx.state, ctx.now()); return st.done ? null : { n: `${st.progress}/${st.list.length}` }; },
+  render(ctx) {
+    const st = steps(ctx.state, ctx.now());
+    return html`
+      <p class="small muted">Die ersten Schritte haken sich selbst ab. Wer sie nicht braucht, blendet sie aus.</p>
+      <div class="steps-list">${st.list.map(x => html`<div class="stp ${x.done ? "done" : x === st.next ? "now" : ""}">
+        <i>${x.done ? "✓" : ""}</i>
+        <div class="grow"><b>${x.title}</b>
+          ${x === st.next ? html`<div class="small muted">${x.why}</div>
+            <div class="small acc">${x.where}</div>` : ""}</div>
+        ${x === st.next && x.app ? html`<button class="btn sm p" data-act="goto" data-app="${x.app}">Öffnen</button>` : ""}
+      </div>`)}</div>
+      <button class="btn sm" style="width:100%;margin-top:10px" data-act="hideSteps">Nicht mehr anzeigen</button>`;
+  },
+  click: (ctx, v, api) => ({
+    goto: el => ctx.openApp(el.dataset.app),
+    hideSteps: () => { prefs.set("steps-hidden", true); api.rerender(); }
+  })
+};
+
 // ---------------------------------------------------------------- Vermarktung
 const vermarktung = {
   id: "market", title: "Vermarktung", icon: "offer",
@@ -423,12 +451,29 @@ const account = {
       <dt>Gegründet</dt><dd>${fmt.date(ctx.state.created)}</dd>
       <dt>Schlüssel</dt><dd><button class="btn sm" data-act="showSecret">Anzeigen</button></dd></dl>
       <p class="small muted" style="margin-top:8px">Der Spielstand liegt nur in diesem Browser. Der Code erscheint öffentlich in Börse und Rangliste, den Schlüssel niemandem geben.</p>
+      <h4 class="fhead">Benachrichtigungen</h4>
+      ${!notifySupported() ? html`<p class="small muted">Dieser Browser kann keine Benachrichtigungen anzeigen.</p>`
+      : html`<p class="small muted">Nur wenn wirklich etwas wartet: Flugzeug ohne Strecke, überfällige Wartung,
+          auslaufender Leasingvertrag, ungedeckte Kreditrate. Und nur, solange der Tab im Hintergrund liegt.</p>
+        <div class="row" style="margin-top:8px"><span class="grow small ${notifyOn() ? "good" : "muted"}">
+          ${notifyOn() ? "Eingeschaltet" : notifyPermission() === "denied" ? "Vom Browser blockiert" : "Aus"}</span>
+          <button class="btn sm ${notifyOn() ? "" : "p"}" data-act="notify">${notifyOn() ? "Ausschalten" : "Einschalten"}</button></div>`}
       <div class="row wrap" style="margin-top:10px"><button class="btn sm" data-act="export">Exportieren</button><button class="btn sm" data-act="import">Importieren</button>${online() ? html`<button class="btn sm" data-act="cloud">Online sichern</button>` : ""}</div>
       <textarea name="io" class="in" rows="3" style="width:100%;margin-top:8px;font:11px var(--mono)" placeholder="Exportierten Spielstand hier einfügen …"></textarea>
       <div class="row" style="margin-top:12px"><span class="grow"></span><button class="btn sm danger" data-act="reset">Neu anfangen</button></div>`;
   },
-  click: ctx => ({
+  click: (ctx, v, api) => ({
     showSecret: el => { el.textContent = ctx.state.player.secret; },
+    notify: async () => {
+      if (notifyOn()) { notifyDisable(); ctx.toast("Benachrichtigungen aus.", "info"); }
+      else {
+        const p = await notifyEnable();
+        ctx.toast(p === "granted" ? "Benachrichtigungen an – es meldet sich nur, was eine Entscheidung braucht."
+          : p === "denied" ? "Der Browser hat Benachrichtigungen blockiert. Das lässt sich nur in den Browsereinstellungen ändern."
+          : "Nicht möglich.", p === "granted" ? "good" : "warn", 7000);
+      }
+      api.rerender();
+    },
     export: async el => {
       const text = exportSave(ctx.state);
       try { await navigator.clipboard.writeText(text); ctx.toast("Spielstand kopiert.", "good"); }
@@ -444,4 +489,4 @@ const account = {
   })
 };
 
-export const AIRLINE_SECTIONS = [overview, goals, departures, fleet, staff, finance, offer, vermarktung, reputation, company, account];
+export const AIRLINE_SECTIONS = [firstSteps, overview, goals, departures, fleet, staff, finance, offer, vermarktung, reputation, company, account];

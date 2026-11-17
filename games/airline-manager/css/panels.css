@@ -182,3 +182,13 @@
 .psec-body .t { width: 100%; table-layout: fixed; }
 .psec-body .t td { word-break: break-word; }
 .psec-body .t td.r { white-space: normal; }
+
+/* Erste Schritte */
+.steps-list { margin-top: 8px; }
+.stp { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+.stp:first-child { border-top: 0; }
+.stp i { width: 20px; height: 20px; flex: 0 0 auto; border-radius: 50%; border: 1.5px solid var(--line2); display: grid; place-items: center; font-size: 12px; font-style: normal; color: var(--ink3); margin-top: 1px; }
+.stp.done i { background: var(--good); border-color: var(--good); color: #0b1018; }
+.stp.done b { color: var(--ink3); text-decoration: line-through; }
+.stp.now i { border-color: var(--accent); }
+.stp.now b { color: var(--ink); }

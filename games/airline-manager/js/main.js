@@ -5,6 +5,7 @@ import { bus } from "./core/events.js";
 import { load, save, wipe, newGame } from "./core/store.js";
 import { STOCKS } from "./core/config.js";
 import { profileOf, rate, qualifies } from "./sim/rating.js";
+import { check as notifyCheck } from "./ui/notify.js";
 import { fmt } from "./core/util.js";
 import { settle } from "./sim/engine.js";
 import { sharePrice, companyValue } from "./sim/stocks.js";
@@ -107,6 +108,7 @@ function tick() {
   tickAll();
   tickPanels();
   tickFlightCard(document.getElementById("flightcard"), ctx, ctx.map.selected);
+  notifyCheck(ctx.state, ctx.now());
 }
 
 let boostWasOn = false;
