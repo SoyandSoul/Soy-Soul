@@ -23,6 +23,7 @@ import { salaryPerDay, staffEffects } from "./staff.js";
 import { rentPerDay, isLeased, returnSettlement, termOf } from "./lease.js";
 import { newlyReached, applyReward } from "./goals.js";
 import { turnaroundHours, handlerDelay } from "./handling.js";
+import { upkeepPerDay } from "./hub.js";
 
 const MAX_STEPS = 200_000;
 
@@ -118,10 +119,11 @@ export function settle(state, now, { quiet = false } = {}) {
   const hrs = (now - state.lastFixedAt) / H;
   if (hrs > 0) {
     let fixed = 0;
-    for (const ac of state.fleet) if (ac.status !== "crashed" && ac.status !== "delivery") fixed += fixedPerHour(ac) * hrs;
+    for (const ac of state.fleet) if (ac.status !== "crashed" && ac.status !== "delivery") fixed += fixedPerHour(ac, state) * hrs;
     book(state, now, "cost", "fixed", fixed);
     book(state, now, "cost", "staff", salaryPerDay(state).total / 24 * hrs);
     book(state, now, "cost", "lease", rentPerDay(state) / 24 * hrs);
+    book(state, now, "cost", "hub", upkeepPerDay(state) / 24 * hrs);
     state.lastFixedAt = now;
   }
   leaseRollover(state, now, quiet);
@@ -226,12 +228,12 @@ function process(state, ac, ts, report, quiet, staffEff) {
 
   // Nächstes Leg planen. Verspätung kommt aus drei Quellen: Defekt, Wetter am Ankunftsort, fehlendes Personal.
   const arrivedHome = ac.ops.dir === 1;
-  const turn = turnaroundHours(state, ac) * H;
+  const turn = turnaroundHours(state, ac, leg.to) * H;   // am eigenen Drehkreuz zählt der Ausbau
   ac.ops.dir = 1 - ac.ops.dir;
 
   const sources = [];
   if (faultDelay) sources.push({ min: Math.round(faultDelay / 60_000), reason: "technischem Defekt" });
-  const hd = handlerDelay(state, ac, leg.arr);
+  const hd = handlerDelay(state, ac, leg.arr, leg.to);
   if (hd) sources.push(hd);
   const wd = weatherDelay(leg.to, leg.arr, ac.id);
   if (wd) sources.push({ min: wd.min, reason: wd.reason });

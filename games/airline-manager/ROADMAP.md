@@ -4,10 +4,11 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.22**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.23**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
-> Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22.
+> Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22, Paket 5 (Hub und
+> Ausstattung) als v0.23.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
 > Flottenvereinheitlichung sind als v0.19 fertig. Offen daraus: Umsteiger am Drehkreuz, IROPS,
 > wartende Entscheidungen, Benachrichtigungen, geführter Einstieg – siehe unten.
@@ -108,18 +109,22 @@ Die Zeitunabhängigkeit der Bekanntheit ist eigens geprüft (240 Einzelschritte 
 
 ---
 
-## Paket 5 – Hub und Ausstattung → v0.23
+## Paket 5 – Hub und Ausstattung → v0.23 ✅
 
-Punkte 15, 25, 28
+Punkte 15, 25, 28 · erledigt
 
-- Hub-Steuerung als eigener Bereich
-- Bessere Gates: teurer, dafür pünktlicher und zufriedenere Gäste
-- Lounges in verschiedenen Größen bauen und ausstatten
-- Technikhangar ausbauen, Personal einstellen → bessere und schnellere Wartung
-- Tanklager ausbauen
-- Kabinenausstattung je Flugzeug: Sitzart bis Dekor
+- ✅ Drehkreuz als eigenes Fenster, ein Reiter je Hub
+- ✅ Gates in vier Stufen: kürzere Standzeit, weniger Verspätung, besserer Ruf – nur am eigenen Hub
+- ✅ Lounges in vier Stufen: Ruf und Nachfrage in den vorderen Klassen
+- ✅ Technik in vier Stufen: schnellere und billigere Checks, gedeckelt an den Hallenplätzen.
+  Das „Personal einstellen" steckt in den Technikerkosten, die mit der eigenen Werft sinken –
+  eine fünfte Personalgruppe hätte der Oberfläche mehr geschadet als genützt.
+- ✅ Tanklager steht mit im selben Fenster
+- ✅ Kabinenausstattung je Flugzeug: Sitzart (Standard · Slimline · Komfort) und Unterhaltung
+  (keine · WLAN · WLAN und Bildschirme). Dekor ist bewusst weggelassen – die Lackiererei deckt das ab.
 
-**Test:** Ausbaustufen durchspielen, Wirkung auf Pünktlichkeit und Wartungszeit messen.
+**Test:** erledigt – drei Tests in `sim.test.mjs`: Ausbaustufen mit Wirkung auf Standzeit, Ruf und
+Unterhalt (inklusive Schrittweiten-Unabhängigkeit), Lounge und Werft, Kabinenumbau mit Sitzbudget.
 
 ---
 

@@ -3,8 +3,9 @@
 
 import { html } from "../dom.js";
 import { fmt } from "../../core/util.js";
-import { FUEL } from "../../core/config.js";
+import { FUEL, HUB } from "../../core/config.js";
 import { fuelPrice } from "../../sim/fuel.js";
+import { AREAS, levelOf, upkeepPerDay, hangarEffect } from "../../sim/hub.js";
 import { checkStatus, mostUrgent } from "../../sim/maintenance.js";
 import { typeOf, routeDistance } from "../../sim/flight.js";
 import { flightsPerDay } from "../../sim/engine.js";
@@ -93,6 +94,21 @@ const fuel = {
   click: ctx => ({ open: el => ctx.openApp(el.dataset.id) })
 };
 
+// ---------------------------------------------------------------- Drehkreuz
+const hubSec = {
+  id: "hubs", title: "Drehkreuz", icon: "gate",
+  render(ctx) {
+    const s = ctx.state, he = hangarEffect(s);
+    return html`${s.airline.hubs.map(iata => html`<div class="row" style="margin-bottom:6px">
+        <b class="grow">${iata}</b>
+        <span class="small muted">${AREAS.map(a => `${HUB[a].label} ${levelOf(s, iata, a)}`).join(" · ")}</span></div>`)}
+      <dl class="kv" style="margin-top:8px"><dt>Unterhalt</dt><dd>${fmt.money(upkeepPerDay(s))} / Tag</dd>
+        <dt>Werft</dt><dd>${he.level ? `${he.label} · ${Math.round(he.covered * 100)} % gedeckt` : "Fremdwartung"}</dd></dl>
+      <div class="row" style="margin-top:10px">${openBtn("hub", "Drehkreuz öffnen")}</div>`;
+  },
+  click: ctx => ({ open: el => ctx.openApp(el.dataset.id) })
+};
+
 // ---------------------------------------------------------------- Börse & Rangliste
 const market2 = {
   id: "stocks", title: "Börse & Rangliste", icon: "stocks",
@@ -121,4 +137,4 @@ const logbook = {
   click: ctx => ({ open: el => ctx.openApp(el.dataset.id) })
 };
 
-export const OPS_SECTIONS = [routes, market, maint, fuel, market2, logbook];
+export const OPS_SECTIONS = [routes, market, maint, hubSec, fuel, market2, logbook];

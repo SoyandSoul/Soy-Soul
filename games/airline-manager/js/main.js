@@ -32,9 +32,10 @@ import logbook from "./ui/apps/logbook.js";
 import changelog from "./ui/apps/changelog.js";
 import report from "./ui/apps/report.js";
 import marketing from "./ui/apps/marketing.js";
+import hub from "./ui/apps/hub.js";
 
 // Die großen Werkzeuge bleiben Fenster; erreichbar über das Betriebs-Panel rechts (ui/panels/ops.js).
-const APPS = [hangar, shop, routes, maint, fuel, stocks, board, logbook, changelog, report, marketing];
+const APPS = [hangar, shop, routes, maint, fuel, stocks, board, logbook, changelog, report, marketing, hub];
 
 // ---------- Kontext, den alle UI-Teile bekommen
 const ctx = {

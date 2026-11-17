@@ -182,3 +182,16 @@
 .swatch { width: 26px; height: 26px; border-radius: 7px; flex: 0 0 auto; }
 .tabs.sm button { padding: 5px 10px; font-size: 12px; }
 .opt-list label.off { opacity: .55; }
+
+/* Ausbaustufen als Punktleiste */
+.steps { display: flex; gap: 5px; margin-top: 10px; }
+.steps i { flex: 1; height: 5px; border-radius: 99px; background: var(--raise2); }
+.steps i.on { background: var(--accent); }
+
+/* Auswahl in Zeilen (Sitzart, Unterhaltung) */
+.opt-row { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.opt-row .opt { flex: 1 1 140px; text-align: left; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--raise); color: var(--ink2); cursor: pointer; }
+.opt-row .opt b { display: block; color: var(--ink); font-size: 13px; }
+.opt-row .opt span { font-size: 11px; }
+.opt-row .opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--raise)); }
+.opt-row .opt:disabled { opacity: .5; cursor: default; }

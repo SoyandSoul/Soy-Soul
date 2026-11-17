@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.22",
+  label: "v0.23",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -145,6 +145,69 @@ export const CATERING = {
 };
 
 export const BAGS = { defaultFee: 25, maxFee: 120, takeRate: 0.55, decay: 60, repPerUsd: 0.15, repCap: 15 };
+
+// Drehkreuz-Ausbau. Einmal bauen, danach Unterhalt pro Tag – die nächste Stufe lohnt sich
+// deshalb erst ab einer gewissen Größe. Gilt je Flughafen, nicht für die Airline.
+export const HUB = {
+  gates: {
+    label: "Gates", icon: "gate",
+    stages: [
+      { label: "Vorfeldpositionen", price: 0, upkeep: 0, turnaround: 1.1, delay: 1.15, rep: -2,
+        note: "Bus zum Flugzeug, Treppe statt Brücke. Kostet nichts und merkt man." },
+      { label: "Fluggastbrücken", price: 4_000_000, upkeep: 1800, turnaround: 1, delay: 1, rep: 0,
+        note: "Eigene Brücken an den Standardpositionen. Der Normalfall." },
+      { label: "Eigener Flugsteig", price: 15_000_000, upkeep: 6500, turnaround: 0.92, delay: 0.8, rep: 3,
+        note: "Zusammenhängender Bereich mit eigenen Abläufen. Spürbar kürzere Standzeiten." },
+      { label: "Eigenes Terminal", price: 44_000_000, upkeep: 19_000, turnaround: 0.86, delay: 0.6, rep: 7,
+        note: "Alles unter eigener Regie, kurze Wege, eigene Gepäckanlage." }
+    ]
+  },
+  lounge: {
+    label: "Lounges", icon: "offer",
+    stages: [
+      { label: "Keine Lounge", price: 0, upkeep: 0, rep: 0, premium: 1,
+        note: "Wer vorne sitzt, wartet im Terminal wie alle anderen." },
+      { label: "Kleine Lounge", price: 2_500_000, upkeep: 1500, rep: 2, premium: 1.06,
+        note: "Ein Raum, Getränke, Zeitungen. Besser als nichts." },
+      { label: "Business Lounge", price: 9_000_000, upkeep: 5200, rep: 5, premium: 1.14,
+        note: "Warmes Buffet, Duschen, Arbeitsplätze. Business-Reisende buchen dafür um." },
+      { label: "First Lounge", price: 26_000_000, upkeep: 15_000, rep: 8, premium: 1.24,
+        note: "Eigener Bereich mit Bedienung, Ruheräume, Fahrdienst ans Flugzeug." }
+    ]
+  },
+  hangar: {
+    label: "Technik", icon: "wrench",
+    stages: [
+      { label: "Fremdwartung", price: 0, upkeep: 0, downH: 1, cost: 1, techs: 1, slots: 0,
+        note: "Checks werden eingekauft. Voller Preis, volle Standzeit." },
+      { label: "Linienhangar", price: 7_000_000, upkeep: 3400, downH: 0.85, cost: 0.9, techs: 0.92, slots: 4,
+        note: "Eine Halle, eigene Mechaniker. Kleine Checks laufen über Nacht." },
+      { label: "Werft", price: 20_000_000, upkeep: 11_000, downH: 0.7, cost: 0.78, techs: 0.84, slots: 10,
+        note: "Zwei Hallen mit Schichtbetrieb. Auch C-Checks im eigenen Haus." },
+      { label: "Großwerft", price: 52_000_000, upkeep: 29_000, downH: 0.55, cost: 0.65, techs: 0.75, slots: 22,
+        note: "Eigene Werft mit Triebwerksstand. Selbst D-Checks bleiben im Haus." }
+    ]
+  }
+};
+
+// Kabinenausstattung je Flugzeug: Sitzart und Unterhaltung. Umbau kostet je Sitz und dauert.
+export const FITTING = {
+  seats: {
+    standard: { label: "Standard", seatBonus: 1, rep: 0, pricePerSeat: 0, hours: 0,
+                note: "Normale Sitze im üblichen Abstand." },
+    slim:     { label: "Slimline", seatBonus: 1.08, rep: -3, pricePerSeat: 2200, hours: 14,
+                note: "Dünnere Rückenlehnen: 8 % mehr Sitzbudget, enger wird es trotzdem." },
+    comfort:  { label: "Komfort", seatBonus: 0.93, rep: 5, pricePerSeat: 5200, hours: 20,
+                note: "Mehr Beinfreiheit und breitere Polster. Kostet Sitze, bringt Ruf." }
+  },
+  ife: {
+    none:  { label: "Keine", rep: 0, onboard: 1, pricePerSeat: 0, hours: 0, note: "Fenster und Bordmagazin." },
+    wifi:  { label: "WLAN", rep: 3, onboard: 1.15, pricePerSeat: 1600, hours: 10,
+             note: "Internet an Bord. Kommt an und kurbelt den Bordverkauf an." },
+    full:  { label: "WLAN & Bildschirme", rep: 6, onboard: 1.3, pricePerSeat: 4800, hours: 24,
+             note: "Bildschirm in jeder Lehne plus Internet. Schwer, teuer, beliebt." }
+  }
+};
 
 // Charter: ein Veranstalter mietet Flugzeug und Crew (ACMI). Er zahlt Kerosin und Gebühren,
 // wir stellen Flugzeug, Besatzung, Wartung, Versicherung. Viel Geld, aber das Flugzeug ist weg.

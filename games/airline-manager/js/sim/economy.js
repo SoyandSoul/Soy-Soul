@@ -7,6 +7,8 @@ import { reserveForLeg } from "./lease.js";
 import { commonality } from "./commonality.js";
 import { handlerOf } from "./handling.js";
 import { awarenessFactor } from "./marketing.js";
+import { loungeFactor, hangarEffect } from "./hub.js";
+import { ifeSpec, seatBudget } from "./fitting.js";
 import { CABIN, CARGO, FEES, STAFF, CATERING, ONBOARD, BAGS, FIXED, H } from "../core/config.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { typeOf, routeDistance, blockHours, cargoCapacityKg, totalSeats } from "./flight.js";
@@ -28,7 +30,7 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   const from = AIRPORT_BY_IATA[dir === 0 ? route.from : route.to], to = AIRPORT_BY_IATA[dir === 0 ? route.to : route.from];
   const legKey = ac.id + ":" + dep;
   const aware = {};
-  for (const c of CABIN.classes) aware[c] = awarenessFactor(state, dep, c);
+  for (const c of CABIN.classes) aware[c] = awarenessFactor(state, dep, c) * loungeFactor(state, c);
   const b = bookings({ route, dir, cfg: ac.cfg, ts: dep, rep: state.airline.rep, flightsPerDay, legKey, aware });
   const paxTotal = CABIN.classes.reduce((s, c) => s + b.pax[c], 0);
   const seats = totalSeats(ac.cfg);
@@ -41,7 +43,7 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   for (const c of CABIN.classes) rev.tickets += b.pax[c] * b.prices[c];
   const cargoKg = cargoCapacityKg(ac, km, paxTotal) * CARGO.loadFactor[Math.max(from.tier, to.tier)] * (0.85 + 0.3 * rand01("cargo", legKey));
   rev.cargo = cargoKg * (CARGO.yieldBase + CARGO.yieldPerKm * km);
-  for (const c of CABIN.classes) rev.onboard += b.pax[c] * cat.salesPerPax[c] * range.salesMul * (km > 1500 ? 1.4 : 1);
+  for (const c of CABIN.classes) rev.onboard += b.pax[c] * cat.salesPerPax[c] * range.salesMul * ifeSpec(ac).onboard * (km > 1500 ? 1.4 : 1);
   const bagTake = BAGS.takeRate * Math.exp(-state.airline.bagFee / BAGS.decay);
   rev.bags = (b.pax.y + b.pax.w * 0.5) * bagTake * state.airline.bagFee;
 
@@ -69,13 +71,14 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   return {
     t: dep, arr: dep + bh * H, acId: ac.id, reg: ac.reg, type: t.name, routeId: route.id,
     from: from.iata, to: to.iata, km, blockH: bh, pax: b.pax, paxTotal, seats, lf, cargoKg: Math.round(cargoKg),
-    prices: b.prices, cfg: { ...ac.cfg }, seatsMax: t.seatsMax, fuelKg: Math.round(fuelKg), pilots, cabin, rev, cost,
+    prices: b.prices, cfg: { ...ac.cfg }, seatsMax: seatBudget(ac), fuelKg: Math.round(fuelKg), pilots, cabin, rev, cost,
     profit: Object.values(rev).reduce((s, v) => s + v, 0) - Object.values(cost).reduce((s, v) => s + v, 0)
   };
 }
 
 /** Fixkosten pro Stunde für ein Flugzeug: Techniker, Versicherung, Parken */
-export function fixedPerHour(ac) {
+export function fixedPerHour(ac, state = null) {
   const t = typeOf(ac);
-  return (t.crew.techs * STAFF.techPerDay + FIXED.insurancePerMPerDay * t.priceM + FIXED.parkingPerDay[t.size]) / 24;
+  const techs = t.crew.techs * STAFF.techPerDay * (state ? hangarEffect(state).techs : 1);
+  return (techs + FIXED.insurancePerMPerDay * t.priceM + FIXED.parkingPerDay[t.size]) / 24;
 }

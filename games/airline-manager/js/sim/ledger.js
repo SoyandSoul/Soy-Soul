@@ -7,7 +7,7 @@ export const COST = {
   fuel: "Kerosin", staff: "Gehälter", crew: "Crew-Spesen", fees: "Start-/Landegebühren", handling: "Turnaround & Handling", nav: "Flugsicherung", sales: "Vertrieb", catering: "Catering", marketing: "Werbung",
   lease: "Leasingraten", leaseReserve: "Wartungsrücklagen (Leasing)", leaseFee: "Leasing-Gebühren",
   maint: "Wartungsreserve", checks: "Checks A–D", fixed: "Fixkosten (Techniker, Versicherung, Parken)",
-  training: "Schulungen", recruit: "Personalgewinnung", aircraft: "Flugzeugkäufe", upgrades: "Ausbau", stocks: "Aktienkäufe", contract: "Verträge"
+  training: "Schulungen", hub: "Drehkreuz-Unterhalt", interest: "Zinsen", recruit: "Personalgewinnung", aircraft: "Flugzeugkäufe", upgrades: "Ausbau", stocks: "Aktienkäufe", contract: "Verträge"
 };
 
 const KEEP_DAYS = 60;

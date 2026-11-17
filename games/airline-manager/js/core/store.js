@@ -45,6 +45,7 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
     market: { boughtUsed: [] },
     charter: { taken: [], declined: [] },     // Charteraufträge, siehe sim/charter.js
     adlivery: { taken: [], declined: [] },    // Sonderlackierungen, siehe sim/adlivery.js
+    hub: { [hub]: { gates: 1, lounge: 0, hangar: 0 } },   // Ausbau je Drehkreuz, siehe sim/hub.js
     ordered: 0,                               // Zähler für Sofort-Lieferungen
     staff: { cockpit: 0, cabin: 0, ground: 0, admin: 0 },  // wird gleich auf den Startbedarf gesetzt
     // Dauerhafte Statistik über die ganze Laufzeit (state.flights ist gedeckelt, taugt dafür nicht)
@@ -100,6 +101,11 @@ export function migrate(s) {
   s.airline.onboard ??= ONBOARD.defaultRange;
   s.charter ??= { taken: [], declined: [] };
   s.adlivery ??= { taken: [], declined: [] };
+  // v0.23: Drehkreuz-Ausbau und Kabinenausstattung. Bestandsairlines starten mit Fluggastbrücken,
+  // damit niemand nach dem Update plötzlich schlechter dasteht als vorher.
+  s.hub ??= {};
+  for (const h of s.airline.hubs) s.hub[h] ??= { gates: 1, lounge: 0, hangar: 0 };
+  for (const ac of s.fleet) ac.fit ??= { seats: "standard", ife: "none" };
   for (const ac of s.fleet) { ac.charter ??= null; ac.adLivery ??= null; }
   return s;
 }

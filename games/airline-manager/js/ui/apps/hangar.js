@@ -12,6 +12,8 @@ import * as act from "../../sim/actions.js";
 import { seatmapSVG, setClass, moveBoundary, CLASS_COLORS } from "../seatmap.js";
 import { datasheet, condLine } from "../datasheet.js";
 import { outlookFor } from "../outlook.js";
+import { FITTING } from "../../core/config.js";
+import { fittingOf, seatBudget, retrofitQuote } from "../../sim/fitting.js";
 
 export const STATUS = {
   idle: ["Am Boden", "info"], active: ["Im Liniendienst", "good"], check: ["In Wartung", "warn"],
@@ -59,11 +61,18 @@ export default {
     const id = () => v.detail;
     return {
       shop: () => api.open("shop"),
-      open: el => { v.detail = el.dataset.id; api.rerender(); },
+      open: el => { v.detail = el.dataset.id; v.fit = null; api.rerender(); },
       back: () => { v.detail = null; api.rerender(); },
       saveCabin: () => { if (ctx.run(act.setCabin, id(), v.draft)) ctx.toast("Kabine umgebaut.", "good"); },
       resetCabin: el => { v.draft = { ...ctx.state.fleet.find(a => a.id === id()).cfg }; updateCabin(el.closest(".body"), ctx, v); },
       aux: () => ctx.run(act.addAuxTank, id(), ctx.now()) && ctx.toast("Zusatztank eingebaut.", "good"),
+      fitSeats: el => { const ac = ctx.state.fleet.find(a => a.id === id()); v.fit = { ...(v.fit || fittingOf(ac)), seats: el.dataset.k }; api.rerender(); },
+      fitIfe: el => { const ac = ctx.state.fleet.find(a => a.id === id()); v.fit = { ...(v.fit || fittingOf(ac)), ife: el.dataset.k }; api.rerender(); },
+      retrofit: () => {
+        const ac = ctx.state.fleet.find(a => a.id === id()), f = v.fit || fittingOf(ac);
+        const r = ctx.run(act.retrofit, id(), f.seats, f.ife, ctx.now());
+        if (r) { ctx.toast(`Kabine umgebaut, fertig in ${r.quote.hours} h.`, "good"); v.fit = null; v.draft = { ...ac.cfg }; api.rerender(); }
+      },
       assign: el => {
         const rid = el.closest(".body").querySelector("[name=route]").value;
         if (rid && ctx.run(act.assign, id(), rid, ctx.now())) { ctx.toast("Flugzeug startet auf der Strecke.", "good"); ctx.map.focusAircraft(id()); }
@@ -220,10 +229,13 @@ function detail(ctx, ac, v) {
     <div class="card">
       <div data-sm>${raw(seatmapSVG(v.draft, t))}</div>
       <div class="cab-sliders">${CABIN.classes.map(c => html`<label><span style="color:${CLASS_COLORS[c]}">${CABIN.names[c]}</span>
-        <input type="range" min="0" max="${Math.floor(t.seatsMax / CABIN.units[c])}" value="${v.draft[c] || 0}" data-act="cabS" data-c="${c}" style="accent-color:${CLASS_COLORS[c]}" ${canEdit ? "" : "disabled"}>
+        <input type="range" min="0" max="${Math.floor(seatBudget(ac) / CABIN.units[c])}" value="${v.draft[c] || 0}" data-act="cabS" data-c="${c}" style="accent-color:${CLASS_COLORS[c]}" ${canEdit ? "" : "disabled"}>
         <b class="mono" data-n="${c}">${v.draft[c] || 0}</b></label>`)}</div>
       <div class="row" style="margin-top:8px"><span data-units class="muted small grow"></span><button class="btn sm" data-act="resetCabin">Zurücksetzen</button><button class="btn sm p" data-act="saveCabin" disabled>Umbauen</button></div>
       <p class="small muted" style="margin-top:6px">${canEdit ? "Slider oder die gelben Griffe im Kabinenplan ziehen. Mehr Business oder First nimmt Economy-Plätze weg – und umgekehrt." : "Umbau nur, wenn das Flugzeug keine Strecke fliegt."} Über 93 % belegter Kabine gilt sie als eng (Reputation −).</p></div>
+
+    <h3 style="margin:16px 0 8px;font-size:15px">Ausstattung</h3>
+    ${fittingBox(ctx, ac, v)}
 
     <h3 style="margin:16px 0 8px;font-size:15px">Technik</h3>
     <div class="grid2">
@@ -240,4 +252,35 @@ function detail(ctx, ac, v) {
     <div class="row" style="margin-top:16px"><span class="grow"></span>
       ${isLeased(ac) ? "" : html`<button class="btn sm" data-act="saleLeaseback" ${ac.status === "delivery" ? "disabled" : ""} title="Verkaufen und zurückmieten – bringt sofort Geld">Sale-and-Leaseback</button>`}
       <button class="btn sm danger" data-act="sell" ${isLeased(ac) || ac.status === "active" || ac.status === "check" ? "disabled" : ""}>Verkaufen</button></div>`;
+}
+
+/**
+ * Sitzart und Unterhaltung. Beides zusammen in einem Angebot, damit man einmal in die
+ * Halle muss statt zweimal – im Spiel wie in echt die teuerste Zutat des Umbaus.
+ */
+function fittingBox(ctx, ac, v) {
+  // Anders als die Bestuhlung geht der Ausstattungsumbau auch zwischen zwei Umläufen,
+  // solange das Flugzeug am Drehkreuz steht – er braucht nur die Hallenzeit.
+  const now = ctx.now();
+  const canEdit = ac.status === "idle" || (ac.status === "active" && ac.ops?.dir === 0 && ac.ops.dep > now);
+  const cur = fittingOf(ac);
+  const pick = v.fit || cur;
+  const q = retrofitQuote(ctx.state, ac, pick.seats, pick.ife);
+  const busy = ac.fitReady && ac.fitReady > ctx.now();
+  return html`<div class="card">
+    ${busy ? html`<p class="small warn" style="margin-bottom:8px">Kabinenumbau läuft noch bis ${fmt.dateTime(ac.fitReady)}.</p>` : ""}
+    <div class="small muted">Sitzart</div>
+    <div class="opt-row">${Object.entries(FITTING.seats).map(([k, m]) => html`<button class="opt ${pick.seats === k ? "on" : ""}" data-act="fitSeats" data-k="${k}" ${canEdit ? "" : "disabled"}>
+      <b>${m.label}</b><span>${m.seatBonus === 1 ? "Sitzbudget unverändert" : `${m.seatBonus > 1 ? "+" : ""}${Math.round((m.seatBonus - 1) * 100)} % Sitzbudget`}${m.rep ? ` · Ruf ${m.rep > 0 ? "+" : ""}${m.rep}` : ""}</span></button>`)}</div>
+    <p class="small muted">${FITTING.seats[pick.seats].note}</p>
+    <div class="small muted" style="margin-top:10px">Unterhaltung</div>
+    <div class="opt-row">${Object.entries(FITTING.ife).map(([k, m]) => html`<button class="opt ${pick.ife === k ? "on" : ""}" data-act="fitIfe" data-k="${k}" ${canEdit ? "" : "disabled"}>
+      <b>${m.label}</b><span>${m.rep ? `Ruf +${m.rep} · ` : ""}Bordverkauf ${Math.round(m.onboard * 100)} %</span></button>`)}</div>
+    <p class="small muted">${FITTING.ife[pick.ife].note}</p>
+    <div class="row" style="margin-top:10px"><span class="grow small muted">
+      ${!canEdit ? "Umbau nur, wenn das Flugzeug am Drehkreuz steht."
+        : q?.changed ? `Sitzbudget danach ${q.budgetAfter} Einheiten · ${q.hours} h in der Halle` : "Aktuelle Ausstattung"}</span>
+      <button class="btn sm p" data-act="retrofit" ${q?.changed && canEdit && !busy ? "" : "disabled"}>
+        ${q?.changed ? `Umbauen für ${fmt.money(q.price)}` : "Umbauen"}</button></div>
+  </div>`;
 }

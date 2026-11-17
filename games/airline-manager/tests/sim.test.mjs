@@ -21,6 +21,9 @@ import { awareness, awarenessFactor, campaignQuote, activeCampaigns, awarenessFl
 import { charterOffers, candidates as charterFits } from "../js/sim/charter.js";
 import { liveryOffers, quoteFor, liveryRep, activeLiveries } from "../js/sim/adlivery.js";
 import { repBreakdown, repAdvice } from "../js/sim/reputation.js";
+import { levelOf, stage, nextStage, upkeepPerDay, hangarEffect, hubRep, loungeFactor, gateFactor } from "../js/sim/hub.js";
+import { seatBudget, retrofitQuote, fleetFitting } from "../js/sim/fitting.js";
+import { seatUnits } from "../js/sim/flight.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
 import { AIRCRAFT } from "../js/data/aircraft.js";
@@ -29,6 +32,17 @@ import { AIRPORTS } from "../js/data/airports.js";
 const T0 = Date.UTC(2026, 6, 1, 11, 0); // 1. Juli, 13:00 MESZ
 let pass = 0;
 const test = (name, fn) => { fn(); pass++; console.log("✓", name); };
+
+/**
+ * Flugzeug-IDs sind im Spiel zufällig (uid() aus Zeit und Math.random). Der gesamte
+ * deterministische Zufall hängt aber daran: Verspätungen, Defekte, Nachfrage-Rauschen.
+ * Ohne feste IDs liefert derselbe Testlauf mal zwei, mal drei Flüge in sechs Stunden –
+ * und die Balance-Zahlen unten wären nicht vergleichbar. Deshalb hier feste IDs.
+ */
+function stableIds(s) {
+  s.fleet.forEach((ac, i) => { ac.id = `t-ac-${i}`; });
+  return s;
+}
 
 test("Daten vollständig", () => {
   assert.ok(AIRCRAFT.length >= 25);
@@ -51,6 +65,7 @@ function setup(n = 2) {
   settle(s, T0 + 2 * H);
   const route = act.createRoute(s, "FRA", "PMI").route;
   const hired = act.hireAllOpen(s, T0 + 2 * H); assert.ok(hired.ok, hired.msg);
+  stableIds(s);
   return { s, route, start: T0 + 2 * H };
 }
 
@@ -129,10 +144,10 @@ test("Personal: ohne Crew kein Einsatz, Gehälter laufen als Tageskosten", () =>
 test("Auto-Check greift, Zähler werden zurückgesetzt", () => {
   const { s, route, start } = setup();
   const ac = s.fleet[0];
-  ac.maint.A.fh = CHECKS.A.fh - 5;
+  ac.maint.A.fh = CHECKS.A.fh - 1;
   act.assign(s, ac.id, route.id, start);
-  settle(s, start + 6 * H);
-  assert.ok(ac.status === "check" || ac.maint.A.fh < 20, "A-Check gestartet/erledigt");
+  settle(s, start + 12 * H);
+  assert.ok(ac.status === "check" || ac.maint.A.fh < 20, `A-Check gestartet/erledigt (fh ${ac.maint.A.fh.toFixed(1)}, Status ${ac.status})`);
 });
 
 test("Überfällige Wartung → negative Stunden + Risiko", () => {
@@ -486,6 +501,94 @@ test("Bordverkauf: mehr Sortiment heißt mehr Umsatz, aber nicht alles Gewinn", 
   assert.ok(prem.onboard - prem.catering > basic.onboard - basic.catering, "unterm Strich lohnt Premium trotzdem");
   assert.ok(!act.setOnboard(s0(), "gibtsnicht").ok);
   function s0() { return setup(1).s; }
+});
+
+
+test("Drehkreuz: Ausbau wirkt auf Standzeit, Ruf und Unterhalt", () => {
+  const { s, start } = setup(1);
+  const [ac] = s.fleet;
+  s.cash = 200e6;
+  assert.equal(levelOf(s, "FRA", "gates"), 1, "neue Airlines starten mit Fluggastbrücken");
+  const turnHub = turnaroundHours(s, ac, "FRA"), turnOut = turnaroundHours(s, ac, "PMI");
+  assert.equal(turnHub, turnOut, "auf Stufe 1 ist die Standzeit überall gleich");
+
+  assert.ok(!act.upgradeHub(s, "PMI", "gates", start).ok, "nur an eigenen Drehkreuzen bauen");
+  assert.ok(act.upgradeHub(s, "FRA", "gates", start).ok);
+  assert.ok(act.upgradeHub(s, "FRA", "gates", start).ok);
+  assert.equal(levelOf(s, "FRA", "gates"), 3);
+  assert.equal(nextStage(s, "FRA", "gates"), null, "danach ist Schluss");
+  assert.ok(!act.upgradeHub(s, "FRA", "gates", start).ok);
+
+  assert.ok(turnaroundHours(s, ac, "FRA") < turnHub, "eigenes Terminal verkürzt die Standzeit");
+  assert.equal(turnaroundHours(s, ac, "PMI"), turnOut, "draußen ändert sich nichts");
+  assert.equal(gateFactor(s, "PMI"), 1);
+  assert.ok(hubRep(s) > 0, "gute Gates heben den Ruf");
+  assert.ok(upkeepPerDay(s) > 0, "Unterhalt läuft ab dem Bau");
+
+  // Unterhalt wird zeitanteilig gebucht und ist unabhängig von der Schrittweite
+  const a = structuredClone(s), b = structuredClone(s);
+  settle(a, start + 4 * DAY);
+  for (let h = 1; h <= 96; h++) settle(b, start + h * H);
+  const ha = summary(a, 5, start + 4 * DAY).cost.hub, hb = summary(b, 5, start + 4 * DAY).cost.hub;
+  assert.ok(ha > 0 && Math.abs(ha - hb) / ha < 0.01, `Unterhalt ${Math.round(ha)} vs ${Math.round(hb)}`);
+});
+
+test("Lounge zieht vorne, die Werft verkürzt Checks", () => {
+  const { s, start } = setup(2);
+  s.cash = 200e6;
+  assert.equal(loungeFactor(s, "y"), 1, "Economy merkt von der Lounge nichts");
+  act.upgradeHub(s, "FRA", "lounge", start);
+  act.upgradeHub(s, "FRA", "lounge", start);
+  assert.ok(loungeFactor(s, "j") > 1 && loungeFactor(s, "f") > 1, "Business und First schon");
+  assert.equal(loungeFactor(s, "y"), 1);
+
+  const plain = hangarEffect(s);
+  assert.equal(plain.downH, 1, "ohne Werft wird alles zugekauft");
+  act.upgradeHub(s, "FRA", "hangar", start);
+  const small = hangarEffect(s);
+  assert.ok(small.downH < 1 && small.cost < 1 && small.techs < 1);
+  assert.equal(small.covered, 1, "vier Plätze decken zwei Flugzeuge");
+
+  // Mehr Flugzeuge als Plätze: der Vorteil verwässert
+  for (let i = 0; i < 6; i++) s.fleet.push({ ...s.fleet[0], id: `extra-${i}` });
+  const big = hangarEffect(s);
+  assert.ok(big.covered < 1 && big.downH > small.downH, "über die Hallenplätze hinaus wird zugekauft");
+
+  const checkNow = () => { const x = setup(1); x.s.cash = 200e6; return x; };
+  const base = checkNow(); act.requestCheck(base.s, base.s.fleet[0].id, "A", base.start);
+  const dur0 = base.s.fleet[0].check.until - base.start;
+  const up = checkNow(); act.upgradeHub(up.s, "FRA", "hangar", up.start); act.upgradeHub(up.s, "FRA", "hangar", up.start);
+  act.requestCheck(up.s, up.s.fleet[0].id, "A", up.start);
+  assert.ok(up.s.fleet[0].check.until - up.start < dur0 * 0.75, "eigene Werft ist deutlich schneller");
+  assert.ok(up.s.fleet[0].check.cost < base.s.fleet[0].check.cost, "und billiger");
+});
+
+test("Kabinenausstattung: Sitzbudget, Ruf und Umbaukosten", () => {
+  const { s, start } = setup(1);
+  const [ac] = s.fleet;
+  s.cash = 50e6;
+  const budget0 = seatBudget(ac);
+  assert.ok(budget0 > 0);
+  assert.equal(fleetFitting(s).rep, 0, "Standard ist neutral");
+
+  const q = retrofitQuote(s, ac, "comfort", "wifi");
+  assert.ok(q.price > 0 && q.hours > 0);
+  assert.ok(q.budgetAfter < budget0, "Komfortsitze kosten Sitzplätze");
+  assert.ok(act.retrofit(s, ac.id, "comfort", "wifi", start).ok);
+  assert.ok(seatBudget(ac) < budget0);
+  assert.ok(seatUnits(ac.cfg) <= seatBudget(ac), "die Bestuhlung wird mit zurückgeschnitten");
+  assert.ok(fleetFitting(s).rep > 0, "Komfort und WLAN heben den Ruf");
+  assert.ok(fleetFitting(s).onboard > 1, "WLAN kurbelt den Bordverkauf an");
+  assert.ok(!act.retrofit(s, ac.id, "comfort", "wifi", start).ok, "zweimal dasselbe geht nicht");
+  assert.ok(!act.assign(s, ac.id, s.routes[0].id, start).ok, "während des Umbaus kein Einsatz");
+
+  // Slimline bringt mehr Sitze, kostet aber Ruf
+  const { s: s2, start: st2 } = setup(1);
+  s2.cash = 50e6;
+  const before = seatBudget(s2.fleet[0]);
+  assert.ok(act.retrofit(s2, s2.fleet[0].id, "slim", "none", st2).ok);
+  assert.ok(seatBudget(s2.fleet[0]) > before);
+  assert.ok(fleetFitting(s2).rep < 0);
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

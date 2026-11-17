@@ -2,6 +2,7 @@
 // Überfällige Checks laufen ins Minus. Je weiter im Minus, desto höher das Risiko für Vorfälle und Abstürze.
 
 import { commonality } from "./commonality.js";
+import { hangarEffect } from "./hub.js";
 import { condEffects } from "./market.js";
 import { CHECKS, CONTRACT, DAY, H } from "../core/config.js";
 import { typeOf } from "./flight.js";
@@ -61,14 +62,15 @@ export function checkCost(state, ac, check) {
   const t = typeOf(ac);
   let cost = CHECKS[check].cost[t.size];
   if (state.airline.contract?.maker === t.maker) cost *= 1 - CONTRACT.maintDiscount;
-  return cost * commonality(state).maint;   // einheitliche Flotte: ein Ersatzteillager, geschulte Techniker
+  return cost * commonality(state).maint * hangarEffect(state).cost;   // einheitliche Flotte + eigene Werft
 }
 
 /** Check starten. Flugzeug muss am Boden am Heimatdrehkreuz stehen. */
 export function startCheck(state, ac, check, ts) {
   const cost = checkCost(state, ac, check);
+  const down = CHECKS[check].downH * hangarEffect(state).downH;   // eigene Werft arbeitet schneller
   ac.status = "check";
-  ac.check = { type: check, from: ts, until: ts + CHECKS[check].downH * H, cost };
+  ac.check = { type: check, from: ts, until: ts + down * H, cost };
   return cost;
 }
 

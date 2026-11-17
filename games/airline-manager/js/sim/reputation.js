@@ -9,6 +9,8 @@ import { staffEffects } from "./staff.js";
 import { handlerOf } from "./handling.js";
 import { marketingRep } from "./marketing.js";
 import { liveryRep } from "./adlivery.js";
+import { hubRep } from "./hub.js";
+import { fleetFitting } from "./fitting.js";
 
 const decay = (ts, list, cfg) => list.reduce((s, t) => s + cfg.hit * Math.pow(0.5, (ts - t) / (cfg.halfLifeDays * DAY)), 0);
 
@@ -31,6 +33,8 @@ export function repFactors(state, ts, leg) {
   f.abfertigung = handlerOf(state).rep;        // wie zügig und sorgfältig am Boden gearbeitet wird
   f.bekanntheit = marketingRep(state, ts);     // wer bekannt ist, wird eher empfohlen
   f.sonderlack = liveryRep(state, ts);         // fremde Farben verwässern die eigene Marke
+  f.drehkreuz = hubRep(state);                 // Gates und Lounges am eigenen Flughafen
+  f.kabine = fleetFitting(state).rep;          // Sitzart und Unterhaltung an Bord
   f.sicherheit = decay(ts, a.safety.crashes, R.crash) + decay(ts, a.safety.incidents, R.incident);
   const last = Math.max(a.safety.since, ...a.safety.crashes, ...a.safety.incidents);
   f.unfallfrei = Math.min(R.safeBonusMax, (ts - last) / DAY / R.safeBonusPerDays);

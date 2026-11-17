@@ -19,6 +19,8 @@ import { routeDistance } from "./flight.js";
 import { startCheck, checkCost } from "./maintenance.js";
 import { headcount, staffNeed, staffHave, coverage, GROUPS, hireCost, severanceCost } from "./staff.js";
 import { normalizeLivery, liverySize } from "../art/livery.js";
+import { seatBudget, retrofitQuote, fittingOf } from "./fitting.js";
+import { nextStage, levelOf, stage, isHub } from "./hub.js";
 
 const ok = (extra = {}) => ({ ok: true, ...extra });
 const fail = msg => ({ ok: false, msg });
@@ -72,7 +74,8 @@ export function setCabin(state, acId, cfg) {
   if (ac.status === "active") return fail("Umbau nur am Boden ohne Route.");
   const clean = {};
   for (const c of CABIN.classes) clean[c] = Math.max(0, Math.floor(+cfg[c] || 0));
-  if (seatUnits(clean) > t.seatsMax) return fail(`Zu viele Sitze: ${seatUnits(clean).toFixed(0)} von ${t.seatsMax} Einheiten.`);
+  const budget = seatBudget(ac);
+  if (seatUnits(clean) > budget) return fail(`Zu viele Sitze: ${seatUnits(clean).toFixed(0)} von ${budget} Einheiten.`);
   ac.cfg = clean;
   return ok();
 }
@@ -119,6 +122,8 @@ export function assign(state, acId, routeId, now, start = now) {
   const ac = state.fleet.find(a => a.id === acId), route = state.routes.find(r => r.id === routeId);
   if (!ac || !route) return fail("Nicht gefunden.");
   if (ac.status !== "idle") return fail("Flugzeug ist nicht verfügbar (Auslieferung, Check, Charter oder bereits im Einsatz).");
+  if (ac.fitReady && ac.fitReady > now)
+    return fail(`${ac.reg} ist noch im Kabinenumbau.`);
   if (ac.adLivery && ac.adLivery.ready > now)
     return fail(`${ac.reg} steht noch in der Lackiererei (bis ${new Date(ac.adLivery.ready).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}).`);
   const problems = routeProblems(ac, route);
@@ -207,6 +212,49 @@ export function bookCampaign(state, channel, tier, days, now) {
     perDay: q.perDay, total: q.total, gainPerDay: q.gainPerDay
   });
   state.log.unshift({ t: now, kind: "good", text: `Werbung gebucht: ${q.label} für ${days} Tage, ${Math.round(q.total / 1e3)} k$.` });
+  return ok({ quote: q });
+}
+
+// ---------- Drehkreuz
+
+/** Eine Stufe ausbauen. Gebaut wird sofort, der Unterhalt läuft ab dann mit. */
+export function upgradeHub(state, iata, area, now) {
+  if (!isHub(state, iata)) return fail("Das ist keines eurer Drehkreuze.");
+  const next = nextStage(state, iata, area);
+  if (!next) return fail("Hier ist die höchste Stufe erreicht.");
+  if (state.cash < next.price) return fail(`Dafür reicht die Kasse nicht – es fehlen ${Math.ceil((next.price - state.cash) / 1e3)} k$.`);
+  state.hub[iata] ??= { gates: 0, lounge: 0, hangar: 0 };
+  state.hub[iata][area] = next.level;
+  book(state, now, "cost", "upgrades", next.price);
+  state.log.unshift({ t: now, kind: "good", text: `${iata}: ${next.label} gebaut für ${Math.round(next.price / 1e6)} Mio $. Unterhalt ${Math.round(next.upkeep / 1e3)} k$ am Tag.` });
+  return ok({ stage: next });
+}
+
+/** Kabine umbauen: Sitzart und Unterhaltung. Nur am Boden, kostet Hallenzeit. */
+export function retrofit(state, acId, seatsKey, ifeKey, now) {
+  const ac = state.fleet.find(a => a.id === acId);
+  if (!ac) return fail("Flugzeug nicht gefunden.");
+  if (ac.status === "active" && !(ac.ops.dir === 0 && ac.ops.dep > now))
+    return fail("Umbau nur, wenn das Flugzeug am Drehkreuz steht.");
+  if (ac.status === "charter" || ac.status === "delivery" || ac.status === "crashed")
+    return fail("Flugzeug ist nicht verfügbar.");
+  const q = retrofitQuote(state, ac, seatsKey, ifeKey);
+  if (!q) return fail("Diese Ausstattung gibt es nicht.");
+  if (!q.changed) return fail("Diese Ausstattung ist bereits verbaut.");
+  if (state.cash < q.price) return fail(`Dafür reicht die Kasse nicht – es fehlen ${Math.ceil((q.price - state.cash) / 1e3)} k$.`);
+  // Weniger Sitzbudget als vorher: Bestuhlung anteilig zurückschneiden, damit sie wieder passt.
+  ac.fit = { seats: seatsKey, ife: ifeKey };
+  const budget = seatBudget(ac);
+  while (seatUnits(ac.cfg) > budget) {
+    const biggest = CABIN.classes.filter(c => ac.cfg[c] > 0).sort((a, b) => ac.cfg[b] - ac.cfg[a])[0];
+    if (!biggest) break;
+    ac.cfg[biggest]--;
+  }
+  book(state, now, "cost", "upgrades", q.price);
+  const ready = now + q.hours * H;
+  if (ac.status === "active" && ac.ops) ac.ops.dep = Math.max(ac.ops.dep, ready);
+  ac.fitReady = ready;
+  state.log.unshift({ t: now, kind: "good", text: `${ac.reg}: Kabinenumbau für ${Math.round(q.price / 1e3)} k$, fertig in ${q.hours} h.` });
   return ok({ quote: q });
 }
 

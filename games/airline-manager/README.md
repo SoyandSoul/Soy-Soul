@@ -272,6 +272,22 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.23 – Drehkreuz, Technik und Kabine** (Paket 5)
+- `sim/hub.js`: Ausbau je Flughafen (`state.hub[IATA]`), drei Bereiche mit je vier Stufen, Konfiguration
+  unter `HUB`. Investition einmal, danach Unterhalt pro Tag – zeitanteilig gebucht wie Gehälter.
+- Gates wirken ortsgebunden: `turnaroundHours(state, ac, at)` und `handlerDelay(state, ac, dep, at)`
+  nehmen jetzt den Flughafen entgegen und greifen nur, wenn er ein eigenes Drehkreuz ist.
+- `hangarEffect` deckelt den Werftvorteil an den Hallenplätzen: `covered = slots / Flotte`, Checkdauer,
+  Checkkosten und Technikeranteil der Fixkosten werden nur anteilig gesenkt.
+- `loungeFactor` hebt die Nachfrage in F und J (Premium halb), Economy bleibt unberührt.
+- `sim/fitting.js`: Sitzart (`seatBonus` auf `seatsMax`) und Unterhaltung je Flugzeug, gewichtet nach
+  Sitzen in `fleetFitting`. Der Umbau schneidet eine zu große Bestuhlung automatisch zurück und blockiert
+  das Flugzeug über `ac.fitReady`.
+- Neues Fenster **Drehkreuz** (`ui/apps/hub.js`), Ausstattungsblock im Hangar, Sektion im Betriebs-Panel.
+- Tests: Flugzeug-IDs sind dort jetzt fest (`stableIds`). Sie sind im Spiel zufällig, und der gesamte
+  deterministische Zufall hängt daran – ohne feste IDs lieferte derselbe Lauf mal zwei, mal drei Flüge
+  in sechs Stunden, und die Suite war gelegentlich rot.
+
 **v0.22 – Werbung, Charter und Sonderlackierungen** (Paket 4)
 - `sim/marketing.js`: Bekanntheit 0–100 als **reine Funktion der Zeit**, nicht als mitgeschleppter Wert.
   Je Kampagne ein Vorrat nach `dS/dt = g − λS` (λ aus der Halbwertszeit des Kanals), Anlauf als Faktor,

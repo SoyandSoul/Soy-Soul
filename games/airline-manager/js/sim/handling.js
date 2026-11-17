@@ -5,20 +5,24 @@
 // ersetzt sie aber nicht – ein Flugzeug kann nicht ohne Abfertigung starten.
 
 import { HANDLERS, FLIGHT, H } from "../core/config.js";
+import { gateFactor, delayFactor } from "./hub.js";
 import { rand01 } from "../core/util.js";
 import { typeOf, totalSeats } from "./flight.js";
 
 export const handlerOf = state => HANDLERS[state.airline.handler] || HANDLERS[HANDLERS.default];
 
 /** Standzeit eines Flugzeugs in Stunden, inklusive Abfertiger-Faktor. */
-export function turnaroundHours(state, ac) {
-  return FLIGHT.turnaroundMin[typeOf(ac).size] / 60 * handlerOf(state).turnaround;
+export function turnaroundHours(state, ac, at = null) {
+  const base = FLIGHT.turnaroundMin[typeOf(ac).size] / 60 * handlerOf(state).turnaround;
+  return base * (at ? gateFactor(state, at) : 1);
 }
 
 /** Zusätzliche Verspätung durch den Abfertiger – deterministisch aus Flugzeug und Abflugzeit. */
-export function handlerDelay(state, ac, dep) {
+export function handlerDelay(state, ac, dep, at = null) {
   const h = handlerOf(state);
-  if (rand01("handler", ac.id, dep) >= h.delayChance) return null;
+  // Am eigenen Drehkreuz senken gute Gates das Risiko, draußen hilft nur der Abfertiger.
+  const chance = h.delayChance * (at ? delayFactor(state, at) : 1);
+  if (rand01("handler", ac.id, dep) >= chance) return null;
   const [a, b] = h.delayMin;
   const min = Math.round(a + (b - a) * rand01("handlerMin", ac.id, dep));
   return { min, reason: h === HANDLERS.budget ? "der Bodenabfertigung" : "verzögerter Abfertigung" };

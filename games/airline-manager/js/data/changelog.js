@@ -6,6 +6,18 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.23", date: "17.11.2026", title: "Drehkreuz, Technik und Kabine",
+    intro: "Bisher war der eigene Flughafen nur ein Punkt auf der Karte. Jetzt gehört einem dort etwas – und man merkt es im Betrieb.",
+    items: [
+      ["neu", "Drehkreuz-Ausbau in drei Bereichen: Gates vom Vorfeldbus bis zum eigenen Terminal, Lounges von keiner bis zur First Lounge, Technik von der Fremdwartung bis zur Großwerft. Jede Stufe kostet einmal und läuft danach mit Unterhalt mit."],
+      ["neu", "Gute Gates kürzen die Standzeit und senken das Verspätungsrisiko – aber nur am eigenen Drehkreuz. Draußen entscheidet weiter allein der Abfertiger."],
+      ["neu", "Lounges ziehen Nachfrage in die vorderen Klassen und heben den Ruf. Economy merkt davon nichts."],
+      ["neu", "Die eigene Werft macht Checks schneller und billiger und senkt die Technikerkosten – aber nur so weit, wie sie Hallenplätze hat. Wer schneller wächst als er baut, kauft den Rest wieder zu."],
+      ["neu", "Kabinenausstattung je Flugzeug: Slimline bringt acht Prozent mehr Sitzbudget und kostet Ruf, Komfortsitze umgekehrt. Dazu WLAN und Bildschirme, die Ruf und Bordverkauf heben. Der Umbau kostet je Sitz und Hallenzeit."],
+      ["fix", "Die Tests liefen bisher gelegentlich rot: Flugzeug-IDs sind zufällig, und der gesamte deterministische Zufall hängt daran. In den Tests sind sie jetzt fest – damit sind auch die Balance-Zahlen von Lauf zu Lauf vergleichbar."]
+    ]
+  },
+  {
     v: "v0.22", date: "17.11.2026", title: "Werbung, Charter und Sonderlackierungen",
     intro: "Bisher gab es genau eine Art, Geld zu verdienen: Tickets verkaufen. Jetzt kommt alles dazu, was eine Airline sonst noch vermarktet.",
     items: [
