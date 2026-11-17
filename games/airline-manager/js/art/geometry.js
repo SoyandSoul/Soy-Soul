@@ -24,6 +24,8 @@ const FAM = {
   737:  { D: 4.01, nose: [2.15, 2.05, .11], tail: [3.0, -.22], fin: [6.6, 6.0, 1.9, 38], wing: [6.5, 1.3, 28, 6, "blended"], eng: [4.0, 2.0, [4.9]], dorsal: 3.8 },
   757:  { D: 4.1, nose: [2.05, 2.15, .11], tail: [2.9, -.22], fin: [7.0, 6.6, 2.2, 38], wing: [8.0, 2.0, 28, 6, null], eng: [5.0, 2.45, [7.3]] },
   767:  { D: 5.41, nose: [1.8, 2.3, .09], tail: [2.6, -.23], fin: [8.1, 8.0, 2.9, 40], wing: [9.0, 2.4, 34, 6, null], eng: [5.0, 2.8, [7.6]] },
+  A300: { D: 5.64, nose: [1.8, 2.3, .09], tail: [2.6, -.23], fin: [8.0, 8.4, 3.0, 42], wing: [9.6, 2.5, 28, 5, null], eng: [5.2, 2.8, [8.0]] },
+  A310: { D: 5.64, nose: [1.8, 2.3, .09], tail: [2.6, -.23], fin: [8.2, 8.0, 2.9, 42], wing: [8.6, 2.2, 28, 5, "fence"], eng: [5.0, 2.8, [7.6]] },
   A330: { D: 5.64, nose: [1.75, 2.35, .08], tail: [2.6, -.24], fin: [8.6, 8.8, 3.2, 42], wing: [10.0, 2.5, 33, 6, "fence"], eng: [5.6, 3.0, [9.4]] },
   A340: { D: 5.64, nose: [1.75, 2.35, .08], tail: [2.6, -.24], fin: [8.6, 8.8, 3.2, 42], wing: [10.0, 2.5, 33, 6, "fence"], eng: [4.9, 2.4, [9.9, 19.6]] },
   A350: { D: 6.09, nose: [1.95, 2.2, .06], tail: [2.4, -.25], fin: [9.0, 9.4, 3.4, 40], wing: [11.0, 2.4, 35, 6, "curved"], eng: [6.0, 3.4, [9.5]] },
@@ -32,12 +34,17 @@ const FAM = {
   "777X": { D: 6.2, nose: [1.75, 2.4, .06], tail: [2.6, -.24], fin: [9.2, 10.0, 3.5, 40], wing: [12.0, 2.3, 34, 6, null], eng: [6.8, 4.1, [9.8]] },
   787:  { D: 5.91, nose: [1.95, 2.1, .03], tail: [2.5, -.25], fin: [8.8, 9.2, 3.2, 40], wing: [11.0, 2.0, 35, 6, null], eng: [5.8, 3.3, [9.8]] },
   747:  { D: 6.5, nose: [1.6, 2.5, .12], tail: [2.6, -.24], fin: [10.2, 11.5, 4.2, 46], wing: [14.0, 4.0, 40, 7, "blended"], eng: [5.0, 2.7, [11.9, 21.3]] },
-  // Rückfallwerte für Typen ohne Blaupause (normalerweise kommen diese aus data/profiles.json)
-  717:  { D: 3.34, nose: [1.9, 2.2, .1], tail: [2.4, -.2], fin: [5.0, 4.5, 2.6, 40], wing: [5.5, 1.5, 24, 3, null], eng: [4.6, 2.0, [2.2]] },
-  CRJ:  { D: 2.7, nose: [2.0, 2.2, .1], tail: [2.6, -.2], fin: [4.2, 3.6, 2.4, 40], wing: [3.9, 1.2, 25, 3, "sharklet"], eng: [3.3, 1.4, [1.9]] },
+  // Hecktriebwerke + T-Leitwerk: rear = [Gondelvorderkante als Anteil von L, Höhe unter der Rumpfoberkante in D]
+  717:  { D: 3.34, nose: [1.9, 2.2, .1], tail: [2.4, -.2], fin: [6.4, 5.4, 2.6, 42], wing: [5.5, 1.5, 24, 3, null], eng: [4.6, 2.0, [2.2]], rear: [.66, .14], tTail: true },
+  CRJ:  { D: 2.7, nose: [2.0, 2.2, .1], tail: [2.6, -.2], fin: [5.0, 4.0, 2.4, 42], wing: [3.9, 1.2, 25, 3, "sharklet"], eng: [3.3, 1.4, [1.9]], rear: [.68, .12], tTail: true },
   "E-Jet": { D: 3.35, nose: [1.9, 2.2, .1], tail: [2.6, -.22], fin: [5.2, 4.6, 2.0, 38], wing: [4.4, 1.3, 23, 5, "sharklet"], eng: [3.4, 1.7, [3.8]] },
-  ERJ:  { D: 2.28, nose: [2.1, 2.2, .1], tail: [2.8, -.2], fin: [4.0, 3.4, 2.2, 40], wing: [3.0, 1.0, 23, 3, "sharklet"], eng: [2.6, 1.1, [1.7]] },
-  1900: { D: 1.9, nose: [2.2, 2.0, .15], tail: [2.6, -.15], fin: [3.0, 2.4, 1.6, 30], wing: [2.2, 1.0, 2, 6, null], eng: [2.6, 0.9, [3.0]] },
+  E2:   { D: 3.35, nose: [1.9, 2.2, .1], tail: [2.6, -.22], fin: [5.6, 5.0, 2.1, 38], wing: [4.8, 1.3, 25, 5, "curved"], eng: [4.0, 2.1, [4.4]] },
+  ERJ:  { D: 2.28, nose: [2.1, 2.2, .1], tail: [2.8, -.2], fin: [4.4, 3.6, 2.2, 42], wing: [3.0, 1.0, 23, 3, "sharklet"], eng: [2.6, 1.1, [1.7]], rear: [.68, .10], tTail: true },
+  Fokker: { D: 3.30, nose: [1.9, 2.2, .1], tail: [2.5, -.2], fin: [6.0, 5.2, 2.4, 40], wing: [4.6, 1.4, 17, 3, null], eng: [4.3, 1.6, [2.4]], rear: [.65, .14], tTail: true },
+  MD80: { D: 3.35, nose: [2.0, 2.2, .1], tail: [2.6, -.2], fin: [6.4, 5.6, 2.6, 42], wing: [6.0, 1.6, 24, 3, null], eng: [5.0, 1.5, [2.4]], rear: [.66, .15], tTail: true },
+  MD11: { D: 6.02, nose: [1.8, 2.3, .08], tail: [2.6, -.22], fin: [9.0, 11.0, 3.2, 45], wing: [11.0, 2.6, 35, 6, "fence"], eng: [5.6, 2.9, [10.2]], trijet: [6.5, 2.9] },
+  Dash8: { D: 2.69, nose: [2.0, 2.1, .12], tail: [2.8, -.18], fin: [6.0, 4.8, 2.6, 35], wing: [3.4, 1.3, 3, 5, null], eng: [5.0, 1.5, [4.6]], highWing: true, wingX: .46, prop: 4.11, tTail: true },
+  1900: { D: 1.9, nose: [2.2, 2.0, .15], tail: [2.6, -.15], fin: [3.0, 2.4, 1.6, 30], wing: [2.2, 1.0, 2, 6, null], eng: [2.6, 0.9, [3.0]], prop: 2.78 },
   Concorde: { D: 2.9, nose: [4.5, 1.6, .2], tail: [3.5, -.1], fin: [7.5, 10.0, 2.5, 55], wing: [27.0, 1.0, 60, 0, null], eng: [8.0, 1.6, [6.0]] }
 };
 // Abweichungen einzelner Typen von ihrer Baureihe
@@ -49,7 +56,13 @@ const TYPE = {
   "b737-max7": { eng: [4.3, 2.1, [4.9]], wingTip: "split" }, "b737-max8": { eng: [4.3, 2.1, [4.9]], wingTip: "split" },
   "b737-max9": { eng: [4.3, 2.1, [4.9]], wingTip: "split" }, "b737-max10": { eng: [4.3, 2.1, [4.9]], wingTip: "split" },
   "b757-200": { wingTip: "blended" }, "b767-300er": { wingTip: "blended" },
-  "b747-400": { hump: [2.5, .375] }, "b747-8i": { hump: [2.5, .405], eng: [5.6, 3.1, [11.9, 21.3]], wingTip: null }
+  "b747-400": { hump: [2.5, .375] }, "b747-8i": { hump: [2.5, .405], eng: [5.6, 3.1, [11.9, 21.3]], wingTip: null },
+  "a318": { wingTip: "fence" },
+  "b737-600": { eng: [3.9, 1.9, [4.9]], wingTip: null },
+  "b747sp": { hump: [2.5, .46], fin: [12.6, 12.0, 4.4, 46], eng: [5.0, 2.5, [11.9, 21.3]], wingTip: null },
+  "e190": { eng: [3.9, 2.0, [4.3]] },
+  "crj1000": { eng: [3.5, 1.5, [1.9]] },
+  "md11": { wingTip: "fence" }
 };
 
 // ---------- Registry für abgepauste Profile
@@ -72,7 +85,7 @@ export function getProfile(typeOrId) {
 function fromTraced(t, tr) {
   const zones = {};
   for (const z of ["fin", "fuselage", "stab", "wing", "engine"]) zones[z] = (tr.zones?.[z] || []).map(poly => ({ pts: poly.pts, smooth: poly.smooth !== false }));
-  return { id: t.id, L: tr.L || t.art.lengthM, D: tr.D, zones, deco: tr.deco || { windows: [], doors: [], cockpit: [] }, source: "blueprint" };
+  return { id: t.id, L: tr.L || t.art.lengthM, D: tr.D, zones, deco: { windows: [], doors: [], cockpit: [], props: [], ...(tr.deco || {}) }, source: "blueprint" };
 }
 
 // ---------- Parametrisch
@@ -127,17 +140,19 @@ function parametric(t) {
   const dl = f.dorsal || 0.8; // Rückenflosse (737 lang, sonst kurzer Übergang)
   const fin = [{ pts: [[finLE - dl, yTopAt(upper, finLE - dl) + 0.25], [finLE + 0.25, finTopFus - (f.dorsal ? 1.1 : 0.5)], [tipLE, finTop], [tipLE + ft, finTop], [finTE + 0.25, yTopAt(upper, finTE) + 0.3]], smooth: false }];
 
-  // Höhenleitwerk (nahe Seite, leicht V-gestellt)
+  // Höhenleitwerk (nahe Seite, leicht V-gestellt) – beim T-Leitwerk sitzt es oben auf der Finne
   const sChord = fr * 0.62, sSpan = Math.max(5, t.art.spanM * 0.17), sSweep = sSpan * 0.55;
   const sRoot = L - 0.02 * L - sSweep - sChord * 0.4, sY = tipY * 0.15;
-  const stab = [{ pts: [[sRoot, sY], [sRoot + sSweep, sY - sSpan * 0.1], [sRoot + sSweep + sChord * 0.4, sY - sSpan * 0.1 + 0.12], [sRoot + sChord, sY + 0.4]], smooth: false }];
+  const stab = f.tTail
+    ? [{ pts: [[tipLE - ft * 0.15, finTop + 0.3], [tipLE + ft * 0.5, finTop - sSpan * 0.08], [tipLE + ft * 1.25, finTop - sSpan * 0.08 + 0.1], [tipLE + ft * 1.05, finTop + 0.45]], smooth: false }]
+    : [{ pts: [[sRoot, sY], [sRoot + sSweep, sY - sSpan * 0.1], [sRoot + sSweep + sChord * 0.4, sY - sSpan * 0.1 + 0.12], [sRoot + sChord, sY + 0.4]], smooth: false }];
 
   // Flügel (nahe Seite): Wurzel unten am Rumpf, Spitze höher (V-Stellung) und weiter hinten (Pfeilung)
   const [wr, wt, ws, wd, tipDefault] = f.wing;
   const wingTip = "wingTip" in f ? f.wingTip : tipDefault;
   const half = t.art.spanM / 2 - D / 2;
   const tanS = Math.tan(ws * Math.PI / 180), tanD = Math.tan(wd * Math.PI / 180);
-  const wRootLE = 0.43 * L - wr * 0.55, wY = bot * 0.42;
+  const wRootLE = (f.wingX || 0.43) * L - wr * 0.55, wY = f.highWing ? top * 1.02 : bot * 0.42;
   const wTipLE = wRootLE + half * tanS, wTipY = wY - half * tanD;
   const wing = [{ pts: [[wRootLE, wY], [wTipLE, wTipY], [wTipLE + wt, wTipY + 0.12], [wRootLE + wr, wY + 0.55]], smooth: false }];
   if (wingTip) {
@@ -149,13 +164,26 @@ function parametric(t) {
 
   // Triebwerke + Pylone (Pylone gehören zur Flügelzone)
   const [enl, end, spans] = f.eng;
-  const engine = [];
-  for (const sp of [...spans].reverse()) { // äußeres zuerst (liegt optisch dahinter)
-    const s = sp - D / 2;
-    const wingYAt = wY - s * tanD, leAt = wRootLE + s * tanS;
-    const ex = leAt - enl * 0.62, cy = wingYAt + end * 0.62;
+  const engine = [], props = [];
+  if (f.rear) { // Hecktriebwerke seitlich am Rumpf (DC-9/MD-80, Fokker, CRJ, 717)
+    const [rxF, ryF] = f.rear;
+    const ex = rxF * L, cy = top + D * ryF;
     engine.push({ pts: nacelle(ex, cy, enl, end), smooth: false });
-    wing.push({ pts: [[ex + enl * 0.45, cy - end * 0.42], [leAt - 0.2, wingYAt + 0.05], [leAt + wr * 0.45, wingYAt + 0.3], [ex + enl * 0.98, cy - end * 0.28]], smooth: false });
+    const py0 = ex + enl * 0.15, py1 = ex + enl * 0.8;
+    wing.push({ pts: [[py0, cy - end * 0.45], [py0 - 0.2, yTopAt(upper, py0) + D * 0.34], [py1, yTopAt(upper, py1) + D * 0.34], [py1, cy - end * 0.45]], smooth: false });
+  } else {
+    for (const sp of [...spans].reverse()) { // äußeres zuerst (liegt optisch dahinter)
+      const s = sp - D / 2;
+      const wingYAt = wY - s * tanD, leAt = wRootLE + s * tanS;
+      const ex = leAt - enl * 0.62, cy = wingYAt + end * 0.62;
+      engine.push({ pts: nacelle(ex, cy, enl, end), smooth: false });
+      wing.push({ pts: [[ex + enl * 0.45, cy - end * 0.42], [leAt - 0.2, wingYAt + 0.05], [leAt + wr * 0.45, wingYAt + 0.3], [ex + enl * 0.98, cy - end * 0.28]], smooth: false });
+      if (f.prop) props.push({ cx: ex - end * 0.1, cy: cy - end * 0.04, r: f.prop / 2 });
+    }
+  }
+  if (f.trijet) { // drittes Triebwerk im Seitenleitwerk (MD-11, DC-10, Tristar)
+    const [tnl, tnd] = f.trijet;
+    engine.push({ pts: nacelle(finLE + fr * 0.2, top - fh * 0.3, tnl, tnd), smooth: false });
   }
 
   // Deko: Fenster, Türen, Cockpit
@@ -171,7 +199,7 @@ function parametric(t) {
   const dw = t.size === "narrow" ? 0.82 : 1.05, dh = t.size === "narrow" ? 1.85 : 1.93;
   const doors = doorsX.map(x => ({ x, y: winY[0] - 0.55, w: dw, h: dh }));
   const ck = cockpit(nl, D, t.family, x => yTopAt(upper, x));
-  return { id: t.id, L, D, zones: { fin, fuselage, stab, wing, engine }, deco: { windows: rows, doors, cockpit: [ck] }, source: "parametric" };
+  return { id: t.id, L, D, zones: { fin, fuselage, stab, wing, engine }, deco: { windows: rows, doors, cockpit: [ck], props }, source: "parametric" };
 }
 
 function nacelle(x, cy, l, d) {

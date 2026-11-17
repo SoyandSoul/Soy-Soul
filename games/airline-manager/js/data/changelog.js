@@ -6,6 +6,19 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.32", date: "17.11.2026", title: "Neunzehn neue Flugzeuge",
+    intro: "Der Katalog wächst von 38 auf 57 Typen – und die Hecktriebwerker sehen endlich aus wie Hecktriebwerker.",
+    items: [
+      ["neu", "Airbus kommt dazu: A300-600R, A310-300, A318 und der A340-500 für Ultralangstrecken."],
+      ["neu", "Boeing kommt dazu: 737-600, die komplette MAX-Reihe (7, 8, 9 und 10), die verkürzte 747SP und die 777-9."],
+      ["neu", "Neue Hersteller im Markt: McDonnell Douglas mit MD-87 und der dreistrahligen MD-11, Fokker mit 70 und 100, De Havilland Canada mit der Dash 8 Q400."],
+      ["neu", "Außerdem neu: CRJ-1000, Embraer E190 und E195-E2."],
+      ["besser", "Flugzeuge mit Triebwerken am Heck – 717, CRJ, ERJ, Fokker, MD – haben die Gondeln bisher unter dem Flügel getragen. Jetzt sitzen sie hinten am Rumpf, mit T-Leitwerk darüber."],
+      ["besser", "Turboprops bekommen sichtbare Propellerkreise, die MD-11 ihr drittes Triebwerk im Seitenleitwerk."],
+      ["besser", "Alle neuen Seitenrisse sind aus echten Rissen abgepaust, nicht geschätzt: Rumpfkontur, Leitwerk und Triebwerkslage stammen aus der Vorlage."]
+    ]
+  },
+  {
     v: "v0.31", date: "17.11.2026", title: "Kleinkram und alte Spielstände",
     intro: "Eine Runde Nacharbeit nach acht Versionen in Folge.",
     items: [

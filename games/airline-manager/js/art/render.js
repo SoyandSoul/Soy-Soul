@@ -49,6 +49,10 @@ export function renderAircraft(typeOrId, livery, opts = {}) {
     body.push(`<ellipse cx="${b.x0 + h * 0.06}" cy="${(b.y0 + b.y1) / 2}" rx="${h * 0.07}" ry="${h * 0.4}" fill="#1b2230" opacity=".85" pointer-events="none"/>`);
     body.push(outline([poly]));
   });
+  for (const pr of p.deco.props || []) { // Propellerkreis: durchscheinend, damit der Flügel dahinter sichtbar bleibt
+    body.push(`<ellipse cx="${pr.cx}" cy="${pr.cy}" rx="${(pr.r * 0.1).toFixed(2)}" ry="${pr.r}" fill="#2a3a52" opacity=".18" pointer-events="none"/>`);
+    body.push(`<ellipse cx="${pr.cx}" cy="${pr.cy}" rx="${(pr.r * 0.1).toFixed(2)}" ry="${pr.r}" fill="none" stroke="#1b2230" stroke-opacity=".35" stroke-width=".8" vector-effect="non-scaling-stroke" pointer-events="none"/>`);
+  }
   if (opts.overlay) body.push(opts.overlay);
 
   const vb = opts.fit

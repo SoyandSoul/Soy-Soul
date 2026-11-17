@@ -38,7 +38,8 @@ games/airline-manager/
 │  │  ├─ events.js         Event-Bus Simulation → UI
 │  │  └─ util.js           deterministischer Zufall, Formatierung
 │  ├─ data/
-│  │  ├─ aircraft.js       38 Typen (Airbus, Boeing, Bombardier, Embraer, Beechcraft, Concorde) + Datenblatt
+│  │  ├─ aircraft.js       57 Typen (Airbus, Boeing, McDonnell Douglas, Bombardier, Embraer, Fokker,
+│  │  │                     De Havilland Canada, Beechcraft, Concorde) + Datenblatt
 │  │  ├─ airports.js       137 Flughäfen: IATA/ICAO, Koordinaten, Bahnlänge, Nachfrage-Faktoren
 │  │  └─ changelog.js      Änderungsverlauf für den Knopf im Spiel (bei jeder Version ergänzen)
 │  ├─ sim/                 Spiellogik, ohne DOM
@@ -73,7 +74,7 @@ games/airline-manager/
 │     ├─ panels/            airline.js (Übersicht, Flotte, Personal, Kosten …), ops.js (Routen, Markt, Technik …)
 │     └─ apps/             hangar, shop, routes, maint, fuel, stocks, leaderboard, logbook
 ├─ lib/                    MapLibre GL (Kopie aus history-shots)
-├─ data/profiles.json      abgepauste Blaupausen-Profile aller 38 Typen (tools/trace_profiles.py)
+├─ data/profiles.json      abgepauste Blaupausen-Profile aller 57 Typen (tools/trace_profiles.py)
 ├─ tools/
 │  ├─ trace_profiles.py      Seitenansichten automatisch abpausen → profiles.json
 │  ├─ profil-werkstatt.html  Blaupausen von Hand abpausen → profiles.json (im Browser öffnen)
@@ -198,7 +199,7 @@ Höhenleitwerk, Flügel, Triebwerke) in relativen Koordinaten – deshalb passt 
 **Woher die Formen kommen** (`js/art/geometry.js`):
 
 1. **Abgepauste Blaupausen** aus `data/profiles.json` – haben Vorrang und übernehmen die Form 1:1.
-   Seit v0.16 sind **alle 38 Typen** abgepaust (automatisch, siehe unten).
+   Seit v0.16 sind **alle Typen** abgepaust (automatisch, siehe unten); seit v0.32 sind es 57.
 2. Solange ein Typ nicht abgepaust ist: Profil aus echten Maßen pro Baureihe (Länge, Rumpfhöhe,
    Nasen- und Heckform, Leitwerkshöhe und -pfeilung, Flügel mit V-Stellung, Winglet-Art, Triebwerksgröße und -lage).
 
@@ -273,6 +274,22 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
 
 ## Änderungen
+
+**v0.32 – Neunzehn neue Flugzeuge**
+- Katalog von 38 auf 57 Typen: A300-600R, A310-300, A318, A340-500, 737-600, 737 MAX 7/8/9/10,
+  747SP, 777-9, CRJ-1000, Dash 8 Q400, E190, E195-E2, Fokker 70, Fokker 100, MD-87, MD-11.
+  Neue Hersteller: McDonnell Douglas, Fokker, De Havilland Canada. `LEGACY_TYPES` verliert die
+  Ersatzzuordnungen für `b737-max*` und `b777-9`, weil es die Typen jetzt wirklich gibt.
+- `tools/trace_profiles.py` kennt die neuen Typen, gleicht Dateinamen jetzt unabhängig von
+  Schreibweise und Trennzeichen ab (`norm()`/`NORM`) und beherrscht `highwing` (Flügelwurzel oben
+  am Rumpf) sowie `trijet` (drittes Triebwerk im Seitenleitwerk). Alle 19 Profile sind abgepaust,
+  `data/profiles.json` deckt damit wieder jeden Typ ab – der Test besteht darauf.
+- Hecktriebwerke und T-Leitwerk auch im parametrischen Rückfall (`js/art/geometry.js`):
+  `FAM.rear = [x-Anteil, Höhe in D]` und `FAM.tTail`. Betrifft 717, CRJ, ERJ, Fokker, MD80.
+  Neu außerdem `FAM.trijet`, `FAM.highWing`, `FAM.wingX` und `FAM.prop`.
+- Propellerkreise liegen in `deco.props` statt in `zones.engine`: Der Renderer zeichnet sie
+  durchscheinend, damit der Flügel dahinter sichtbar bleibt und die Lackiererei sie nicht einfärbt.
+  Die 1900D hat dadurch zum ersten Mal einen sichtbaren Propeller.
 
 **v0.31 – Kleinkram und alte Spielstände**
 - Namenskollision in der Oberfläche: Die Wellenbalken im Drehkreuz hießen `.arr` / `.dep`, und

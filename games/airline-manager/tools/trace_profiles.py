@@ -46,7 +46,7 @@ TYPES = {
     "B787-8":    dict(id="b787-8",    L=56.72, span=60.12, eng=[5.8, 3.3, [9.8]],  wing=[11.0, 2.0, 32, 6, "raked"]),
     "B787-9":    dict(id="b787-9",    L=62.81, span=60.12, eng=[5.8, 3.3, [9.8]],  wing=[11.0, 2.0, 32, 6, "raked"]),
     "B787-10":   dict(id="b787-10",   L=68.28, span=60.12, eng=[5.8, 3.3, [9.8]],  wing=[11.0, 2.0, 32, 6, "raked"]),
-    "Beechcraft-1900D": dict(id="be1900d", L=17.63, span=17.67, eng=[2.6, 0.9, [3.0]], wing=[2.2, 1.0, 2, 6, "fence"], mount="prop", tail="T", engX=0.27),
+    "Beechcraft-1900D": dict(id="be1900d", L=17.63, span=17.67, eng=[2.6, 0.9, [3.0]], wing=[2.2, 1.0, 2, 6, "fence"], mount="prop", tail="T", engX=0.27, propR=1.39),
     "Concorde":  dict(id="concorde",  L=61.66, span=25.6,  eng=[8.0, 1.6, [6.0]],  wing=[27.0, 1.0, 60, 0, None], mount="delta", tail="delta"),
     "CRJ-200":   dict(id="crj200",    L=26.77, span=21.21, eng=[3.0, 1.3, [1.9]],  wing=[3.5, 1.1, 24, 3, "sharklet"], mount="rear", tail="T"),
     "CRJ-700":   dict(id="crj700",    L=32.3,  span=23.24, eng=[3.3, 1.4, [1.9]],  wing=[3.9, 1.2, 25, 3, "sharklet"], mount="rear", tail="T"),
@@ -54,6 +54,26 @@ TYPES = {
     "E-170":     dict(id="e170",      L=29.9,  span=26.0,  eng=[3.4, 1.7, [3.8]],  wing=[4.4, 1.3, 23, 5, "sharklet"]),
     "E-175":     dict(id="e175",      L=31.68, span=28.65, eng=[3.4, 1.7, [3.8]],  wing=[4.4, 1.3, 23, 5, "sharklet"]),
     "EMB-145":   dict(id="erj145",    L=29.87, span=20.04, eng=[2.6, 1.1, [1.7]],  wing=[3.0, 1.0, 23, 3, "sharklet"], mount="rear", tail="T"),
+    # ---------- ab v0.32: Typen aus den Seitenrissen im Ordner "Flugzeug modelle"
+    "A300-600":  dict(id="a300-600",  L=54.08, span=44.84, eng=[5.2, 2.8, [8.0]],   wing=[9.6, 2.5, 28, 5, None]),
+    "A310-300":  dict(id="a310-300",  L=46.66, span=43.90, eng=[5.0, 2.8, [7.6]],   wing=[8.6, 2.2, 28, 5, "fence"]),
+    "A318":      dict(id="a318",      L=31.44, span=34.10, eng=[4.0, 2.05, [5.75]], wing=[6.1, 1.5, 27, 5, "fence"]),
+    "A340-500":  dict(id="a340-500",  L=67.93, span=63.45, eng=[5.4, 2.8, [10.2, 20.5]], wing=[10.6, 2.6, 33, 6, "fence"]),
+    "B737-600":  dict(id="b737-600",  L=31.24, span=34.32, eng=[3.9, 1.9, [4.9]],   wing=[6.5, 1.3, 25, 6, None]),
+    "B737-7MAX": dict(id="b737-max7", L=35.56, span=35.92, eng=[4.3, 2.1, [4.9]],   wing=[6.5, 1.3, 25, 6, "split"]),
+    "B737-8MAX": dict(id="b737-max8", L=39.52, span=35.92, eng=[4.3, 2.1, [4.9]],   wing=[6.5, 1.3, 25, 6, "split"]),
+    "B737-9MAX": dict(id="b737-max9", L=42.16, span=35.92, eng=[4.3, 2.1, [4.9]],   wing=[6.5, 1.3, 25, 6, "split"]),
+    "B737-10 MAX": dict(id="b737-max10", L=43.80, span=35.92, eng=[4.3, 2.1, [4.9]], wing=[6.5, 1.3, 25, 6, "split"]),
+    "B747-SP":   dict(id="b747sp",    L=56.31, span=59.64, eng=[5.0, 2.5, [11.9, 21.3]], wing=[14.0, 4.0, 37, 7, None]),
+    "B777-9":    dict(id="b777-9",    L=76.72, span=71.75, eng=[6.8, 4.1, [9.8]],   wing=[12.0, 2.3, 31, 6, "raked"]),
+    "CRJ-1000":  dict(id="crj1000",   L=39.13, span=26.18, eng=[3.5, 1.5, [1.9]],   wing=[3.9, 1.2, 25, 3, "sharklet"], mount="rear", tail="T"),
+    "DHC-8-q400": dict(id="dhc8-400", L=32.84, span=28.42, eng=[5.0, 1.5, [4.6]],   wing=[3.4, 1.3, 3, 5, None], mount="prop", tail="T", highwing=True, propR=2.06),
+    "E190":      dict(id="e190",      L=36.24, span=28.72, eng=[3.9, 2.0, [4.3]],   wing=[4.4, 1.3, 23, 5, "sharklet"]),
+    "E195-E2":   dict(id="e195-e2",   L=41.50, span=35.10, eng=[4.0, 2.1, [4.4]],   wing=[4.8, 1.3, 25, 5, "curved"]),
+    "Fokker 70": dict(id="f70",       L=30.91, span=28.08, eng=[4.3, 1.6, [2.4]],   wing=[4.6, 1.4, 17, 3, None], mount="rear", tail="T"),
+    "Fokker-100": dict(id="f100",     L=35.53, span=28.08, eng=[4.3, 1.6, [2.4]],   wing=[4.6, 1.4, 17, 3, None], mount="rear", tail="T"),
+    "MD-87":     dict(id="md87",      L=39.75, span=32.87, eng=[5.0, 1.5, [2.4]],   wing=[6.0, 1.6, 24, 3, None], mount="rear", tail="T"),
+    "MD11":      dict(id="md11",      L=61.60, span=51.66, eng=[5.6, 2.9, [10.2]],  wing=[11.0, 2.6, 35, 6, "fence"], trijet=[6.5, 2.9]),
 }
 
 def load_rgb(path):
@@ -300,7 +320,7 @@ def trace(path, spec, debug=None):
     D = Dm
     tanS, tanD = math.tan(math.radians(ws)), math.tan(math.radians(wd))
     half = span / 2 - D / 2
-    engine, wing = [], []
+    engine, wing, props = [], [], []
     bot_m = D / 2
     if mount == "wing" or mount == "prop":
         # Verankerung: größter Auswuchs = inneres Triebwerk
@@ -316,10 +336,10 @@ def trace(path, spec, debug=None):
         # Flügel so legen, dass das innere Triebwerk an der erkannten Stelle sitzt
         leAt0 = ex + enl * 0.62
         wRootLE = leAt0 - s0 * tanS
-        wY = bot_m * 0.42
+        wY = -bot_m * 0.98 if spec.get("highwing") else bot_m * 0.42
         cy0 = ebot - end * 0.475  # Gondelmitte: Unterkante − 0.95 r
         cy0 = min(cy0, bot_m + 0.55 * end)  # Gondel hängt nie völlig frei unter dem Rumpf
-        if mount == "prop": cy0 = bot_m * 0.25
+        if mount == "prop": cy0 = (wY + end * 0.45) if spec.get("highwing") else bot_m * 0.25
         wTipLE = wRootLE + half * tanS; wTipY = wY - half * tanD
         wing.append(poly([[wRootLE, wY], [wTipLE, wTipY], [wTipLE + wt, wTipY + 0.12], [wRootLE + wr, wY + 0.55]], False))
         if tip:
@@ -333,6 +353,7 @@ def trace(path, spec, debug=None):
             exi = leAt - enl * 0.62
             cyi = cy0 - (s - s0) * tanD
             if mount == "prop":
+                props.append({"cx": round(exi - end * 0.1, 3), "cy": round(cyi, 3), "r": round(spec.get("propR", end * 1.35), 3)})
                 # Turboprop: schlanke Gondel auf dem Flügel + Propellerscheibe
                 engine.append(poly([[exi, cyi - end * 0.5], [exi + enl * 0.3, cyi - end * 0.62], [exi + enl, cyi - end * 0.3], [exi + enl * 1.05, cyi + end * 0.1], [exi + enl, cyi + end * 0.45], [exi + enl * 0.3, cyi + end * 0.55], [exi, cyi + end * 0.45]]))
             else:
@@ -353,7 +374,10 @@ def trace(path, spec, debug=None):
             ex = X(x_fin_root) - enl * 1.1; cyn = -D * 0.25
         engine.append(poly(nacelle(ex, cyn, enl, end), False))
         wing.append(poly([[ex + enl * 0.4, cyn], [ex + enl * 0.4, cyn + end * 0.9], [ex + enl * 0.9, cyn + end * 0.9], [ex + enl * 0.95, cyn]], False))
-    elif mount == "delta":
+    if spec.get("trijet"):  # drittes Triebwerk im Seitenleitwerk (MD-11, DC-10)
+        tnl, tnd = spec["trijet"]
+        engine.append(poly(nacelle(X(x_fin_root) + 0.12 * L * 0.2, Y(top[tip_x]) * 0.3 - D * 0.1, tnl, tnd), False))
+    if mount == "delta":
         # Concorde: Ogivaldelta – Wurzel lang am Rumpf, Spitze hinten; Triebwerkskästen unter dem Flügel
         wRootLE = 0.33 * L; wY = bot_m * 0.3
         wing.append(poly([[wRootLE, wY], [0.62 * L, wY - 2.6], [0.9 * L, wY - 2.2], [0.92 * L, wY + 0.9], [0.6 * L, wY + 1.4]]))
@@ -421,7 +445,7 @@ def trace(path, spec, debug=None):
     cockpit = [poly([[X(x0c), yT(x0c) + D * 0.13], [X(xm), yT(xm) + D * 0.045], [X(x1c), yT(x1c) + D * 0.06], [X(x1c), yT(x1c) + D * 0.16], [X(xm), yT(xm) + D * 0.15]], False)]
 
     prof = {"L": L, "D": r3(D), "zones": {"fuselage": fuselage, "fin": fin, "stab": stab, "wing": wing, "engine": engine},
-            "deco": {"windows": windows, "doors": doors, "cockpit": cockpit}, "traced": __import__("datetime").date.today().isoformat(), "method": "auto-silhouette"}
+            "deco": {"windows": windows, "doors": doors, "cockpit": cockpit, "props": props}, "traced": __import__("datetime").date.today().isoformat(), "method": "auto-silhouette"}
     if debug:
         dbg = Image.fromarray((comp[sl] * 255).astype(np.uint8)).convert("RGB")
         from PIL import ImageDraw
@@ -433,6 +457,9 @@ def trace(path, spec, debug=None):
         dbg.save(os.path.join(debug, spec["id"] + ".png"))
     return prof
 
+norm = lambda s: "".join(ch for ch in s.lower() if ch.isalnum())
+NORM = {norm(k): v for k, v in TYPES.items()}
+
 def main():
     src, out = sys.argv[1], sys.argv[2]
     debug = sys.argv[4] if len(sys.argv) > 4 and sys.argv[3] == "--debug" else None
@@ -440,7 +467,7 @@ def main():
     profiles = {}
     for f in sorted(os.listdir(src)):
         key = os.path.splitext(f)[0]
-        spec = TYPES.get(key)
+        spec = TYPES.get(key) or NORM.get(norm(key))
         if not spec: print("übersprungen:", f); continue
         try:
             profiles[spec["id"]] = trace(os.path.join(src, f), spec, debug)
