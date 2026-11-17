@@ -28,6 +28,9 @@ import { creditLimit, interestRate, quote, annuity, totalDebt, openLoans, monthl
 import { nightPolygon } from "../js/sim/geo.js";
 import { layout, groundPosition, gateIndex } from "../js/sim/ground.js";
 import { runwaysFor, RUNWAYS } from "../js/data/runways.js";
+import { easter, eventsAt, upcoming, demandFactor } from "../js/sim/calendar.js";
+import { eventsOfWeek, activeEvents, closureAt, effectsAt, diversion, departureNotBefore } from "../js/sim/events.js";
+import { describe as describeAirport, bestRoutes } from "../js/sim/airportInfo.js";
 import { AIRPORT_BY_IATA } from "../js/data/airports.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
@@ -736,6 +739,86 @@ test("Bodenbetrieb: Bahnlage, Gates und Rollbewegung", () => {
   assert.ok(at(-5).lon !== at(-2).lon, "die Position bewegt sich");
   // Dieselbe Sekunde zweimal gefragt: identisch
   assert.deepEqual(at(-3), at(-3));
+});
+
+
+test("Kalender: Ostern, Feiertage und ihre Wirkung", () => {
+  assert.equal(new Date(easter(2026)).toISOString().slice(0, 10), "2026-04-05");
+  assert.equal(new Date(easter(2027)).toISOString().slice(0, 10), "2027-03-28");
+  assert.equal(new Date(easter(2024)).toISOString().slice(0, 10), "2024-03-31");
+
+  const xmas = Date.UTC(2026, 11, 24, 12);
+  const labels = eventsAt(xmas).map(e => e.label);
+  assert.ok(labels.includes("Weihnachten"), labels.join(","));
+  const f = demandFactor(xmas, "DE", "ES");
+  assert.ok(f.leisure > 1.2, `Urlaub zu Weihnachten: ${f.leisure}`);
+  assert.ok(f.biz < 0.8, `Geschäftsreise zu Weihnachten: ${f.biz}`);
+
+  // Ein Termin, der nur die USA betrifft, lässt eine Strecke in Europa unberührt
+  const tg = Date.UTC(2026, 10, 26, 12);
+  assert.ok(eventsAt(tg).some(e => e.id === "thanksgiving"));
+  assert.equal(demandFactor(tg, "DE", "FR").leisure, 1);
+  assert.ok(demandFactor(tg, "DE", "US").leisure > 1);
+
+  // Und im Hochsommer ist überall Ferienzeit
+  assert.ok(demandFactor(Date.UTC(2026, 7, 5, 12), "DE", "ES").leisure > 1.1);
+  assert.ok(upcoming(Date.UTC(2026, 0, 2), 400).length >= 8);
+});
+
+test("Ereignisse: deterministisch, Sperrungen verschieben Abflüge", () => {
+  const w = Date.UTC(2026, 5, 1);
+  assert.deepEqual(eventsOfWeek(w).map(e => e.id), eventsOfWeek(w).map(e => e.id), "zweimal fragen, gleiche Antwort");
+  assert.notDeepEqual(eventsOfWeek(w).map(e => e.id), eventsOfWeek(w + 7 * DAY).map(e => e.id), "andere Woche, andere Lage");
+
+  // Über ein Jahr muss ungefähr wöchentlich etwas passieren – nicht nie und nicht dauernd
+  let n = 0;
+  for (let i = 0; i < 52; i++) n += eventsOfWeek(w + i * 7 * DAY).length;
+  assert.ok(n > 25 && n < 110, `Ereignisse im Jahr: ${n}`);
+
+  // Eine Sperrung schiebt den Abflug ans Ende der Sperrung
+  const closure = (() => {
+    for (let i = 0; i < 60; i++) {
+      const hit = eventsOfWeek(w + i * 7 * DAY).find(e => e.closes);
+      if (hit) return hit;
+    }
+    return null;
+  })();
+  assert.ok(closure, "irgendwann muss eine Sperrung vorkommen");
+  const mid = closure.from + (closure.to - closure.from) / 2;
+  assert.ok(closureAt(closure.at, mid), "mittendrin ist der Flughafen dicht");
+  assert.equal(departureNotBefore(closure.at, mid), closure.to, "der Abflug wartet bis zum Ende");
+  assert.equal(departureNotBefore(closure.at, closure.to + 1), closure.to + 1, "danach nicht mehr");
+  assert.equal(closureAt(closure.at, closure.from - DAY), null, "vorher auch nicht");
+});
+
+test("Ausweichlandung: selten, teuer, deterministisch", () => {
+  const ac = { id: "t-ac-0" };
+  let hits = 0;
+  const base = Date.UTC(2026, 3, 1);
+  for (let i = 0; i < 2000; i++) {
+    const d = diversion(ac, "LHR", base + i * 3600_000, 1.6);
+    if (d) {
+      hits++;
+      assert.ok(d.to !== "LHR" && d.delayMin >= 90 && d.cost > 0 && d.rep < 0);
+      assert.deepEqual(d, diversion(ac, "LHR", base + i * 3600_000, 1.6), "zweimal fragen, gleiche Antwort");
+    }
+  }
+  assert.ok(hits > 5 && hits < 60, `Ausweichlandungen in 2000 Flügen: ${hits}`);
+});
+
+test("Flughafen-Steckbrief beschreibt, was da ist", () => {
+  const { s, route, start } = setup(1);
+  act.assign(s, s.fleet[0].id, route.id, start);
+  settle(s, start + 3 * DAY);
+  const d = describeAirport(s, "FRA", start + 3 * DAY);
+  assert.ok(d.lines.length >= 2);
+  assert.ok(d.lines[0].includes("Frankfurt"));
+  assert.ok(d.lines[1].includes("4000 m"), d.lines[1]);
+  assert.ok(d.wx >= 0 && d.wx <= 1);
+  assert.ok(d.routes.length === 3 && d.routes.every(r => r.km > 250 && r.market > 0));
+  // Mit eigenen Flügen kommt eine dritte Zeile dazu
+  const pmi = describeAirport(s, "PMI", start + 3 * DAY);
+  assert.ok(pmi.own ? pmi.lines.length === 3 : pmi.lines.length === 2);
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

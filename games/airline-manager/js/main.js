@@ -1,5 +1,6 @@
 // Einstieg: verbindet Spielstand, Simulation, Karte und Fenster-Apps.
 import { clock } from "./core/clock.js";
+import { BOOST } from "./core/config.js";
 import { bus } from "./core/events.js";
 import { load, save, wipe, newGame } from "./core/store.js";
 import { STOCKS } from "./core/config.js";
@@ -34,9 +35,10 @@ import report from "./ui/apps/report.js";
 import marketing from "./ui/apps/marketing.js";
 import hub from "./ui/apps/hub.js";
 import bank from "./ui/apps/bank.js";
+import world from "./ui/apps/world.js";
 
 // Die großen Werkzeuge bleiben Fenster; erreichbar über das Betriebs-Panel rechts (ui/panels/ops.js).
-const APPS = [hangar, shop, routes, maint, fuel, stocks, board, logbook, changelog, report, marketing, hub, bank];
+const APPS = [hangar, shop, routes, maint, fuel, stocks, board, logbook, changelog, report, marketing, hub, bank, world];
 
 // ---------- Kontext, den alle UI-Teile bekommen
 const ctx = {
@@ -90,12 +92,23 @@ function commit() {
 // ---------- Live-Schleifen
 function tick() {
   if (!ctx.state) return;
+  // Schnellstart: Die ersten Flüge laufen im Zeitraffer, damit am Anfang nicht eine Stunde
+  // lang nichts passiert. Der Vorlauf wandert in den Spielstand, sonst spränge die Uhr zurück.
+  if (ctx.state.stats.legs < BOOST.legs) {
+    ctx.state.boost = clock.advanceBoost(BOOST.factor);
+  } else if (boostWasOn) {
+    boostWasOn = false;
+    toast("Schnellstart beendet – ab jetzt läuft die Uhr in Echtzeit weiter.", "info", 6000);
+    commit();
+  }
   ctx.map.updatePlanes();
   tickHud(document.getElementById("hud"), ctx);
   tickAll();
   tickPanels();
   tickFlightCard(document.getElementById("flightcard"), ctx, ctx.map.selected);
 }
+
+let boostWasOn = false;
 
 function step() {
   const r = settle(ctx.state, ctx.now());
@@ -156,8 +169,15 @@ async function boot() {
   for (const app of APPS) register(app);
   ctx.map = createMap(document.getElementById("map"), ctx);
   ctx.state = load();
-  if (ctx.state) return start();
+  if (ctx.state) {
+    // Gesicherten Vorlauf des Schnellstarts wiederherstellen, bevor irgendetwas nachgerechnet wird
+    clock.setBoost(ctx.state.boost || 0);
+    boostWasOn = ctx.state.stats.legs < BOOST.legs;
+    return start();
+  }
   showOnboarding(ctx, ({ name, iata, hub }) => {
+    clock.setBoost(0);
+    boostWasOn = true;
     ctx.state = newGame({ name, iata, hub, player: newPlayer(), now: ctx.now() });
     save(ctx.state);
     start();

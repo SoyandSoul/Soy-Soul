@@ -4,11 +4,12 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.25**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.26**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
 > Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22, Paket 5 (Hub und
-> Ausstattung) als v0.23, Paket 6 (Finanzen) als v0.24, Paket 7 (Karte und Bodenbetrieb) als v0.25.
+> Ausstattung) als v0.23, Paket 6 (Finanzen) als v0.24, Paket 7 (Karte und Bodenbetrieb) als v0.25,
+> Paket 8 (Welt und Ereignisse) als v0.26.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
 > Flottenvereinheitlichung sind als v0.19 fertig. Offen daraus: Umsteiger am Drehkreuz, IROPS,
 > wartende Entscheidungen, Benachrichtigungen, geführter Einstieg – siehe unten.
@@ -160,17 +161,19 @@ auf Spitzbergen, Bahnlage und Rollphasen über die Zeit), dazu Browsercheck auf 
 
 ---
 
-## Paket 8 – Welt und Ereignisse → v0.26
+## Paket 8 – Welt und Ereignisse → v0.26 ✅
 
-Punkte 19, 20, 23, 26
+Punkte 19, 20, 23, 26 · erledigt
 
-- Kalender in Echtzeit: Feiertage, besondere Ereignisse
-- Ereignisse im Spielverlauf: fiktive Krisen sperren Routen, Unwetter stören den Betrieb
-- Diversions: technische Probleme oder Zwischenfälle mit Passagieren
-- Beschreibung je Flughafen: was gut läuft, welche Strecken sich lohnen, wie pünktlich er ist
-- Erste 10 Legs mit vierfachem Tempo, danach normal
+- ✅ Kalender mit elf Terminen von Weihnachten bis Zuckerfest, Urlaub und Geschäft gegenläufig
+- ✅ Ereignisse: Streik, Luftraumsperrung, Unwetterlage, Konjunkturdelle, Großveranstaltung
+- ✅ Ausweichlandungen mit Zusatzkosten, Verspätung und Rufverlust
+- ✅ Steckbrief je Flughafen mit eigenen Zahlen und Streckenvorschlägen
+- ✅ Erste zehn Flüge im vierfachen Tempo
 
-**Test:** Zeit vorspulen, Ereignisse müssen für alle Spieler gleich eintreten (deterministisch).
+**Test:** erledigt – vier Tests in `sim.test.mjs`: Osterdaten gegen bekannte Jahre, Feiertagswirkung
+nach Ländern, Ereignisse deterministisch und in plausibler Häufigkeit (rund 50 im Jahr), Sperrungen
+verschieben Abflüge, Ausweichlandungen selten und reproduzierbar.
 
 ---
 

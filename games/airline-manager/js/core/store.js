@@ -47,6 +47,7 @@ export function newGame({ name, iata, hub, player, now = Date.now() }) {
     adlivery: { taken: [], declined: [] },    // Sonderlackierungen, siehe sim/adlivery.js
     hub: { [hub]: { gates: 1, lounge: 0, hangar: 0 } },   // Ausbau je Drehkreuz, siehe sim/hub.js
     credit: { loans: [] },                    // Kredite, siehe sim/credit.js
+    boost: 0,                                 // Vorlauf aus dem Schnellstart (sim/engine.js)
     ordered: 0,                               // Zähler für Sofort-Lieferungen
     staff: { cockpit: 0, cabin: 0, ground: 0, admin: 0 },  // wird gleich auf den Startbedarf gesetzt
     // Dauerhafte Statistik über die ganze Laufzeit (state.flights ist gedeckelt, taugt dafür nicht)
@@ -108,6 +109,7 @@ export function migrate(s) {
   for (const h of s.airline.hubs) s.hub[h] ??= { gates: 1, lounge: 0, hangar: 0 };
   for (const ac of s.fleet) ac.fit ??= { seats: "standard", ife: "none" };
   s.credit ??= { loans: [] };               // v0.24: Kredite
+  s.boost ??= 0;                            // v0.26: Schnellstart
   for (const ac of s.fleet) { ac.charter ??= null; ac.adLivery ??= null; }
   return s;
 }

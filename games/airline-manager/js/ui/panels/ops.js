@@ -6,6 +6,9 @@ import { fmt } from "../../core/util.js";
 import { FUEL, HUB } from "../../core/config.js";
 import { fuelPrice } from "../../sim/fuel.js";
 import { AREAS, levelOf, upkeepPerDay, hangarEffect } from "../../sim/hub.js";
+import { activeEvents } from "../../sim/events.js";
+import { eventsAt } from "../../sim/calendar.js";
+import { AIRPORT_BY_IATA } from "../../data/airports.js";
 import { checkStatus, mostUrgent } from "../../sim/maintenance.js";
 import { typeOf, routeDistance } from "../../sim/flight.js";
 import { flightsPerDay } from "../../sim/engine.js";
@@ -109,6 +112,30 @@ const hubSec = {
   click: ctx => ({ open: el => ctx.openApp(el.dataset.id) })
 };
 
+// ---------------------------------------------------------------- Welt
+const worldSec = {
+  id: "world", title: "Welt", icon: "calendar",
+  badge(ctx) {
+    const s = ctx.state, now = ctx.now();
+    const mine = new Set([...s.airline.hubs, ...s.routes.flatMap(r => [r.from, r.to])]);
+    const n = activeEvents(now).filter(e => e.scope === "country"
+      ? [...mine].some(i => AIRPORT_BY_IATA[i]?.country === e.country) : mine.has(e.at)).length;
+    return n ? { n, kind: "warn" } : null;
+  },
+  render(ctx) {
+    const now = ctx.now();
+    const cal = eventsAt(now), live = activeEvents(now);
+    return html`${cal.length ? html`<div class="small"><b>${cal.map(e => e.label).join(", ")}</b>
+        <div class="muted">Urlaubsnachfrage ${cal.map(e => `${e.leisure >= 1 ? "+" : ""}${Math.round((e.leisure - 1) * 100)} %`).join(" / ")}</div></div>`
+      : html`<div class="small muted">Kein besonderer Termin.</div>`}
+      <div class="small" style="margin-top:8px">${live.length
+        ? live.slice(0, 3).map(e => html`<div class="muted">${e.label} · ${e.at}${e.closes ? " (gesperrt)" : ""}</div>`)
+        : html`<span class="muted">Weltweit ruhiger Betrieb.</span>`}</div>
+      <div class="row" style="margin-top:10px">${openBtn("world", "Welt öffnen")}</div>`;
+  },
+  click: ctx => ({ open: el => ctx.openApp(el.dataset.id) })
+};
+
 // ---------------------------------------------------------------- Börse & Rangliste
 const market2 = {
   id: "stocks", title: "Börse & Rangliste", icon: "stocks",
@@ -137,4 +164,4 @@ const logbook = {
   click: ctx => ({ open: el => ctx.openApp(el.dataset.id) })
 };
 
-export const OPS_SECTIONS = [routes, market, maint, hubSec, fuel, market2, logbook];
+export const OPS_SECTIONS = [routes, market, maint, hubSec, fuel, worldSec, market2, logbook];

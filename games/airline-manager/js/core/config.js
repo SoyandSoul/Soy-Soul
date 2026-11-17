@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.25",
+  label: "v0.26",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -145,6 +145,35 @@ export const CATERING = {
 };
 
 export const BAGS = { defaultFee: 25, maxFee: 120, takeRate: 0.55, decay: 60, repPerUsd: 0.15, repCap: 15 };
+
+// Kalender: wie stark Feiertage und Ferien auf die Nachfrage schlagen.
+// 1 = voller Effekt wie in sim/calendar.js hinterlegt, darunter gedämpft.
+export const CALENDAR = { weight: 0.7 };
+
+// Ereignisse in der Welt. Alles erfunden – keine realen Vorfälle, keine realen Namen.
+// chance = Wahrscheinlichkeit, dass diese Art in einer Woche irgendwo auftritt.
+export const EVENTS = {
+  kinds: [
+    { id: "strike", label: "Streik", chance: 0.22, hours: [8, 26], closes: true, scope: "airport",
+      text: "Arbeitsniederlegung der Bodendienste in {ort} – der Flughafen {iata} ist vorerst dicht." },
+    { id: "atc", label: "Luftraumsperrung", chance: 0.14, hours: [4, 14], closes: true, scope: "country",
+      text: "Ausfall der Flugsicherung über {ort} – der Luftraum des Landes ist gesperrt." },
+    { id: "storm", label: "Unwetterlage", chance: 0.35, hours: [6, 20], closes: false, scope: "airport",
+      costFactor: 1.25, demand: 0.9,
+      text: "Schwere Unwetter über {ort}: Enteisung, Umläufe, Verspätungen – der Betrieb wird teuer." },
+    { id: "slump", label: "Nachfrageeinbruch", chance: 0.18, hours: [72, 240], closes: false, scope: "country",
+      demand: 0.78,
+      text: "Konjunkturdelle rund um {ort} – spürbar weniger Buchungen im ganzen Land." },
+    { id: "boom", label: "Großveranstaltung", chance: 0.2, hours: [48, 170], closes: false, scope: "airport",
+      demand: 1.3,
+      text: "Großveranstaltung in {ort}: Hotels ausgebucht, Flüge gefragt." }
+  ],
+  // Ausweichlandung: selten, aber teuer und schlecht für den Ruf
+  divert: { chance: 0.012, delayMin: [90, 220], baseCost: 42_000, rep: -3 }
+};
+
+// Schnellstart: Die ersten Flüge laufen im Zeitraffer, damit nicht eine Stunde nichts passiert.
+export const BOOST = { legs: 10, factor: 4 };
 
 // Bodenbetrieb auf der Karte: rein optisch, ohne Einfluss auf die Abrechnung.
 export const GROUND = {

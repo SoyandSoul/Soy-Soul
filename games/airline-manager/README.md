@@ -272,6 +272,26 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.26 – Welt, Kalender und Ereignisse** (Paket 8)
+- `sim/calendar.js`: Feiertage und Ferien als reine Funktion des Datums, inklusive Osterformel
+  und Näherungen für Neujahrsfest und Zuckerfest. Jeder Termin liefert getrennte Faktoren für
+  Geschäftsreise und Urlaub; `demandFactor` dämpft Überlagerungen mit `CALENDAR.weight`.
+  Der alte `DEMAND.xmasBoost` in der Saisonkurve ist entfallen, sonst hätte Weihnachten doppelt gezählt.
+- `sim/events.js`: Ereignisse werden wochenweise aus dem Datum gewürfelt (`rand01` auf den
+  Wochenschlüssel), nicht gespeichert. Fünf Arten mit eigener Wahrscheinlichkeit; über ein Jahr
+  kommen rund 50 Ereignisse zusammen. `closureAt` / `departureNotBefore` schieben Abflüge,
+  `effectsAt` wirkt auf Kosten und Nachfrage, `diversion` liefert Ausweichlandungen.
+- Ausweichlandungen sind bewusst vereinfacht: Der Flug endet am geplanten Ziel, kostet aber extra,
+  verspätet sich deutlich und nennt den Ausweichflughafen. Ein echter Streckenwechsel würde das
+  Pendel-Fahrplanmodell sprengen.
+- `sim/airportInfo.js`: Steckbrief aus vorhandenen Daten – Größe, Profil, Bahn, Gebühren,
+  Wetterneigung (über ein Jahr abgetastet) und die eigenen Zahlen der letzten zwei Wochen.
+  Streckenvorschläge sind auf die Reichweite der eigenen Flotte gefiltert.
+- Schnellstart: `clock.advanceBoost(factor)` summiert zusätzliche Spielzeit, solange weniger als
+  `BOOST.legs` Flüge abgerechnet sind. Der Vorlauf liegt in `state.boost` – ohne ihn spränge die
+  Uhr beim nächsten Laden zurück und der Nachrechner bliebe stehen.
+- Neues Fenster **Welt** (`ui/apps/world.js`) und eine Sektion im Betriebs-Panel.
+
 **v0.25 – Kartenstile und Bodenbetrieb** (Paket 7)
 - `ui/map.js`: `MAP_STYLES` mit vier Stilen. Schema und Satellit sind eigene Style-Objekte im Code
   (Satellit: NASA GIBS Blue Marble, gemeinfrei, ohne Schlüssel, maxzoom 8). Auswahl und

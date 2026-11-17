@@ -12,7 +12,7 @@
 import { GAME, H, DAY, USED, CHECKS, LEASE, CHARTER, CREDIT } from "../core/config.js";
 import { rand01 } from "../core/util.js";
 import { bus } from "../core/events.js";
-import { typeOf, routeDistance, blockHours, turnaroundH } from "./flight.js";
+import { typeOf, routeDistance, blockHours, turnaroundH, legEnds } from "./flight.js";
 import { computeLeg, fixedPerHour } from "./economy.js";
 import { book, prune } from "./ledger.js";
 import { updateRep } from "./reputation.js";
@@ -25,6 +25,7 @@ import { newlyReached, applyReward } from "./goals.js";
 import { turnaroundHours, handlerDelay } from "./handling.js";
 import { upkeepPerDay } from "./hub.js";
 import { dueLoans } from "./credit.js";
+import { diversion, departureNotBefore, closureAt } from "./events.js";
 
 const MAX_STEPS = 200_000;
 
@@ -221,6 +222,18 @@ function process(state, ac, ts, report, quiet, staffEff) {
   if (ac.ops.delay) { leg.delay = ac.ops.delay.min; leg.delayReason = ac.ops.delay.reason; report.delays = (report.delays || 0) + 1; }
   for (const [c, v] of Object.entries(leg.rev)) book(state, leg.arr, "rev", c, v);
   for (const [c, v] of Object.entries(leg.cost)) book(state, leg.arr, "cost", c, v);
+  // Ausweichlandung: kommt selten vor, kostet aber Geld, Zeit und Ruf.
+  const div = diversion(ac, leg.to, dep, leg.blockH);
+  if (div) {
+    leg.divert = div;
+    leg.cost.handling += div.cost;
+    leg.profit -= div.cost;
+    book(state, leg.arr, "cost", "handling", div.cost);
+    state.airline.rep = Math.max(0, state.airline.rep + div.rep);
+    report.diversions = (report.diversions || 0) + 1;
+    log(state, leg.arr, "warn", `${ac.reg} auf ${leg.from}–${leg.to}: ${div.text}. Zusatzkosten ${Math.round(div.cost / 1e3)} k$, ${div.delayMin} min Verspätung.`);
+    if (!quiet) bus.emit("diversion", { aircraft: ac, leg, diversion: div });
+  }
   const risk = legRisk(ac, dep, leg.blockH);
   addFlightHours(ac, leg.blockH - 0.3);
   updateRep(state, leg.arr, leg);
@@ -266,6 +279,7 @@ function process(state, ac, ts, report, quiet, staffEff) {
   ac.ops.dir = 1 - ac.ops.dir;
 
   const sources = [];
+  if (div) sources.push({ min: div.delayMin, reason: `der Ausweichlandung in ${div.city}` });
   if (faultDelay) sources.push({ min: Math.round(faultDelay / 60_000), reason: "technischem Defekt" });
   const hd = handlerDelay(state, ac, leg.arr, leg.to);
   if (hd) sources.push(hd);
@@ -275,6 +289,16 @@ function process(state, ac, ts, report, quiet, staffEff) {
 
   const totalMin = sources.reduce((a, d) => a + d.min, 0);
   ac.ops.dep = leg.arr + turn + totalMin * 60_000;
+  // Gesperrter Flughafen: der Flug fällt nicht aus, er geht später.
+  const [nextFrom] = legEnds(route, ac.ops.dir);
+  const freed = departureNotBefore(nextFrom.iata, ac.ops.dep);
+  if (freed > ac.ops.dep) {
+    const extra = Math.round((freed - ac.ops.dep) / 60_000);
+    const c = closureAt(nextFrom.iata, ac.ops.dep);
+    ac.ops.dep = freed;
+    ac.ops.delay = { min: totalMin + extra, reason: c ? c.label.toLowerCase() + ` in ${c.city}` : "einer Sperrung", at: nextFrom.iata };
+    log(state, leg.arr, "warn", `${ac.reg} wartet in ${nextFrom.iata}: ${c?.label || "Sperrung"} bis ${new Date(freed).toLocaleString("de-DE")}.`);
+  }
   const worst = sources.sort((a, b) => b.min - a.min)[0];
   ac.ops.delay = worst ? { min: totalMin, reason: worst.reason, at: leg.to } : null;
   if (totalMin >= 45) log(state, leg.arr, "warn", `${ac.reg} in ${leg.to}: ${totalMin} min Verspätung wegen ${worst.reason}.`);

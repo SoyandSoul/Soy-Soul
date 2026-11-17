@@ -6,6 +6,19 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.26", date: "17.11.2026", title: "Welt, Kalender und Ereignisse",
+    intro: "Die Welt war bisher gleichmäßig: jeder Tag wie der andere, nur das Wetter wechselte. Jetzt hat sie Termine und Launen.",
+    items: [
+      ["neu", "Kalender mit Feiertagen und Ferien: Weihnachten, Ostern, Pfingsten, Sommer- und Herbstferien, Thanksgiving, Independence Day, Oktoberfest, Karneval in Rio, Neujahrsfest in Ostasien, Zuckerfest. Jeder Termin verschiebt Urlaubs- und Geschäftsnachfrage gegenläufig – zu Weihnachten plus 50 Prozent Urlaub und minus 50 Prozent Geschäft."],
+      ["neu", "Ereignisse in der Welt: Streiks und Luftraumsperrungen legen Flughäfen vorübergehend still, Unwetterlagen verteuern den Betrieb, Konjunkturdellen drücken die Nachfrage, Großveranstaltungen heben sie. Alles erfunden, alles aus dem Datum gerechnet – jeder Spieler bekommt dieselben Ereignisse."],
+      ["neu", "Gesperrte Flughäfen lassen Flüge nicht ausfallen, sondern warten: Der Abflug rückt ans Ende der Sperrung, und die Abflugliste nennt den Grund."],
+      ["neu", "Ausweichlandungen: selten, aber teuer. Technischer Defekt, Wetter unter Minimum oder ein medizinischer Notfall an Bord – mit Zusatzkosten, Verspätung und Rufverlust."],
+      ["neu", "Neues Fenster Welt mit drei Reitern: was gerade läuft, der Kalender der nächsten Monate und ein Steckbrief zu jedem Flughafen samt Streckenvorschlägen im Rahmen der eigenen Reichweite."],
+      ["neu", "Schnellstart: Die ersten zehn Flüge laufen im vierfachen Tempo, danach läuft die Uhr wieder in Echtzeit. Der Vorlauf wird im Spielstand gesichert, damit die Uhr beim nächsten Laden nicht zurückspringt."],
+      ["balance", "Der Weihnachtsaufschlag steckte bisher in der Saisonkurve und steckt jetzt im Kalender – sonst hätte er doppelt gezählt."]
+    ]
+  },
+  {
     v: "v0.25", date: "17.11.2026", title: "Kartenstile und Bodenbetrieb",
     intro: "Die Karte konnte bisher genau eine Sache: dunkel sein. Jetzt kann sie vier – und beim Hineinzoomen rollen die Flugzeuge wirklich.",
     items: [

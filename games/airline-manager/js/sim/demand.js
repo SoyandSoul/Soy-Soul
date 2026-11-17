@@ -10,6 +10,8 @@ import { clamp, rand01 } from "../core/util.js";
 import { routeDistance, blockHours, typeOf } from "./flight.js";
 import { distanceKm } from "./geo.js";
 import { awarenessFactor } from "./marketing.js";
+import { demandFactor } from "./calendar.js";
+import { effectsAt } from "./events.js";
 
 const TAU = Math.PI * 2;
 
@@ -22,9 +24,9 @@ function dayOfYear(ts) {
 export function seasonFactor(ts, lat) {
   const doy = dayOfYear(ts);
   const peak = lat >= 0 ? 196 : 15;                 // Mitte Juli bzw. Mitte Januar
-  let s = 1 + DEMAND.seasonAmp * Math.cos(TAU * (doy - peak) / 365);
-  if (doy > 352 || doy < 6) s += DEMAND.xmasBoost;  // Weihnachten/Neujahr
-  return s;
+  // Weihnachten und Neujahr stecken seit v0.26 im Kalender (sim/calendar.js), nicht mehr hier –
+  // sonst würde der Effekt doppelt zählen.
+  return 1 + DEMAND.seasonAmp * Math.cos(TAU * (doy - peak) / 365);
 }
 
 /** Distanzfaktor: Kurzstrecke konkurriert mit Bahn/Auto, Ultra-Langstrecke ist dünner. */
@@ -37,9 +39,13 @@ export function dailyMarket(fromIata, toIata, ts, km) {
   const a = AIRPORT_BY_IATA[fromIata], b = AIRPORT_BY_IATA[toIata];
   const bizAvg = (a.biz + b.biz) / 2;
   const wd = DEMAND.weekday[new Date(ts).getUTCDay()];
-  const business = Math.sqrt(a.pop * b.pop) * (0.3 + bizAvg) * wd;
-  const leisure = DEMAND.tourismWeight * Math.sqrt(a.pop * b.tour * seasonFactor(ts, a.lat) + b.pop * a.tour * seasonFactor(ts, b.lat));
-  return { total: DEMAND.k * distanceFactor(km) * (business + leisure), bizAvg, business, leisure };
+  // Feiertage und Ferien treffen Geschäftsreise und Urlaub gegenläufig
+  const cal = demandFactor(ts, a.country, b.country);
+  // Ereignisse: Streik, Konjunkturdelle, Großveranstaltung – an beiden Enden der Strecke
+  const ev = effectsAt(fromIata, ts).demand * effectsAt(toIata, ts).demand;
+  const business = Math.sqrt(a.pop * b.pop) * (0.3 + bizAvg) * wd * cal.biz;
+  const leisure = DEMAND.tourismWeight * Math.sqrt(a.pop * b.tour * seasonFactor(ts, a.lat) + b.pop * a.tour * seasonFactor(ts, b.lat)) * cal.leisure;
+  return { total: DEMAND.k * distanceFactor(km) * (business + leisure) * ev, bizAvg, business, leisure, cal, ev };
 }
 
 /** Aufteilung auf Klassen. First lohnt sich nur auf Langstrecke. */
