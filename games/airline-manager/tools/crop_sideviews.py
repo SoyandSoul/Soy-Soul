@@ -76,16 +76,23 @@ def crop(path, ratio, win_f=WINDOW):
     # den echten Maßen kommt (Höhe/Länge mal gezeichnete Länge). Was von der unteren Ansicht in
     # das Fenster ragt, hängt nicht mit ihr zusammen und fällt als kleinere Form heraus.
     xs_all = np.where(m.any(axis=0))[0]
+    ys_all = np.where(m.any(axis=1))[0]
     len_px = int(xs_all[-1] - xs_all[0] + 1)
-    top = int(np.where(m.any(axis=1))[0][0])
-    win = np.zeros_like(m)
-    end = min(m.shape[0], top + int(round(len_px * ratio * win_f)))
-    win[top:end] = m[top:end]
-    lab, n = ndi.label(win)
-    shape = win
-    if n > 1:
-        sizes = ndi.sum(win, lab, range(1, n + 1))
-        shape = lab == (int(np.argmax(sizes)) + 1)
+    high_px = int(ys_all[-1] - ys_all[0] + 1)
+    top = int(ys_all[0])
+
+    if high_px < len_px * ratio * 1.45:
+        # Nur ein Flugzeug im Bild (schon freigestellte Vorlage) – nichts abzutrennen.
+        shape = m
+    else:
+        win = np.zeros_like(m)
+        end = min(m.shape[0], top + int(round(len_px * ratio * win_f)))
+        win[top:end] = m[top:end]
+        lab, n = ndi.label(win)
+        shape = win
+        if n > 1:
+            sizes = ndi.sum(win, lab, range(1, n + 1))
+            shape = lab == (int(np.argmax(sizes)) + 1)
     # Manche Vorlagen setzen die Ansichten so dicht, dass sich die Winglets berühren. Dann hängt
     # ein Stück der unteren Ansicht als Geisterflügel am Leitwerk. Kurz schrumpfen trennt die
     # dünne Stelle; bleibt dabei fast alles erhalten, war es wirklich nur der Geisterflügel.

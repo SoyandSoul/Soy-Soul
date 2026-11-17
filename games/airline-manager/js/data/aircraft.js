@@ -153,7 +153,17 @@ function sizeClass(seats, spanM, extra) {
   return "narrow";
 }
 
-export const AIRCRAFT = RAW.map(r => {
+/**
+ * Typen, die auf einen Seitenriss warten (siehe img/aircraft). Sie bleiben vollständig hier stehen,
+ * sind im Spiel aber nicht vorhanden – weder im Markt noch gebraucht. Sobald ein Bild da ist:
+ * ID hier herausnehmen, Dateinamen in tools/crop_sideviews.py → NAMES eintragen, Skript laufen lassen.
+ * Bestehende Spielstände sind abgesichert, siehe LEGACY_TYPES weiter unten.
+ */
+export const PENDING_ART = new Set([
+  "a220-100", "a220-300", "b737-900er", "crj200", "crj700", "crj900", "e170", "e175", "erj145", "concorde"
+]);
+
+export const AIRCRAFT = RAW.filter(r => !PENDING_ART.has(r[0])).map(r => {
   const [id, maker, family, name, seats, seatsMax, rangeKm, cruiseKmh, runwayM, fuelKgH, payloadKg, mtowT, priceM, maintFH, lengthM, spanM, engines, inProd, extra = {}, info = {}] = r;
   const size = sizeClass(seats, spanM, extra);
   return {
@@ -175,7 +185,11 @@ export const CONTRACT_MAKERS = [A, B];
 /** Typen früherer Versionen, die es nicht mehr gibt → nächster Verwandter (core/store.js → migrate). */
 export const LEGACY_TYPES = {
   "a319neo": "a319", "a321xlr": "a321neo",
-  "b737-700": "b737-800"
+  "b737-700": "b737-800",
+  // v0.34: Typen aus PENDING_ART – wer sie im Hangar stehen hatte, fliegt den nächsten Verwandten weiter.
+  "a220-100": "a318", "a220-300": "a319", "b737-900er": "b737-max9",
+  "crj200": "dhc8-400", "crj700": "dhc8-400", "crj900": "dhc8-400",
+  "e170": "f70", "e175": "f70", "erj145": "dhc8-400", "concorde": "f100"
 };
 
 /** Verweise auf die offiziellen Quellen – für Datenprüfung und Zeichnungs-Pipeline (tools/). */

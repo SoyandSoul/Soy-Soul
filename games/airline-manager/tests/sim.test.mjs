@@ -300,7 +300,7 @@ test("Flottenvereinheitlichung: Bonus und Malus", () => {
     return commonality(s);
   };
   const pure = mk(["a320neo", "a320neo", "a320neo", "a320neo"]);
-  const mixed = mk(["a320neo", "a220-300", "e175", "b787-9", "a350-900", "b777-300er"]);
+  const mixed = mk(["a320neo", "e195-e2", "b737-max8", "b787-9", "a350-900", "b777-300er"]);
   const tiny = mk(["a320neo", "a320neo"]);
   assert.equal(tiny.active, false, "unter drei Flugzeugen darf nichts passieren");
   assert.ok(pure.maint < 0.9 && pure.cockpit < 0.95 && pure.training < 0.85, "Einheitsflotte bringt zu wenig");
@@ -310,7 +310,7 @@ test("Flottenvereinheitlichung: Bonus und Malus", () => {
 
 test("Streckenbewertung warnt vor Überversorgung", () => {
   const s = newGame({ name: "T", iata: "TT", hub: "FRA", player: { code: "c", secret: "x" }, now: T0 });
-  const big = AIRCRAFT_BY_ID["a320neo"], small = AIRCRAFT_BY_ID["e175"];
+  const big = AIRCRAFT_BY_ID["a320neo"], small = AIRCRAFT_BY_ID["dhc8-400"];
   const thickRoute = routeOutlook(s, "FRA", "LHR", big, null, T0);
   const thinRoute = routeOutlook(s, "FRA", "PMI", big, null, T0);
   const thinSmall = routeOutlook(s, "FRA", "PMI", small, null, T0);

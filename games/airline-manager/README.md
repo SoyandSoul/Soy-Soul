@@ -38,8 +38,8 @@ games/airline-manager/
 │  │  ├─ events.js         Event-Bus Simulation → UI
 │  │  └─ util.js           deterministischer Zufall, Formatierung
 │  ├─ data/
-│  │  ├─ aircraft.js       57 Typen (Airbus, Boeing, McDonnell Douglas, Bombardier, Embraer, Fokker,
-│  │  │                     De Havilland Canada, Beechcraft, Concorde) + Datenblatt
+│  │  ├─ aircraft.js       47 aktive Typen + 10 in PENDING_ART, die auf ein Bild warten
+│  │  │                     (Hersteller, Maße, Verbrauch, Preis) + Datenblatt für die Anzeige
 │  │  ├─ airports.js       137 Flughäfen: IATA/ICAO, Koordinaten, Bahnlänge, Nachfrage-Faktoren
 │  │  └─ changelog.js      Änderungsverlauf für den Knopf im Spiel (bei jeder Version ergänzen)
 │  ├─ sim/                 Spiellogik, ohne DOM
@@ -74,7 +74,7 @@ games/airline-manager/
 │     ├─ panels/            airline.js (Übersicht, Flotte, Personal, Kosten …), ops.js (Routen, Markt, Technik …)
 │     └─ apps/             hangar, shop, routes, maint, fuel, stocks, leaderboard, logbook
 ├─ lib/                    MapLibre GL (Kopie aus history-shots)
-├─ data/profiles.json      abgepauste Blaupausen-Profile aller 57 Typen (tools/trace_profiles.py)
+├─ data/profiles.json      abgepauste Blaupausen-Profile aller Typen (tools/trace_profiles.py)
 ├─ img/aircraft/*.png      freigestellte Seitenrisse für den Fotomodus (tools/crop_sideviews.py)
 ├─ tools/
 │  ├─ trace_profiles.py      Seitenansichten automatisch abpausen → profiles.json
@@ -275,6 +275,18 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
 
 ## Änderungen
+
+**v0.34 – Jeder Typ mit eigenem Bild**
+- `PENDING_ART` in `js/data/aircraft.js`: Typen ohne Seitenriss werden aus `AIRCRAFT` gefiltert,
+  ihre Zeilen bleiben aber vollständig stehen. Reaktivieren heißt: ID aus dem Set nehmen,
+  Dateinamen in `tools/crop_sideviews.py` → `NAMES` eintragen, Skript laufen lassen.
+  Betrifft A220-100/-300, 737-900ER, CRJ-200/700/900, E170, E175, ERJ 145, Concorde.
+- `LEGACY_TYPES` fängt bestehende Spielstände ab (E175 → Fokker 70, CRJ → Dash 8 Q400,
+  737-900ER → MAX 9, Concorde → Fokker 100). `migrate()` greift zusätzlich auf `a320neo` zurück,
+  falls doch eine unbekannte ID auftaucht.
+- `tools/crop_sideviews.py` erkennt jetzt auch schon freigestellte Einzelbilder: Ist das
+  Bild nicht höher als etwa das 1,45-fache der erwarteten Flugzeughöhe, steckt nur eine Ansicht
+  darin und es wird nichts abgetrennt. Die zweiansichtigen Vorlagen liefern unverändertes Ergebnis.
 
 **v0.33 – Echte Seitenrisse**
 - Neuer Schalter `GAME.art` in `js/core/config.js`: `"foto"` zeigt die Seitenrisse aus

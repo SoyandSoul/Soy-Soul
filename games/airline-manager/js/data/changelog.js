@@ -6,6 +6,15 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.34", date: "17.11.2026", title: "Jeder Typ mit eigenem Bild",
+    intro: "Der Katalog umfasst nur noch Flugzeuge, von denen ein Seitenriss vorliegt – dafür sieht jetzt jedes gleich gut aus.",
+    items: [
+      ["besser", "47 Typen, alle mit echtem Seitenriss. Die gezeichneten Notbehelfe sind raus – kein Stilbruch mehr zwischen Foto und Umriss im Markt."],
+      ["balance", "Zehn Typen ruhen, bis ein Bild da ist: A220-100 und -300, 737-900ER, CRJ-200/700/900, E170, E175, ERJ 145 und die Concorde. Ihre Daten bleiben erhalten, sie kommen zurück, sobald die Risse vorliegen."],
+      ["fix", "Wer eines davon im Hangar hatte, fliegt den nächsten Verwandten weiter – ein E175 wird zur Fokker 70, eine CRJ-900 zur Dash 8 Q400, die 737-900ER zur MAX 9. Nichts geht verloren."]
+    ]
+  },
+  {
     v: "v0.33", date: "17.11.2026", title: "Echte Seitenrisse",
     intro: "Die Flugzeuge sind jetzt abfotografierte Seitenrisse statt gezeichneter Umrisse.",
     items: [

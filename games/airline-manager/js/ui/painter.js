@@ -23,7 +23,7 @@ const TOOLS = [
   ["erase", "Radierer", "E", '<path d="M8 20h12"/><path d="M4 16l9-9 6 6-5 5H8z"/>', "Übermalt mit der Grundfarbe des Bauteils."]
 ];
 const PALETTE = ["#ffffff", "#e9ecf1", "#b9c0ca", "#5b6472", "#16191f", "#0b2a5b", "#1f4fd8", "#4fb3ff", "#0aa39b", "#1f9d55", "#a4d233", "#ffc400", "#ff7a00", "#e0262d", "#7a1631", "#ff4f9a", "#6b3fa0", "#c9a227"];
-const PREVIEWS = ["a220-300", "b737-800", "a321neo", "crj900", "b787-9", "a350-900", "b777-300er", "b747-8i", "a380-800"];
+const PREVIEWS = ["e195-e2", "b737-800", "a321neo", "dhc8-400", "b787-9", "a350-900", "b777-300er", "b747-8i", "a380-800"];
 
 export function openPainter(ctx) {
   if (document.querySelector(".painter")) return;
