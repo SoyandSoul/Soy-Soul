@@ -2,7 +2,8 @@
 import { html } from "../dom.js";
 import { fmt } from "../../core/util.js";
 import { STOCKS } from "../../core/config.js";
-import { buyShares, sellShares } from "../../sim/stocks.js";
+import { buyShares, sellShares, maxShares, stakeIn } from "../../sim/stocks.js";
+import { rate } from "../../sim/rating.js";
 
 export default {
   id: "stocks", title: "Börse", icon: "stocks", width: 700,
@@ -37,14 +38,21 @@ export default {
 function market(ctx) {
   const s = ctx.state, list = ctx.listings();
   return html`<div class="row" style="margin-bottom:8px"><span class="small muted grow">${list.length} Airlines · Gebühr ${STOCKS.fee * 100} % pro Order · aktualisiert ${ctx.market.fetched ? new Date(ctx.market.fetched).toLocaleTimeString("de-DE") : "–"}</span><button class="btn sm" data-act="refresh">Aktualisieren</button></div>
-  <table class="t"><thead><tr><th>Airline</th><th>Code</th><th class="r">Kurs</th><th class="r">Flotte</th><th class="r">Rep</th><th class="r">Im Depot</th><th></th></tr></thead><tbody>
+  <table class="t"><thead><tr><th>Airline</th><th class="r">Kurs</th><th class="r">Sterne</th><th class="r">Größe</th><th class="r">Anteil</th><th></th></tr></thead><tbody>
     ${list.map(l => {
       const me = l.code === s.player.code, h = s.stocks.holdings[l.code];
-      return html`<tr class="${me ? "me" : ""}"><td><b>${l.name}</b> <span class="muted small">${l.iata} · ${l.hub}</span></td><td class="code">${l.code}</td>
-        <td class="r mono">${fmt.price(l.price)}</td><td class="r">${l.fleet ?? "–"}</td><td class="r">${l.rep != null ? Math.round(l.rep) : "–"}</td>
-        <td class="r">${h ? fmt.int(h.qty) : ""}</td>
-        <td class="r">${me ? html`<span class="pill info">Deine Airline</span>` : html`<div class="row" style="justify-content:flex-end"><input class="in" name="qty" type="number" min="1" value="1000" style="width:84px"><button class="btn sm p" data-act="buy" data-code="${l.code}">Kauf</button>${h ? html`<button class="btn sm" data-act="sell" data-code="${l.code}">Verk.</button>` : ""}</div>`}</td></tr>`;
-    })}</tbody></table>`;
+      const r = rate({ ...(l.profile || { fleet: l.fleet }), rep: l.profile?.rep ?? l.rep ?? 0 });
+      const stake = stakeIn(s, l), max = maxShares(l);
+      return html`<tr class="${me ? "me" : ""}"><td><b>${l.name}</b> <span class="muted small">${l.iata}${l.hub ? ` · ${l.hub}` : ""}</span>
+          <div class="code small">${l.code}</div></td>
+        <td class="r mono">${fmt.price(l.price)}</td>
+        <td class="r acc">${r.stars.toFixed(1)}</td><td class="r">${r.size}</td>
+        <td class="r">${h ? html`${fmt.int(h.qty)}<div class="small muted">${(stake * 100).toFixed(1)} %</div>` : ""}</td>
+        <td class="r">${me ? html`<span class="pill info">Deine Airline</span>`
+          : html`<div class="row" style="justify-content:flex-end"><input class="in" name="qty" type="number" min="1" max="${max}" value="1000" style="width:84px"><button class="btn sm p" data-act="buy" data-code="${l.code}" ${stake >= STOCKS.maxStake ? "disabled" : ""}>Kauf</button>${h ? html`<button class="btn sm" data-act="sell" data-code="${l.code}">Verk.</button>` : ""}</div>`}</td></tr>`;
+    })}</tbody></table>
+  <p class="small muted" style="margin-top:8px">An einer fremden Airline sind höchstens ${Math.round(STOCKS.maxStake * 100)} % erlaubt –
+    die Mehrheit bleibt immer beim Spieler selbst. Der Wert der Beteiligung wächst mit der Airline und lässt sich jederzeit verkaufen.</p>`;
 }
 
 function depot(ctx) {

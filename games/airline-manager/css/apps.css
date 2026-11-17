@@ -202,3 +202,6 @@
 .chart-svg .cl { fill: var(--ink3); font: 500 10px var(--mono); }
 .chart-svg .cl.mid { text-anchor: middle; }
 .card.hit { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.t.board tr[data-act] { cursor: pointer; }
+.t.board tr.open { background: var(--raise); }
+.t tr.detail td { background: var(--raise); border-top: 0; padding-top: 2px; }

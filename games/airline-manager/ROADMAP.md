@@ -4,12 +4,12 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.26**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.27**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
 > Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22, Paket 5 (Hub und
 > Ausstattung) als v0.23, Paket 6 (Finanzen) als v0.24, Paket 7 (Karte und Bodenbetrieb) als v0.25,
-> Paket 8 (Welt und Ereignisse) als v0.26.
+> Paket 8 (Welt und Ereignisse) als v0.26, Paket 9 (Börse und Rangliste) als v0.27.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
 > Flottenvereinheitlichung sind als v0.19 fertig. Offen daraus: Umsteiger am Drehkreuz, IROPS,
 > wartende Entscheidungen, Benachrichtigungen, geführter Einstieg – siehe unten.
@@ -177,9 +177,9 @@ verschieben Abflüge, Ausweichlandungen selten und reproduzierbar.
 
 ---
 
-## Paket 9 – Börse und Rangliste online → v0.27
+## Paket 9 – Börse und Rangliste online → v0.27 ✅ (Spielseite fertig)
 
-Punkte 21, 24, 32 · **braucht Supabase – ohne Server nicht umsetzbar**
+Punkte 21, 24, 32 · **der Client ist fertig, der Server fehlt noch**
 
 - Ab 2 Flugzeugen für die Börse qualifiziert, Eintrag mit dem eigenen Spielercode
 - Airline live für alle sichtbar in Aktienmarkt und Rangliste
@@ -189,8 +189,17 @@ Punkte 21, 24, 32 · **braucht Supabase – ohne Server nicht umsetzbar**
 - Anteile anderer Airlines kaufen, höchstens 49 %, Wert wächst mit der Airline, jederzeit verkaufbar
 - Flotte, Ziele und grobe Finanzzahlen anderer Spieler einsehbar
 
-**Voraussetzung:** Dein Freund muss das Supabase-Projekt anlegen. Das SQL steht fertig im README unter
-„Online-Börse mit Supabase". Ohne Server bleibt es bei den Demo-Airlines, und Schummeln per DevTools ist möglich.
+- ✅ Ab 2 Flugzeugen qualifiziert, Eintrag mit dem eigenen Spielercode
+- ✅ Bewertung: Sterne 0–5 mit Nachkommastelle · Größe 0–100 · Wirtschaftlichkeit 0–100 %
+- ✅ Aktualisierung alle 2 Stunden
+- ✅ Beteiligungen bis 49 %, Wert wächst mit der Airline, jederzeit verkaufbar
+- ✅ Flotte, Ziele und grobe Finanzzahlen anderer Spieler einsehbar
+
+**Was noch fehlt, und zwar nur das:** Dein Freund muss das Supabase-Projekt anlegen. Das SQL steht
+fertig im README unter „Online-Börse mit Supabase" – eine bestehende Datenbank braucht nur
+`alter table airlines add column if not exists profile jsonb;` und die neue `publish_airline`.
+Bis dahin läuft die Demo-Börse mit zehn Beispiel-Airlines, die jetzt ebenfalls Profile und
+Bewertungen haben. Ohne Server ist außerdem Schummeln per DevTools möglich.
 
 ---
 

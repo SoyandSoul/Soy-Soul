@@ -25,10 +25,25 @@ export function sharePrice(state, now, marketPrices) {
   return Math.max(STOCKS.minPrice, v / state.airline.shares * repF * wobble);
 }
 
+/** Wie viele Aktien einer fremden Airline man höchstens halten darf (Sperrminorität bleibt dort). */
+export function maxShares(listing) {
+  return Math.floor((listing.shares || STOCKS.defaultShares) * STOCKS.maxStake);
+}
+
+/** Anteil, den man an einer Airline hält – 0..1 */
+export function stakeIn(state, listing) {
+  const h = state.stocks.holdings[listing.code];
+  return h ? h.qty / (listing.shares || STOCKS.defaultShares) : 0;
+}
+
 export function buyShares(state, listing, qty, now) {
   const cost = qty * listing.price * (1 + STOCKS.fee);
   if (qty <= 0) return { ok: false, msg: "Menge ungültig." };
   if (listing.code === state.player.code) return { ok: false, msg: "Eigene Aktien können nicht gekauft werden." };
+  const have = state.stocks.holdings[listing.code]?.qty || 0;
+  const max = maxShares(listing);
+  if (have + qty > max)
+    return { ok: false, msg: `Höchstens ${Math.round(STOCKS.maxStake * 100)} % einer fremden Airline – das sind ${max.toLocaleString("de-DE")} Aktien. Ihr haltet schon ${have.toLocaleString("de-DE")}.` };
   if (cost > state.cash) return { ok: false, msg: "Nicht genug Geld." };
   const h = (state.stocks.holdings[listing.code] ||= { qty: 0, cost: 0, name: listing.name });
   h.qty += qty; h.cost += cost; h.name = listing.name;
@@ -59,6 +74,16 @@ export function demoMarket(now) {
   return BOTS.map(([code, name, iata, hub], i) => {
     const base = 8 + i * 3.1;
     const price = base * (1 + 0.25 * smoothNoise(code, now / DAY) + 0.06 * smoothNoise(code + "f", now / 3600_000));
-    return { code, name, iata, hub, price: Math.max(0.5, price), fleet: 3 + (i * 7) % 40, rep: 40 + (i * 13) % 50, demo: true, updated: now };
+    const fleet = 3 + (i * 7) % 40, rep = 40 + (i * 13) % 50;
+    // Kurzprofil wie bei echten Airlines, damit Bewertung und Detailansicht auch im Demo-Modus etwas zeigen
+    const profile = {
+      fleet, rep, staff: fleet * 68 + (i * 37) % 200, destinations: Math.max(2, Math.round(fleet * 0.8)),
+      pax: fleet * 42_000 + i * 15_000, legs: fleet * 900 + i * 300,
+      margin: 0.06 + ((i * 7) % 18) / 100, profit30: fleet * 180_000,
+      profitPerAircraftDay: 20_000 + ((i * 11) % 45) * 1000,
+      types: ["a320neo", "b738", "a359"].slice(0, 1 + i % 3),
+      routes: []
+    };
+    return { code, name, iata, hub, price: Math.max(0.5, price), fleet, rep, profile, demo: true, updated: now };
   });
 }

@@ -109,7 +109,8 @@ Ohne Einrichtung läuft eine Demo-Börse mit Beispiel-Airlines. Für die echte B
 (wie bei History Shots):
 
 1. Kostenloses Projekt auf supabase.com anlegen.
-2. Im SQL-Editor ausführen:
+2. Im SQL-Editor ausführen (eine bestehende Datenbank aus einer älteren Version braucht nur
+   `alter table airlines add column if not exists profile jsonb;` und die neue `publish_airline`):
 
 ```sql
 create extension if not exists pgcrypto;
@@ -125,6 +126,7 @@ create table airlines (
   fleet int,
   profit_30d numeric,
   livery jsonb,
+  profile jsonb,            -- Kurzprofil: Flotte, Personal, Ziele, Fluggäste, Marge, Bewertung (v0.27)
   updated_at timestamptz not null default now()
 );
 alter table airlines enable row level security;
@@ -152,13 +154,13 @@ create or replace function publish_airline(p_code text, p_secret text, p_data js
 language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform check_key(p_code, p_secret);
-  insert into airlines (code, name, iata, hub, share_price, value, rep, fleet, profit_30d, livery, updated_at)
+  insert into airlines (code, name, iata, hub, share_price, value, rep, fleet, profit_30d, livery, profile, updated_at)
   values (p_code, left(p_data->>'name', 28), left(p_data->>'iata', 3), p_data->>'hub',
           least((p_data->>'share_price')::numeric, 1e6), (p_data->>'value')::numeric, (p_data->>'rep')::numeric,
-          (p_data->>'fleet')::int, (p_data->>'profit_30d')::numeric, p_data->'livery', now())
+          (p_data->>'fleet')::int, (p_data->>'profit_30d')::numeric, p_data->'livery', p_data->'profile', now())
   on conflict (code) do update set name = excluded.name, iata = excluded.iata, hub = excluded.hub,
     share_price = excluded.share_price, value = excluded.value, rep = excluded.rep, fleet = excluded.fleet,
-    profit_30d = excluded.profit_30d, livery = excluded.livery, updated_at = now();
+    profit_30d = excluded.profit_30d, livery = excluded.livery, profile = excluded.profile, updated_at = now();
 end $$;
 
 create or replace function save_game(p_code text, p_secret text, p_state jsonb) returns void
@@ -271,6 +273,19 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 - Ereignisse (Streik, Vulkanasche, Messen mit Nachfragespitzen)
 
 ## Änderungen
+
+**v0.27 – Bewertung, Rangliste und Beteiligungen** (Paket 9)
+- `sim/rating.js`: drei Kennzahlen, bewusst nur aus dem, was eine Airline *veröffentlicht* –
+  damit funktionieren sie für fremde Airlines genauso wie für die eigene. Die Teilskalen laufen
+  über eine Wurzelkurve (`(v/max)^0.45`): früh spürbar, oben gestaucht.
+- `profileOf(state, now)` baut das Kurzprofil, das `publish` mitschickt; `qualifies` verlangt
+  `RATING.minFleet` Flugzeuge, `STOCKS.publishEveryMs` begrenzt auf alle zwei Stunden.
+- Beteiligungen sind bei `STOCKS.maxStake` gedeckelt (49 %); `maxShares` und `stakeIn` in
+  `sim/stocks.js`, geprüft in `buyShares`.
+- `net/backend.js` fragt die neue Spalte `profile` ab und fällt bei Status 400 auf die alte
+  Abfrage zurück – eine Datenbank aus einer früheren Version funktioniert also weiter.
+- **Noch offen, nicht am Spiel:** Ohne Supabase-Projekt läuft weiter die Demo-Börse. Das SQL steht
+  unten; eine bestehende Datenbank braucht nur die neue Spalte und die neue `publish_airline`.
 
 **v0.26 – Welt, Kalender und Ereignisse** (Paket 8)
 - `sim/calendar.js`: Feiertage und Ferien als reine Funktion des Datums, inklusive Osterformel

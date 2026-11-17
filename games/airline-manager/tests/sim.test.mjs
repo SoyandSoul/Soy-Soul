@@ -31,6 +31,9 @@ import { runwaysFor, RUNWAYS } from "../js/data/runways.js";
 import { easter, eventsAt, upcoming, demandFactor } from "../js/sim/calendar.js";
 import { eventsOfWeek, activeEvents, closureAt, effectsAt, diversion, departureNotBefore } from "../js/sim/events.js";
 import { describe as describeAirport, bestRoutes } from "../js/sim/airportInfo.js";
+import { stars, sizeScore, efficiencyScore, rate, qualifies, profileOf } from "../js/sim/rating.js";
+import { buyShares, sellShares, maxShares, stakeIn, demoMarket } from "../js/sim/stocks.js";
+import { STOCKS, RATING } from "../js/core/config.js";
 import { AIRPORT_BY_IATA } from "../js/data/airports.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
@@ -819,6 +822,57 @@ test("Flughafen-Steckbrief beschreibt, was da ist", () => {
   // Mit eigenen Flügen kommt eine dritte Zeile dazu
   const pmi = describeAirport(s, "PMI", start + 3 * DAY);
   assert.ok(pmi.own ? pmi.lines.length === 3 : pmi.lines.length === 2);
+});
+
+
+test("Bewertung: Sterne, Größe und Wirtschaftlichkeit", () => {
+  assert.equal(stars(0), 0);
+  assert.equal(stars(100), 5);
+  assert.equal(stars(78), 3.9, "eine Nachkommastelle");
+
+  const klein = { fleet: 2, staff: 70, destinations: 3, pax: 20_000 };
+  const gross = { fleet: 45, staff: 3200, destinations: 34, pax: 3_200_000 };
+  assert.ok(sizeScore(klein) < 30, `Starter: ${sizeScore(klein)}`);
+  assert.ok(sizeScore(gross) > 80, `Große: ${sizeScore(gross)}`);
+  assert.ok(sizeScore({ fleet: 0, staff: 0, destinations: 0, pax: 0 }) === 0);
+
+  // Wirtschaftlichkeit hängt an Marge und Ertrag, nicht an Größe
+  const gut = efficiencyScore({ margin: 0.22, profitPerAircraftDay: 60_000, fleet: 2 });
+  const schwach = efficiencyScore({ margin: 0.02, profitPerAircraftDay: 4_000, fleet: 45 });
+  assert.ok(gut > 80 && schwach < 25, `${gut} vs ${schwach}`);
+  assert.equal(efficiencyScore({ margin: 0.3, profitPerAircraftDay: 9e9, fleet: 0 }), 0, "ohne Flotte keine Note");
+
+  const { s, route, start } = setup(2);
+  act.assign(s, s.fleet[0].id, route.id, start);
+  settle(s, start + 5 * DAY);
+  const p = profileOf(s, start + 5 * DAY);
+  assert.equal(p.fleet, 2);
+  assert.ok(p.staff > 0 && p.destinations >= 2 && p.pax > 0);
+  assert.ok(qualifies(p), "zwei Flugzeuge reichen für die Börse");
+  assert.ok(!qualifies({ fleet: RATING.minFleet - 1 }));
+  const r = rate(p);
+  assert.ok(r.stars >= 0 && r.stars <= 5 && r.size >= 0 && r.size <= 100 && r.efficiency >= 0 && r.efficiency <= 100);
+});
+
+test("Beteiligungen: höchstens 49 Prozent, jederzeit verkaufbar", () => {
+  const { s, start } = setup(1);
+  s.cash = 500e6;
+  const [listing] = demoMarket(start);
+  const max = maxShares(listing);
+  assert.equal(max, Math.floor(STOCKS.defaultShares * STOCKS.maxStake));
+
+  assert.ok(buyShares(s, listing, 1000, start).ok);
+  assert.ok(stakeIn(s, listing) > 0 && stakeIn(s, listing) < 0.01);
+  assert.ok(!buyShares(s, listing, max, start).ok, "über 49 % geht nicht");
+  assert.ok(buyShares(s, listing, max - 1000, start).ok, "bis genau 49 % schon");
+  assert.ok(Math.abs(stakeIn(s, listing) - STOCKS.maxStake) < 0.001);
+  assert.ok(!buyShares(s, listing, 1, start).ok, "danach ist Schluss");
+
+  const cash = s.cash;
+  assert.ok(sellShares(s, listing, max, start).ok, "und alles lässt sich wieder verkaufen");
+  assert.ok(s.cash > cash);
+  assert.equal(stakeIn(s, listing), 0);
+  assert.ok(!buyShares(s, { code: s.player.code, price: 10 }, 10, start).ok, "eigene Aktien nicht");
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

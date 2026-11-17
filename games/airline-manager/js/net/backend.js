@@ -27,12 +27,14 @@ export async function publish(snap) {
 
 export async function fetchMarket(now = Date.now()) {
   if (!online()) return { demo: true, list: demoMarket(now) };
-  const r = await fetch(`${SUPABASE.url}/rest/v1/airlines?select=code,name,iata,hub,share_price,value,rep,fleet,profit_30d,livery,updated_at&order=share_price.desc&limit=200`, { headers: headers() });
+    // profile ist seit v0.27 dabei; ältere Datenbanken kennen die Spalte nicht, deshalb der zweite Versuch.
+  let r = await fetch(`${SUPABASE.url}/rest/v1/airlines?select=code,name,iata,hub,share_price,value,rep,fleet,profit_30d,livery,profile,updated_at&order=share_price.desc&limit=200`, { headers: headers() });
+  if (r.status === 400) r = await fetch(`${SUPABASE.url}/rest/v1/airlines?select=code,name,iata,hub,share_price,value,rep,fleet,profit_30d,livery,updated_at&order=share_price.desc&limit=200`, { headers: headers() });
   if (!r.ok) throw new Error("Börse nicht erreichbar");
   const rows = await r.json();
   return {
     demo: false,
-    list: rows.map(x => ({ code: x.code, name: x.name, iata: x.iata, hub: x.hub, price: +x.share_price, value: +x.value, rep: +x.rep, fleet: x.fleet, profit30: +x.profit_30d, livery: x.livery, updated: Date.parse(x.updated_at) }))
+    list: rows.map(x => ({ code: x.code, name: x.name, iata: x.iata, hub: x.hub, price: +x.share_price, value: +x.value, rep: +x.rep, fleet: x.fleet, profit30: +x.profit_30d, livery: x.livery, profile: x.profile || null, updated: Date.parse(x.updated_at) }))
   };
 }
 

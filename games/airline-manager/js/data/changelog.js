@@ -6,6 +6,17 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.27", date: "17.11.2026", title: "Bewertung, Rangliste und Beteiligungen",
+    intro: "Die Rangliste zeigte bisher Kurs, Flotte und Reputation. Jetzt gibt es eine richtige Bewertung – und man kann sich an anderen Airlines beteiligen.",
+    items: [
+      ["neu", "Bewertung in drei Zahlen: Sterne von 0 bis 5 mit einer Nachkommastelle aus der Reputation, Größe von 0 bis 100 aus Flotte, Personal, Zielen und Fluggästen, Wirtschaftlichkeit von 0 bis 100 Prozent aus Marge und Ergebnis je Flugzeug."],
+      ["neu", "Ab zwei Flugzeugen ist eine Airline für Börse und Rangliste qualifiziert. Der eigene Eintrag wird alle zwei Stunden aufgefrischt."],
+      ["neu", "Eine Zeile in der Rangliste antippen zeigt das Kurzprofil der fremden Airline: Flotte, Personal, Ziele, Fluggäste, Marge, Ergebnis der letzten 30 Tage, Muster und angeflogene Ziele."],
+      ["neu", "Beteiligungen: An einer fremden Airline sind höchstens 49 Prozent erlaubt – die Mehrheit bleibt immer beim Spieler selbst. Der Wert wächst mit der Airline und lässt sich jederzeit verkaufen."],
+      ["besser", "Die Demo-Airlines haben jetzt ebenfalls Kurzprofile, damit Bewertung und Detailansicht auch ohne eingerichteten Server etwas zeigen."]
+    ]
+  },
+  {
     v: "v0.26", date: "17.11.2026", title: "Welt, Kalender und Ereignisse",
     intro: "Die Welt war bisher gleichmäßig: jeder Tag wie der andere, nur das Wetter wechselte. Jetzt hat sie Termine und Launen.",
     items: [

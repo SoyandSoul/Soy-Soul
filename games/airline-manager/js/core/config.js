@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.26",
+  label: "v0.27",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -463,4 +463,18 @@ export const LEASE = {
   frame: { base: 1_100_000, profitMultiple: 1.8, repLow: 0.6, repSpan: 0.8 }
 };
 
-export const STOCKS = { profitMultiple: 3, repWeight: 0.4, minPrice: 0.5, fee: 0.005, refreshMs: 60_000 };
+export const STOCKS = {
+  profitMultiple: 3, repWeight: 0.4, minPrice: 0.5, fee: 0.005, refreshMs: 60_000,
+  publishEveryMs: 2 * 3600_000,   // eigener Eintrag wird höchstens alle zwei Stunden aktualisiert
+  maxStake: 0.49,                 // an einer fremden Airline höchstens 49 %
+  defaultShares: 10_000_000       // Aktienzahl, wenn eine fremde Airline keine nennt
+};
+
+// Bewertung einer Airline: Sterne, Größe, Wirtschaftlichkeit (sim/rating.js)
+export const RATING = {
+  minFleet: 2,                    // ab so vielen Flugzeugen ist man für die Börse qualifiziert
+  max: { fleet: 60, staff: 4000, destinations: 40, pax: 4_000_000 },
+  weight: { fleet: 1, staff: 0.7, destinations: 1, pax: 1.2 },
+  goodMargin: 0.22,               // Marge, die 100 % Wirtschaftlichkeit entspricht
+  goodPerDay: 60_000              // Ergebnis je Flugzeug und Tag für 100 %
+};

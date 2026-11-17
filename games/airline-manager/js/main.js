@@ -4,6 +4,7 @@ import { BOOST } from "./core/config.js";
 import { bus } from "./core/events.js";
 import { load, save, wipe, newGame } from "./core/store.js";
 import { STOCKS } from "./core/config.js";
+import { profileOf, rate, qualifies } from "./sim/rating.js";
 import { fmt } from "./core/util.js";
 import { settle } from "./sim/engine.js";
 import { sharePrice, companyValue } from "./sim/stocks.js";
@@ -116,18 +117,30 @@ function step() {
   if (r.legs || r.checks || r.crashes || r.incidents) { commit(); renderFlightCard(document.getElementById("flightcard"), ctx, ctx.map.selected); }
 }
 
+/**
+ * Eigenen Eintrag in Börse und Rangliste aktualisieren.
+ * Zwei Regeln aus der Wunschliste: erst ab zwei Flugzeugen gelistet, und höchstens
+ * alle zwei Stunden – häufiger wäre weder nötig noch höflich gegenüber dem Server.
+ */
 async function publishLoop() {
-  if (!online()) return;
+  await ctx.refreshMarket();
+  if (!online() || !ctx.state) return;
   const s = ctx.state, now = ctx.now();
+  const profile = profileOf(s, now);
+  if (!qualifies(profile)) return;
+  if (s.lastPublish && now - s.lastPublish < STOCKS.publishEveryMs) return;
   try {
+    const r = rate(profile);
     await publish({
       code: s.player.code, secret: s.player.secret, name: s.airline.name, iata: s.airline.iata, hub: s.airline.hubs[0],
       share_price: +ctx.sharePrice().toFixed(4), value: Math.round(companyValue(s, now, ctx.marketPrices()).total),
-      rep: +s.airline.rep.toFixed(2), fleet: s.fleet.filter(a => a.status !== "crashed").length,
-      profit_30d: Math.round(summary(s, 30, now).profit), livery: s.airline.livery
+      rep: +s.airline.rep.toFixed(2), fleet: profile.fleet,
+      profit_30d: Math.round(profile.profit30), livery: s.airline.livery,
+      profile: { ...profile, rating: r }
     });
+    s.lastPublish = now;
+    commit();
   } catch (e) { console.warn(e); }
-  await ctx.refreshMarket();
 }
 
 // ---------- Ereignisse aus der Simulation
