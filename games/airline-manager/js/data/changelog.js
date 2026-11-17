@@ -6,6 +6,16 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.30", date: "17.11.2026", title: "Störfälle mit echten Entscheidungen",
+    intro: "Ein Flugzeug fällt aus. Repariert werden muss es so oder so – die Frage ist, was mit den Fluggästen passiert.",
+    items: [
+      ["neu", "Schwerer Defekt setzt ein Flugzeug fest. Vier Wege, jeder mit eigenen Kosten und Folgen: warten (Entschädigung ab drei Stunden, Ruf minus fünf), Umlauf streichen (Erstattung und Umbuchung, Ruf minus elf), Flugzeug tauschen (günstig und schonend, braucht aber eine freie Maschine) oder leer überführen (wenn die Reserve am falschen Ort steht)."],
+      ["neu", "Jede Entscheidung hat zwei Stunden Frist. Wer nicht da ist, bekommt automatisch warten – die sichere, aber selten die beste Wahl. Anwesenheit wird belohnt, Abwesenheit nicht bestraft."],
+      ["neu", "Der Störfall-Bereich erscheint nur, wenn wirklich einer offen ist, mit laufendem Countdown je Fall. Benachrichtigungen melden ihn zuerst, noch vor allem anderen."],
+      ["neu", "Flugzeuge im Störfall stehen in der Flotte unter Störfall, mit Reparaturende."]
+    ]
+  },
+  {
     v: "v0.29", date: "17.11.2026", title: "Umsteiger am Drehkreuz",
     intro: "Ein Drehkreuz war bisher die Summe seiner Strecken. Jetzt ist es mehr.",
     items: [

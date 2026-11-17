@@ -37,7 +37,8 @@ import { STOCKS, RATING } from "../js/core/config.js";
 import { steps } from "../js/sim/firststeps.js";
 import { pending } from "../js/ui/notify.js";
 import { hubTimetable, detourFactor, waitFactor, connectingPax, hubWaves } from "../js/sim/connections.js";
-import { CONNECT } from "../js/core/config.js";
+import { CONNECT, IROPS } from "../js/core/config.js";
+import { openCase, options as iropsOptions, replacements, compensation, repairHours, openCases } from "../js/sim/irops.js";
 import { AIRPORT_BY_IATA } from "../js/data/airports.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
@@ -1024,6 +1025,81 @@ test("Ein Netz bringt mehr als einzelne Strecken", () => {
   assert.ok(gross.transfer / gross.rev > klein.transfer / klein.rev, "der Anteil wächst mit dem Netz");
   assert.ok(gross.perAircraft > klein.perAircraft,
     `Erlös je Flugzeug: ${Math.round(klein.perAircraft / 1e3)} k$ vs ${Math.round(gross.perAircraft / 1e3)} k$ – ein Netz muss mehr bringen als die Summe seiner Strecken`);
+});
+
+
+test("Störfall: vier Wege, Vorgabe ist warten", () => {
+  const { s, start } = setup(2);
+  const r = act.createRoute(s, "FRA", "LIS").route;
+  act.hireAllOpen(s, start);
+  act.assign(s, s.fleet[0].id, r.id, start);
+  act.hireAllOpen(s, start);
+  settle(s, start + DAY);
+  const now = s.lastSettled;
+  const [broken, spare] = s.fleet;
+  const c = openCase(s, broken, r, "LIS", now, 160);
+  broken.status = "aog";
+  broken.aog = { caseId: c.id, until: c.repairUntil, deadline: c.deadline };
+
+  assert.ok(c.repairUntil > now && c.deadline > now && c.deadline < c.repairUntil);
+  assert.equal(c.deadline - now, IROPS.decideH * H, "zwei Stunden Zeit");
+  assert.ok(openCases(s, now).some(x => x.id === c.id));
+
+  const opts = iropsOptions(s, c, now);
+  assert.equal(opts.length, 4);
+  assert.ok(opts.find(o => o.id === "wait").isDefault);
+  assert.ok(opts.every(o => o.text.length > 20));
+  // Ein freies Flugzeug macht Tausch und Überführung möglich
+  assert.ok(replacements(s, c).some(a => a.id === spare.id));
+  assert.ok(opts.find(o => o.id === "swap").available);
+  // Tauschen schont den Ruf deutlich mehr als streichen
+  assert.ok(opts.find(o => o.id === "swap").rep > opts.find(o => o.id === "cancel").rep);
+  assert.ok(opts.find(o => o.id === "cancel").rep < opts.find(o => o.id === "wait").rep);
+
+  const rep0 = s.airline.rep, cash0 = s.cash;
+  const res = act.resolveIrops(s, c.id, "swap", now);
+  assert.ok(res.ok, res.msg);
+  assert.equal(spare.status, "active", "das Ersatzflugzeug übernimmt");
+  assert.equal(spare.ops.routeId, r.id);
+  assert.equal(broken.ops, null, "die defekte Maschine verliert die Strecke");
+  assert.ok(s.cash < cash0 && s.airline.rep < rep0);
+  assert.ok(!act.resolveIrops(s, c.id, "wait", now).ok, "zweimal entscheiden geht nicht");
+});
+
+test("Störfall ohne Entscheidung: es wird gewartet und entschädigt", () => {
+  const { s, start } = setup(1);
+  const r = act.createRoute(s, "FRA", "LIS").route;
+  act.hireAllOpen(s, start);
+  act.assign(s, s.fleet[0].id, r.id, start);
+  act.hireAllOpen(s, start);
+  settle(s, start + DAY);
+  const now = s.lastSettled;
+  const ac = s.fleet[0];
+  const c = openCase(s, ac, r, "LIS", now, 200);
+  ac.status = "aog";
+  ac.aog = { caseId: c.id, until: c.repairUntil, deadline: c.deadline };
+
+  const rep0 = s.airline.rep, cash0 = s.cash;
+  settle(s, now + IROPS.decideH * H + H);
+  assert.ok(c.done, "nach Fristablauf ist entschieden");
+  assert.equal(c.choice, "wait");
+  assert.ok(s.airline.rep < rep0, "der Ruf leidet");
+  assert.ok(cash0 - s.cash >= compensation(200, (c.repairUntil - c.at_ts) / H), "Entschädigung wurde gebucht");
+  assert.ok(!act.resolveIrops(s, c.id, "swap", now + 3 * H).ok, "nach der Frist geht nichts mehr");
+
+  // Nach der Reparatur fliegt die Maschine weiter
+  settle(s, c.repairUntil + 2 * H);
+  assert.notEqual(ac.status, "aog", `Status nach Reparatur: ${ac.status}`);
+  assert.equal(ac.aog, null);
+
+  // Entschädigung nach Dauer gestaffelt
+  assert.equal(compensation(100, 1), 0, "unter drei Stunden gibt es nichts");
+  assert.ok(compensation(100, 4) > 0);
+  assert.ok(compensation(100, 8) > compensation(100, 4), "ab sechs Stunden mehr");
+  const [lo, hi] = IROPS.repairH.narrow;
+  const h = repairHours(ac, now);
+  assert.ok(h >= lo && h <= hi);
+  assert.equal(h, repairHours(ac, now), "deterministisch");
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

@@ -26,6 +26,8 @@ import { turnaroundHours, handlerDelay } from "./handling.js";
 import { upkeepPerDay } from "./hub.js";
 import { dueLoans } from "./credit.js";
 import { diversion, departureNotBefore, closureAt } from "./events.js";
+import { openCase, compensation } from "./irops.js";
+import { IROPS } from "../core/config.js";
 
 const MAX_STEPS = 200_000;
 
@@ -53,6 +55,7 @@ function statusEventAt(state, ac) {
     case "delivery": return ac.availableAt;
     case "check": return ac.check.until;
     case "charter": return ac.charter.until;
+    case "aog": return Math.min(ac.aog.deadline, ac.aog.until);
     case "active": {
       const r = state.routes.find(r => r.id === ac.ops.routeId);
       return ac.ops.dep + blockHours(routeDistance(r), typeOf(ac)) * H;
@@ -193,6 +196,25 @@ function process(state, ac, ts, report, quiet, staffEff) {
     if (!quiet) bus.emit("delivered", { aircraft: ac });
     return;
   }
+  // Störfall: Frist abgelaufen → es wird gewartet; Reparatur fertig → weiter im Plan.
+  if (ac.status === "aog") {
+    const c = (state.irops || []).find(x => x.id === ac.aog.caseId);
+    if (c && !c.done && ts >= c.deadline) {
+      applyWait(state, c, ts);
+      ac.aog.deadline = Infinity;
+      log(state, ts, "warn", `${ac.reg}: ohne Entscheidung wird gewartet. ${c.pax} Fluggäste, ${Math.round((c.repairUntil - c.at_ts) / H)} h Verspätung.`);
+      return;
+    }
+    if (ts >= ac.aog.until) {
+      if (c && !c.done) applyWait(state, c, ts);
+      const resume = ac.ops?.routeId;
+      ac.status = resume ? "active" : "idle";
+      ac.aog = null;
+      if (resume && ac.ops) ac.ops.dep = ts;
+      log(state, ts, "good", `${ac.reg} ist wieder einsatzbereit.`);
+    }
+    return;
+  }
   if (ac.status === "charter") {
     const ch = ac.charter, rest = ch.total - ch.paid;
     book(state, ts, "rev", "charter", rest);
@@ -259,6 +281,19 @@ function process(state, ac, ts, report, quiet, staffEff) {
     report.faults = (report.faults || 0) + 1;
     log(state, leg.arr, "warn", `${ac.reg} in ${leg.to}: technischer Defekt (Alter/Zustand), Reparatur ${Math.round(cost / 1e3)} k$, ${Math.round(faultDelay / H)} h Standzeit.`);
   }
+  // Schwerer Defekt am Zielort: das Flugzeug bleibt stehen und es gibt etwas zu entscheiden.
+  // Der Flug selbst ist abgerechnet und wird unten normal ins Flugbuch geschrieben –
+  // deshalb hier kein vorzeitiges return, nur der Status.
+  const aog = !faultDelay && roll >= risk.incident && rand01("aog", ac.id, dep) < IROPS.chancePerLeg;
+  if (aog) {
+    leg.event = "aog";
+    const c = openCase(state, ac, route, leg.to, leg.arr, leg.paxTotal);
+    ac.status = "aog";
+    ac.aog = { caseId: c.id, until: c.repairUntil, deadline: c.deadline };
+    log(state, leg.arr, "bad", `${ac.reg} bleibt in ${leg.to} stehen: schwerer technischer Defekt. ${c.pax} Fluggäste warten – es gibt etwas zu entscheiden.`);
+    report.irops = (report.irops || 0) + 1;
+    if (!quiet) bus.emit("irops", { aircraft: ac, case: c });
+  }
   if (roll < risk.crash) {
     leg.event = "crash";
     crash(state, ac, route, leg.arr, report, quiet);
@@ -272,6 +307,8 @@ function process(state, ac, ts, report, quiet, staffEff) {
   state.flights.unshift(leg);
   if (state.flights.length > 150) state.flights.length = 150;
   if (ac.status === "crashed") return;
+  // Steht die Maschine fest, wird kein nächster Umlauf geplant – das entscheidet der Störfall.
+  if (ac.status === "aog") return;
 
   // Nächstes Leg planen. Verspätung kommt aus drei Quellen: Defekt, Wetter am Ankunftsort, fehlendes Personal.
   const arrivedHome = ac.ops.dir === 1;
@@ -328,3 +365,17 @@ function crash(state, ac, route, ts, report, quiet) {
 }
 
 export const CHECK_ORDER = CHECKS.order;
+
+/**
+ * „Warten" abwickeln: Entschädigung nach Verspätungsdauer, Ruf leidet.
+ * Das ist auch die Vorgabe, wenn niemand entscheidet – sicher, aber nicht die beste Wahl.
+ */
+function applyWait(state, c, ts) {
+  const delayH = Math.max(0, (c.repairUntil - c.at_ts) / H);
+  const comp = compensation(c.pax, delayH);
+  if (comp) book(state, ts, "cost", "handling", comp);
+  state.airline.rep = Math.max(0, state.airline.rep + IROPS.rep.wait);
+  c.done = true;
+  c.choice = "wait";
+  c.cost = comp;
+}

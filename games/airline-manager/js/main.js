@@ -116,7 +116,7 @@ let boostWasOn = false;
 function step() {
   const r = settle(ctx.state, ctx.now());
   if (r.clockWarning) toast("Die Geräte-Uhr wurde zurückgestellt – das Spiel rechnet nicht rückwärts.", "warn");
-  if (r.legs || r.checks || r.crashes || r.incidents) { commit(); renderFlightCard(document.getElementById("flightcard"), ctx, ctx.map.selected); }
+  if (r.legs || r.checks || r.crashes || r.incidents || r.irops || r.charters) { commit(); renderFlightCard(document.getElementById("flightcard"), ctx, ctx.map.selected); }
 }
 
 /**

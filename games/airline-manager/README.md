@@ -274,6 +274,19 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.30 – Störfälle mit echten Entscheidungen** (aus Paket 10)
+- `sim/irops.js`: Ein schwerer Defekt (`IROPS.chancePerLeg`, rund jeder 250. Flug) legt einen Fall an.
+  Die Reparaturdauer steht fest und ist deterministisch aus Flugzeug und Zeit; entschieden wird nur
+  über die Fluggäste.
+- Vier Optionen mit Kosten, Rufwirkung und Verzug: `wait` (Entschädigung nach Dauer, angelehnt an
+  die europäische Regel), `cancel`, `swap` und `ferry`. `replacements` prüft Reichweite, Sitzzahl
+  und Verfügbarkeit, `ferryQuote` rechnet den Leerflug.
+- Neuer Flugzeugstatus `aog`. `nextEventAt` liefert das Minimum aus Entscheidungsfrist und
+  Reparaturende; bei Fristablauf wendet die Engine `wait` an. Der Flug selbst ist zu dem Zeitpunkt
+  bereits abgerechnet und steht normal im Flugbuch – nur der nächste Umlauf wird nicht geplant.
+- Panel-Abschnitt **Störfall** mit laufendem Countdown, sichtbar nur bei offenem Fall;
+  `ui/notify.js` meldet Störfälle vor allem anderen.
+
 **v0.29 – Umsteiger am Drehkreuz** (aus Paket 10)
 - `sim/connections.js`: Jedes Flugzeug pendelt mit fester Umlaufzeit, daraus lassen sich seine
   Ankünfte und Abflüge am Drehkreuz vorwärts und rückwärts projizieren (`hubTimetable`) – ohne

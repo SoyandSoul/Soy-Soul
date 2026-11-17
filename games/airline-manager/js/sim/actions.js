@@ -21,6 +21,7 @@ import { headcount, staffNeed, staffHave, coverage, GROUPS, hireCost, severanceC
 import { normalizeLivery, liverySize } from "../art/livery.js";
 import { seatBudget, retrofitQuote, fittingOf } from "./fitting.js";
 import { creditLimit, quote, payoffQuote, MONTH } from "./credit.js";
+import { options as iropsOptions } from "./irops.js";
 import { nextStage, levelOf, stage, isHub } from "./hub.js";
 
 const ok = (extra = {}) => ({ ok: true, ...extra });
@@ -214,6 +215,51 @@ export function bookCampaign(state, channel, tier, days, now) {
   });
   state.log.unshift({ t: now, kind: "good", text: `Werbung gebucht: ${q.label} für ${days} Tage, ${Math.round(q.total / 1e3)} k$.` });
   return ok({ quote: q });
+}
+
+// ---------- Störfälle (IROPS)
+
+/**
+ * Entscheidung zu einem Störfall. Vier Wege, jeder mit eigenen Kosten und Folgen.
+ * Ohne Entscheidung wird nach Fristablauf automatisch gewartet – siehe sim/engine.js.
+ */
+export function resolveIrops(state, caseId, choice, now, subId = null) {
+  const c = (state.irops || []).find(x => x.id === caseId);
+  if (!c) return fail("Diesen Störfall gibt es nicht.");
+  if (c.done) return fail("Dieser Störfall ist bereits entschieden.");
+  if (now >= c.deadline) return fail("Die Frist ist abgelaufen – es wurde automatisch gewartet.");
+  const ac = state.fleet.find(a => a.id === c.acId);
+  if (!ac) return fail("Flugzeug nicht gefunden.");
+  const opt = iropsOptions(state, c, now).find(o => o.id === choice);
+  if (!opt) return fail("Diese Möglichkeit gibt es nicht.");
+  if (!opt.available) return fail(opt.text);
+  if (state.cash < opt.cost) return fail(`Dafür reicht die Kasse nicht – es fehlen ${Math.ceil((opt.cost - state.cash) / 1e3)} k$.`);
+
+  if (opt.cost) book(state, now, "cost", "handling", opt.cost);
+  state.airline.rep = Math.max(0, state.airline.rep + opt.rep);
+  c.done = true; c.choice = choice; c.cost = opt.cost;
+
+  if (choice === "cancel") {
+    // Der Umlauf fällt aus: Das Flugzeug bleibt in Reparatur, der Plan startet danach neu.
+    state.log.unshift({ t: now, kind: "warn", text: `Umlauf von ${ac.reg} gestrichen. ${c.pax} Fluggäste erstattet und umgebucht: ${Math.round(opt.cost / 1e3)} k$.` });
+  } else if (choice === "swap" || choice === "ferry") {
+    const sub = (opt.subs || []).find(a => a.id === subId) || (opt.subs || [])[0];
+    if (!sub) return fail("Kein Ersatzflugzeug verfügbar.");
+    const route = state.routes.find(r => r.id === c.routeId);
+    if (route) {
+      sub.ops = { routeId: route.id, dir: 0, dep: now + opt.delayH * H };
+      sub.status = "active";
+    }
+    // Die defekte Maschine verliert ihre Strecke und geht nach der Reparatur frei zurück
+    ac.ops = null;
+    state.log.unshift({ t: now, kind: "good",
+      text: choice === "swap"
+        ? `${sub.reg} übernimmt die Strecke von ${ac.reg}. Umplanung ${Math.round(opt.cost / 1e3)} k$.`
+        : `${sub.reg} wird leer nach ${c.at} überführt und übernimmt dort. Leerflug ${Math.round(opt.cost / 1e3)} k$.` });
+  } else {
+    state.log.unshift({ t: now, kind: "warn", text: `${ac.reg}: gewartet. Entschädigung ${Math.round(opt.cost / 1e3)} k$.` });
+  }
+  return ok({ case: c, option: opt });
 }
 
 // ---------- Kredite

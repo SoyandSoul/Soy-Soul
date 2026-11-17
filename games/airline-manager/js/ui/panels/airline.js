@@ -17,6 +17,7 @@ import { goalProgress, nextGoal, rewardText, GOAL_GROUPS } from "../../sim/goals
 import { commonality, commonalityNote } from "../../sim/commonality.js";
 import { totalDebt, monthlyLoad, creditLimit } from "../../sim/credit.js";
 import { steps } from "../../sim/firststeps.js";
+import { openCases, options as iropsOptions } from "../../sim/irops.js";
 import { supported as notifySupported, enabled as notifyOn, enable as notifyEnable, disable as notifyDisable, permission as notifyPermission } from "../notify.js";
 import { prefs } from "../../core/store.js";
 import { awareness, awarenessNote, awarenessFactor, activeCampaigns, channelOf } from "../../sim/marketing.js";
@@ -97,10 +98,11 @@ const goals = {
 const fmtGoal = g => g.target >= 1000 ? `${fmt.int(g.cur)} von ${fmt.int(g.target)}` : g.target === 1 ? "noch offen" : `${fmt.dec(g.cur)} von ${g.target}`;
 
 // ---------------------------------------------------------------- Flotte
-const FLEET_GROUPS = [["air", "In der Luft"], ["ground", "Am Boden"], ["charter", "Im Charter"], ["idle", "Ohne Strecke"], ["check", "In Wartung"], ["delivery", "In Auslieferung"]];
+const FLEET_GROUPS = [["aog", "Störfall"], ["air", "In der Luft"], ["ground", "Am Boden"], ["charter", "Im Charter"], ["idle", "Ohne Strecke"], ["check", "In Wartung"], ["delivery", "In Auslieferung"]];
 
 /** In welche Gruppe gehört ein Flugzeug? Maßgeblich ist die Spieluhr, nicht die Systemzeit. */
 function fleetGroup(ctx, ac) {
+  if (ac.status === "aog") return "aog";
   if (ac.status === "charter") return "charter";
   if (ac.status === "check") return "check";
   if (ac.status === "delivery") return "delivery";
@@ -119,7 +121,8 @@ function aircraftRow(ctx, ac) {
     if (p?.phase === "air") { detail = `${p.from.iata} → ${p.to.iata} · noch ${fmt.duration(p.eta - now)}`; cls = "air"; }
     else if (r) { detail = `${ac.ops.dir === 0 ? r.from : r.to} · Abflug ${fmt.time(ac.ops.dep)}`; cls = "ground"; }
     if (ac.ops.delay) detail += ` · +${ac.ops.delay.min}′`;
-  } else if (ac.status === "charter") { detail = `${ac.charter.city} für ${ac.charter.operator} · zurück ${fmt.date(ac.charter.until)}`; cls = "charter"; }
+  } else if (ac.status === "aog") { detail = `steht fest – Reparatur bis ${fmt.dateTime(ac.aog.until)}`; cls = "bad"; }
+  else if (ac.status === "charter") { detail = `${ac.charter.city} für ${ac.charter.operator} · zurück ${fmt.date(ac.charter.until)}`; cls = "charter"; }
   else if (ac.status === "check") { detail = `${ac.check.type}-Check bis ${fmt.dateTime(ac.check.until)}`; cls = "check"; }
   else if (ac.status === "delivery") { detail = `Übergabe ${fmt.dateTime(ac.availableAt)}`; cls = "delivery"; }
   else detail = "steht am Drehkreuz";
@@ -373,6 +376,52 @@ const firstSteps = {
   })
 };
 
+// ---------------------------------------------------------------- Störfälle
+const irops = {
+  id: "irops", title: "Störfall", icon: "alert",
+  // Nur sichtbar, solange wirklich etwas offen ist.
+  hidden: ctx => !openCases(ctx.state, ctx.now()).some(c => !c.done),
+  badge: ctx => { const n = openCases(ctx.state, ctx.now()).filter(c => !c.done).length; return n ? { n, kind: "bad" } : null; },
+  render(ctx, v) {
+    const now = ctx.now();
+    const list = openCases(ctx.state, now).filter(c => !c.done);
+    return html`${list.map(c => {
+      const left = c.deadline - now;
+      const opts = iropsOptions(ctx.state, c, now);
+      return html`<div class="card">
+        <div class="row"><div class="grow"><b>${c.reg} steht in ${c.at_city}</b>
+          <div class="small muted">Schwerer technischer Defekt · ${fmt.int(c.pax)} Fluggäste an Bord ·
+            Reparatur bis ${fmt.dateTime(c.repairUntil)}</div></div>
+          <div class="r"><div class="small muted">Entscheidung bis</div>
+            <b class="${left < 20 * 60_000 ? "bad" : "warn"}" data-cd="${c.deadline}">${fmt.duration(Math.max(0, left))}</b></div></div>
+        <p class="small muted" style="margin-top:8px">Ohne Entscheidung wird gewartet – sicher, aber selten das Beste.</p>
+        <div class="opt-list" style="margin-top:8px">${opts.map(o => html`<div class="irow ${o.available ? "" : "off"}">
+          <div class="grow"><b>${o.label}</b> ${o.isDefault ? html`<span class="pill">Vorgabe</span>` : ""}
+            <div class="small muted">${o.text}</div>
+            <div class="small">${o.cost ? html`<span class="warn">${fmt.money(o.cost)}</span>` : html`<span class="muted">keine Kosten</span>`}
+              · <span class="${o.rep < -5 ? "bad" : "muted"}">Ruf ${o.rep}</span>
+              ${o.delayH ? html` · <span class="muted">${o.delayH.toFixed(1)} h Verzug</span>` : ""}</div></div>
+          <button class="btn sm ${o.id === "swap" ? "p" : ""}" data-act="ir" data-id="${c.id}" data-choice="${o.id}"
+            ${o.available && ctx.state.cash >= o.cost ? "" : "disabled"}>Wählen</button></div>`)}</div>
+      </div>`;
+    })}`;
+  },
+  tick(el, ctx) {
+    const now = ctx.now();
+    for (const b of el.querySelectorAll("[data-cd]")) {
+      const left = +b.dataset.cd - now;
+      b.textContent = fmt.duration(Math.max(0, left));
+      b.className = left < 20 * 60_000 ? "bad" : "warn";
+    }
+  },
+  click: (ctx, v, api) => ({
+    ir: el => {
+      const r = ctx.run(act.resolveIrops, el.dataset.id, el.dataset.choice, ctx.now());
+      if (r) { ctx.toast(`${r.option.label}: ${fmt.money(r.option.cost)}.`, r.option.rep > -3 ? "good" : "warn", 6000); api.rerender(); }
+    }
+  })
+};
+
 // ---------------------------------------------------------------- Vermarktung
 const vermarktung = {
   id: "market", title: "Vermarktung", icon: "offer",
@@ -489,4 +538,4 @@ const account = {
   })
 };
 
-export const AIRLINE_SECTIONS = [firstSteps, overview, goals, departures, fleet, staff, finance, offer, vermarktung, reputation, company, account];
+export const AIRLINE_SECTIONS = [irops, firstSteps, overview, goals, departures, fleet, staff, finance, offer, vermarktung, reputation, company, account];

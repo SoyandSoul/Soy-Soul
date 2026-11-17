@@ -23,6 +23,7 @@ export const ICONS = {
   hub: s('<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/>'),
   account: s('<rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'),
   paint: s('<path d="M4 20c2 0 4-1 4-4l9-9 3 3-9 9c-3 0-4 2-4 4"/><path d="M14 6l4 4"/>'),
+  alert: s('<path d="M12 3L2 20h20L12 3z"/><path d="M12 10v5M12 18h.01"/>'),
   gate: s('<path d="M3 21h18"/><path d="M6 21V8l7-4v17"/><path d="M13 10h5v11"/><path d="M9 12h1"/>'),
   wrench: s('<path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L4 17l3 3 5.2-5.2a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.3-.7-.7-2.3z"/>'),
   calendar: s('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>'),

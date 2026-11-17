@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.29",
+  label: "v0.30",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -145,6 +145,22 @@ export const CATERING = {
 };
 
 export const BAGS = { defaultFee: 25, maxFee: 120, takeRate: 0.55, decay: 60, repPerUsd: 0.15, repCap: 15 };
+
+// IROPS: schwerer Defekt setzt ein Flugzeug fest. Die Entscheidung dreht sich um die Fluggäste.
+export const IROPS = {
+  chancePerLeg: 0.004,                 // wie oft ein Flug in einem AOG endet
+  repairH: { narrow: [5, 16], wide: [8, 26], jumbo: [10, 30] },
+  decideH: 2,                          // so lange hat man Zeit zu entscheiden, dann wird gewartet
+  compFromH: 3, compBigH: 6,           // Entschädigung ab drei bzw. sechs Stunden Verspätung
+  comp: 260, compBig: 520,             // je Fluggast
+  refundPerPax: 410,                   // Erstattung und Umbuchung bei Streichung
+  swapCost: 18_000,                    // Umplanung, Crew, Gepäckumladung
+  swapDelayH: 1.5,
+  seatTolerance: 0.85,                 // so viele Sitze muss das Ersatzflugzeug mindestens haben
+  ferryPerKm: { narrow: 7.4, wide: 13.5, jumbo: 17 },
+  ferryBase: 9_000,
+  rep: { wait: -5, cancel: -11, swap: -1.5, ferry: -2.5 }
+};
 
 // Umsteiger am Drehkreuz. Sie füllen freie Sitze und machen ein Netz mehr wert als die Summe
 // seiner Strecken – aber nur, wenn die Umläufe zeitlich zusammenpassen.

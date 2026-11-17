@@ -35,6 +35,13 @@ export function disable() { prefs.set(KEY, false); }
 /** Was gerade eine Entscheidung verlangt. Reine Funktion über den Spielstand. */
 export function pending(state, now) {
   const out = [];
+  // Störfälle zuerst: Hier läuft eine Frist, alles andere kann warten.
+  for (const c of (state.irops || [])) {
+    if (c.done || now >= c.deadline) continue;
+    out.push({ id: "irops-" + c.id, title: "Flugzeug steht fest",
+      text: `${c.reg} in ${c.at_city}: schwerer Defekt, ${c.pax} Fluggäste. Entscheidung bis ${new Date(c.deadline).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}, sonst wird gewartet.` });
+  }
+
   const idle = state.fleet.filter(a => a.status === "idle" && !a.charter);
   if (idle.length) out.push({ id: "idle", title: "Flugzeug ohne Strecke",
     text: `${idle.map(a => a.reg).join(", ")} steht am Drehkreuz und verdient nichts.` });

@@ -4,7 +4,7 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.29**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.30**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
 > Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22, Paket 5 (Hub und
@@ -12,7 +12,7 @@ Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.29**
 > Paket 8 (Welt und Ereignisse) als v0.26, Paket 9 (Börse und Rangliste) als v0.27.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
 > Flottenvereinheitlichung sind als v0.19 fertig. Umsteiger am Drehkreuz als v0.29, geführter
-> Einstieg, Benachrichtigungen und Balance-Werkzeug als v0.28. Offen daraus: IROPS – siehe unten.
+> Einstieg, Benachrichtigungen und Balance-Werkzeug als v0.28, IROPS als v0.30.
 > **Zurückgestellt:** Paket 1 (Flugzeugformen) – auf Noahs Wunsch später, zusammen mit den Norebbo-Vorlagen.
 
 ---
