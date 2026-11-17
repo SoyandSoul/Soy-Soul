@@ -143,7 +143,7 @@ function start() {
   document.addEventListener("visibilitychange", () => { if (document.hidden) save(ctx.state); else step(); });
   addEventListener("pagehide", () => save(ctx.state));
   if (new URLSearchParams(location.search).has("dev")) {
-    window.am = { ctx, clock, settle, step };
+    window.am = { ctx, clock, settle, step, get map() { return ctx.map; } };
     console.info("Dev-Modus: am.clock.shift(stunden) verschiebt die Zeit, danach am.step()");
   }
 }

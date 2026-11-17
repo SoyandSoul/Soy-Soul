@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.24",
+  label: "v0.25",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -145,6 +145,14 @@ export const CATERING = {
 };
 
 export const BAGS = { defaultFee: 25, maxFee: 120, takeRate: 0.55, decay: 60, repPerUsd: 0.15, repCap: 15 };
+
+// Bodenbetrieb auf der Karte: rein optisch, ohne Einfluss auf die Abrechnung.
+export const GROUND = {
+  zoom: 11,          // ab diesem Zoom werden Bahnen, Vorfeld und Rollwege gezeichnet
+  gates: 12,         // Gatepositionen je Flughafen
+  taxiMin: 8,        // Rollzeit in Minuten
+  rollSec: 35        // Startlauf in Sekunden
+};
 
 // Kredite. Der Zins ist der eigentliche Hebel: Wer wenig verdient, viel schuldet oder einen
 // schlechten Ruf hat, zahlt deutlich mehr. Ein Kredit ist nie gratis Geld.

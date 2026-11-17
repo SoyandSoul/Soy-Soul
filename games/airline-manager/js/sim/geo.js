@@ -39,3 +39,38 @@ export function arc(a, b, steps = 64) {
   }
   return pts;
 }
+
+/**
+ * Nachtseite der Erde als Polygon – wo gerade keine Sonne scheint.
+ * Vereinfachte Sonnenposition (auf ein paar Minuten genau), aber rein aus der Uhrzeit gerechnet:
+ * Jeder Spieler sieht denselben Terminator, ohne dass irgendetwas gespeichert werden müsste.
+ *
+ * Auf dem Terminator steht die Sonne genau am Horizont. Für jede Länge gilt dort
+ *   lat = atan(-cos(Stundenwinkel) / tan(Deklination)).
+ */
+export function nightPolygon(ts) {
+  const D = Math.PI / 180;
+  const d = ts / 86400000 - 10957.5;                          // Tage seit J2000
+  const g = (357.529 + 0.98560028 * d) * D;                   // mittlere Anomalie
+  const q = (280.459 + 0.98564736 * d) * D;                   // mittlere Länge
+  const L = q + (1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * D;
+  const e = (23.439 - 0.00000036 * d) * D;                    // Schiefe der Ekliptik
+  const decl = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmst = (18.697374558 + 24.06570982441908 * d) % 24;
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const sunLon = ((ra / D - gmst * 15) % 360 + 540) % 360 - 180;   // Länge mit Sonne im Zenit
+
+  const t = Math.tan(decl);
+  const latAt = lon => {
+    if (Math.abs(t) < 1e-6) return 0;
+    return Math.atan(-Math.cos((lon - sunLon) * D) / t) / D;
+  };
+  const curve = [];
+  for (let lon = -180; lon <= 180; lon += 2) curve.push([lon, Math.max(-89.9, Math.min(89.9, latAt(lon)))]);
+  // Dunkel ist die Halbkugel, von der die Sonne weg geneigt ist
+  const pole = decl > 0 ? -90 : 90;
+  return {
+    type: "Polygon",
+    coordinates: [[[-180, pole], ...curve, [180, pole], [-180, pole]]]
+  };
+}

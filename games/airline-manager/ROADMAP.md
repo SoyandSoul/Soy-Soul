@@ -4,11 +4,11 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.24**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.25**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
 > Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22, Paket 5 (Hub und
-> Ausstattung) als v0.23, Paket 6 (Finanzen) als v0.24.
+> Ausstattung) als v0.23, Paket 6 (Finanzen) als v0.24, Paket 7 (Karte und Bodenbetrieb) als v0.25.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
 > Flottenvereinheitlichung sind als v0.19 fertig. Offen daraus: Umsteiger am Drehkreuz, IROPS,
 > wartende Entscheidungen, Benachrichtigungen, geführter Einstieg – siehe unten.
@@ -142,17 +142,21 @@ Punkte 29, 30 · erledigt · Leasing war als v0.18 schon da
 
 ---
 
-## Paket 7 – Karte und Bodenbetrieb → v0.25
+## Paket 7 – Karte und Bodenbetrieb → v0.25 ✅
 
-Punkte 17, 18
+Punkte 17, 18 · erledigt
 
-- Kartenstile umschaltbar: Satellit, Schema, Tag und Nacht
-- Beim Hineinzoomen: Flugzeuge starten am Gate, rollen zur Bahn, starten dort
+- ✅ Vier Kartenstile: Dunkel, Hell, Schema, Satellit (NASA Blue Marble, gemeinfrei)
+- ✅ Nachtschatten aus Datum und Uhrzeit, für alle Spieler gleich
+- ✅ Ab Zoomstufe 11 Bahnen, Vorfeld und Rollwege; Flugzeuge stehen am Gate, rollen zur Bahn
+  und beschleunigen dort
 
-**Hinweis:** Der Rollbetrieb braucht Gate- und Bahnlagen. Für die großen Flughäfen machbar, für alle 137
-wird es ein vereinfachtes Schema geben.
+**Wie angekündigt vereinfacht:** Für rund 60 große Flughäfen sind die echten Bahnrichtungen
+hinterlegt (FRA mit drei Parallelbahnen und der 18), alle übrigen bekommen ein Schema mit einer
+Bahn, deren Richtung deterministisch aus dem ICAO-Code kommt. Gatepositionen sind überall schematisch.
 
-**Test:** Auf mehrere Flughäfen zoomen, Rollwege plausibel, Leistung auf dem Handy prüfen.
+**Test:** erledigt – zwei Tests in `sim.test.mjs` (Terminator gegen bekannte Fälle wie Polarnacht
+auf Spitzbergen, Bahnlage und Rollphasen über die Zeit), dazu Browsercheck auf FRA.
 
 ---
 

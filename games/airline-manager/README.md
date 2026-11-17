@@ -272,6 +272,20 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.25 – Kartenstile und Bodenbetrieb** (Paket 7)
+- `ui/map.js`: `MAP_STYLES` mit vier Stilen. Schema und Satellit sind eigene Style-Objekte im Code
+  (Satellit: NASA GIBS Blue Marble, gemeinfrei, ohne Schlüssel, maxzoom 8). Auswahl und
+  Nachtschatten liegen in `prefs`, bleiben also über Sitzungen erhalten.
+- `nightPolygon(ts)` in `sim/geo.js`: Terminator aus vereinfachter Sonnenposition. Für jede Länge
+  gilt `lat = atan(-cos(Stundenwinkel) / tan(Deklination))`; das Polygon schließt zum Pol der
+  gerade dunklen Halbkugel. Rein aus der Uhrzeit, also für alle gleich.
+- `data/runways.js`: echte Bahnrichtungen für rund 60 große Flughäfen, Rest deterministisch aus
+  dem ICAO-Code. `sim/ground.js` baut daraus Bahnen, Vorfeld, Gates und Rollweg.
+- `groundPosition(ap, acId, ts, { dep, arr })` liefert Gate, Rollweg oder Startlauf – alles aus
+  `ac.ops.dep` abgeleitet, damit auch die Bodenbewegung bei jedem Blick gleich aussieht.
+  Die Kursberechnung korrigiert die Längengradstauchung, sonst steht das Flugzeug schief zur Bahn.
+- Die Karte zeichnet den Bodenbetrieb erst ab `GROUND.zoom`; darunter bleibt alles wie bisher.
+
 **v0.24 – Kredite und Kerosin-Diagramme** (Paket 6)
 - `sim/credit.js`: Annuität und endfälliger Kredit. Zahlungen sind **feste Termine** (`nextDue`),
   keine laufende Verzinsung – damit hängt wie beim Charter nichts an der Schrittweite.

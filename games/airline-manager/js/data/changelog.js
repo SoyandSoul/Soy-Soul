@@ -6,6 +6,17 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.25", date: "17.11.2026", title: "Kartenstile und Bodenbetrieb",
+    intro: "Die Karte konnte bisher genau eine Sache: dunkel sein. Jetzt kann sie vier – und beim Hineinzoomen rollen die Flugzeuge wirklich.",
+    items: [
+      ["neu", "Vier Kartenstile über das Menü unten rechts: Dunkel, Hell, Schema (ganz ohne Kacheln, läuft auch wenn der Kartendienst streikt) und Satellit (NASA Blue Marble, gemeinfrei)."],
+      ["neu", "Nachtschatten: die Erdhälfte, auf der gerade keine Sonne scheint, wird abgedunkelt. Aus Datum und Uhrzeit gerechnet, also für jeden Spieler dieselbe."],
+      ["neu", "Bodenbetrieb ab Zoomstufe 11: Bahnen, Vorfeld und Rollwege werden gezeichnet. Für rund 60 große Flughäfen mit den echten Bahnrichtungen, für alle übrigen nach einem festen Schema."],
+      ["neu", "Flugzeuge am Boden stehen nicht mehr alle auf dem Flughafenpunkt, sondern an ihrem Gate. Acht Minuten vor dem Abflug rollen sie los, zur Abflugzeit beschleunigen sie auf der Bahn."],
+      ["info", "Der Bodenbetrieb ist reine Darstellung – ein Flug kostet und bringt dasselbe, ob jemand zusieht oder nicht."]
+    ]
+  },
+  {
     v: "v0.24", date: "17.11.2026", title: "Kredite und Kerosin-Diagramme",
     intro: "Geld kam bisher nur aus dem Flugbetrieb oder gar nicht. Jetzt gibt es eine Bank – und sie rechnet nach.",
     items: [

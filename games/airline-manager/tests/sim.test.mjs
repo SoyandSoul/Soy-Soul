@@ -25,6 +25,10 @@ import { levelOf, stage, nextStage, upkeepPerDay, hangarEffect, hubRep, loungeFa
 import { seatBudget, retrofitQuote, fleetFitting } from "../js/sim/fitting.js";
 import { seatUnits } from "../js/sim/flight.js";
 import { creditLimit, interestRate, quote, annuity, totalDebt, openLoans, monthlyLoad, payoffQuote, MONTH } from "../js/sim/credit.js";
+import { nightPolygon } from "../js/sim/geo.js";
+import { layout, groundPosition, gateIndex } from "../js/sim/ground.js";
+import { runwaysFor, RUNWAYS } from "../js/data/runways.js";
+import { AIRPORT_BY_IATA } from "../js/data/airports.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
 import { AIRCRAFT } from "../js/data/aircraft.js";
@@ -681,6 +685,57 @@ test("Kredit vorzeitig ablösen und verpasste Raten", () => {
   assert.ok(l.missed >= 1, "die Rate wurde als verpasst gezählt");
   assert.ok(l.rest > 3e6 * 0.9, "die Restschuld ist nicht gesunken");
   assert.ok(s.airline.rep < rep, "und der Ruf hat gelitten");
+});
+
+
+test("Tag und Nacht: Terminator steht richtig", () => {
+  const inside = (poly, lon, lat) => {
+    const r = poly.coordinates[0];
+    let c = false;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, yi] = r[i], [xj, yj] = r[j];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  };
+  // 21. Dezember: Frankfurt nachts um 23 UTC, mittags hell; Sydney umgekehrt; Spitzbergen Polarnacht
+  const night = h => nightPolygon(Date.UTC(2026, 11, 21, h, 0));
+  assert.ok(inside(night(23), 8.6, 50.0), "Frankfurt um 23 UTC: Nacht");
+  assert.ok(!inside(night(12), 8.6, 50.0), "Frankfurt um 12 UTC: Tag");
+  assert.ok(inside(night(12), 151, -33.9), "Sydney um 12 UTC (23 Uhr Ortszeit): Nacht");
+  assert.ok(!inside(night(23), 151, -33.9), "Sydney um 23 UTC (10 Uhr Ortszeit): Tag");
+  assert.ok(inside(night(12), 15, 78), "Spitzbergen im Dezember: Polarnacht");
+  // Im Juni ist es dort umgekehrt
+  assert.ok(!inside(nightPolygon(Date.UTC(2026, 5, 21, 12, 0)), 15, 78), "Spitzbergen im Juni: Mitternachtssonne");
+  assert.equal(nightPolygon(1).coordinates[0].length, nightPolygon(2).coordinates[0].length);
+});
+
+test("Bodenbetrieb: Bahnlage, Gates und Rollbewegung", () => {
+  const fra = AIRPORT_BY_IATA.FRA;
+  const l = layout(fra);
+  assert.equal(l.runways.length, 4, "FRA hat drei Parallelbahnen plus Startbahn West");
+  assert.equal(l.runways[0].hdg, 70, "07/25 zeigt auf 070 Grad");
+  assert.ok(l.runways.some(r => r.hdg === 180), "und die 18 ist dabei");
+  assert.equal(l.gates.length, 12);
+  // Zweimal fragen muss dasselbe ergeben – sonst springt alles beim Neuladen
+  assert.deepEqual(layout(fra).gates, l.gates);
+  assert.equal(gateIndex("t-ac-0"), gateIndex("t-ac-0"));
+
+  // Flughäfen ohne Eintrag bekommen eine Ersatzrichtung, aber immer dieselbe
+  const far = AIRPORTS.find(a => !RUNWAYS[a.iata]);
+  assert.ok(far, "es gibt Flughäfen ohne hinterlegte Bahn");
+  assert.equal(runwaysFor(far).hdg[0], runwaysFor(far).hdg[0]);
+  assert.ok(runwaysFor(far).guessed);
+
+  const dep = Date.UTC(2026, 6, 1, 12, 0);
+  const at = m => groundPosition(fra, "t-ac-0", dep + m * 60_000, { dep });
+  assert.equal(at(-20).phase, "gate", "lange vorher steht es am Gate");
+  assert.equal(at(-5).phase, "taxi", "kurz vorher rollt es");
+  assert.equal(at(0.2).phase, "roll", "zur Abflugzeit ist es auf der Bahn");
+  assert.equal(Math.round(at(0.2).heading), 70, "und zwar in Bahnrichtung");
+  assert.ok(at(-5).lon !== at(-2).lon, "die Position bewegt sich");
+  // Dieselbe Sekunde zweimal gefragt: identisch
+  assert.deepEqual(at(-3), at(-3));
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

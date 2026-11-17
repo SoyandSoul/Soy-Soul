@@ -78,3 +78,12 @@ table.t .r { text-align: right; }
 .tabs button[aria-selected="true"] { background: var(--raise2); color: var(--ink); }
 .empty { text-align: center; padding: 30px 10px; color: var(--ink3); }
 .empty b { display: block; color: var(--ink); font-size: 15px; margin-bottom: 4px; }
+
+/* Kartenstil-Menü */
+.mapstyle { position: relative; }
+.mapstyle > button { font-size: 15px; line-height: 1; }
+.mapstyle-menu { position: absolute; right: 0; bottom: 34px; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 10px; padding: 5px; min-width: 132px; box-shadow: var(--shadow); }
+.mapstyle-menu button { display: block; width: 100%; text-align: left; padding: 7px 10px; border: 0; background: none; color: var(--ink2); border-radius: 7px; font-size: 13px; cursor: pointer; }
+.mapstyle-menu button:hover { background: var(--raise); color: var(--ink); }
+.mapstyle-menu button.on { color: var(--accent); font-weight: 600; }
+.mapstyle-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
