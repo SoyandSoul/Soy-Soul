@@ -12,7 +12,7 @@ export const GAME = {
   startCash: 12_000_000,
   startShares: 10_000_000,           // Aktien pro Airline beim Börsengang
   maxCatchupDays: 30,                // so weit rechnet das Spiel nach längerer Abwesenheit maximal nach
-  label: "v0.28",
+  label: "v0.29",
   instantDeliveries: 5,              // die ersten 5 Flugzeuge kommen sofort – schneller Einstieg
   // Danach Lieferzeiten in Echtzeit-Stunden: Endmontage-Slot, Abnahmeflüge, Überführung, Zulassung.
   // (Echte Auftragsbestände liegen bei Jahren – hier auf spielbare Tage verdichtet.)
@@ -145,6 +145,19 @@ export const CATERING = {
 };
 
 export const BAGS = { defaultFee: 25, maxFee: 120, takeRate: 0.55, decay: 60, repPerUsd: 0.15, repCap: 15 };
+
+// Umsteiger am Drehkreuz. Sie füllen freie Sitze und machen ein Netz mehr wert als die Summe
+// seiner Strecken – aber nur, wenn die Umläufe zeitlich zusammenpassen.
+export const CONNECT = {
+  minMinutes: 45,            // Mindestumsteigezeit
+  sweetMinutes: 95,          // angenehmste Umsteigezeit
+  maxMinutes: 330,           // länger wartet niemand freiwillig
+  maxDetour: 1.7,            // Umweg über das Drehkreuz, ab dem niemand mehr umsteigt
+  minDirectKm: 400,          // auf ganz kurzen Strecken steigt niemand um
+  share: 0.3,                // Anteil des Marktes, der überhaupt für einen Umstieg in Frage kommt
+  throughFare: 0.82,         // Durchgangspreis gegenüber der Summe zweier Einzelflüge
+  fillFree: 0.65             // so viel der freien Sitze dürfen Umsteiger höchstens belegen
+};
 
 // Kalender: wie stark Feiertage und Ferien auf die Nachfrage schlagen.
 // 1 = voller Effekt wie in sim/calendar.js hinterlegt, darunter gedämpft.

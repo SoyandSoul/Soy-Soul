@@ -36,6 +36,8 @@ import { buyShares, sellShares, maxShares, stakeIn, demoMarket } from "../js/sim
 import { STOCKS, RATING } from "../js/core/config.js";
 import { steps } from "../js/sim/firststeps.js";
 import { pending } from "../js/ui/notify.js";
+import { hubTimetable, detourFactor, waitFactor, connectingPax, hubWaves } from "../js/sim/connections.js";
+import { CONNECT } from "../js/core/config.js";
 import { AIRPORT_BY_IATA } from "../js/data/airports.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
@@ -920,6 +922,108 @@ test("Benachrichtigungen melden nur, was eine Entscheidung braucht", () => {
   // Auslaufendes Leasing
   s.fleet[0].lease.until = start + DAY;
   assert.ok(pending(s, start).some(x => x.id.startsWith("lease-")));
+});
+
+
+test("Umsteiger: Umweg, Wartezeit und Fahrplan", () => {
+  // Über FRA von Lissabon nach Helsinki ist ein vernünftiger Umstieg
+  assert.ok(detourFactor("LIS", "HEL", "FRA") > 0.3, detourFactor("LIS", "HEL", "FRA"));
+  // Von London nach Paris über Frankfurt steigt niemand um
+  assert.equal(detourFactor("LHR", "CDG", "FRA"), 0);
+  // Ganz kurze Städtepaare fallen heraus – dafür steigt niemand um
+  assert.equal(detourFactor("DUS", "CGN", "FRA"), 0);
+  // Hamburg–München über Frankfurt ist dagegen ein echter Umstieg, wie in der Realität auch
+  assert.ok(detourFactor("HAM", "MUC", "FRA") > 0.5);
+  assert.ok(detourFactor("MAD", "WAW", "FRA") > detourFactor("MAD", "ATH", "FRA"),
+    "je gerader der Weg über das Drehkreuz, desto mehr steigen um");
+
+  assert.equal(waitFactor(CONNECT.minMinutes - 1), 0, "unter der Mindestumsteigezeit geht nichts");
+  assert.equal(waitFactor(CONNECT.maxMinutes + 1), 0, "und ewig wartet niemand");
+  assert.ok(waitFactor(CONNECT.sweetMinutes) > waitFactor(CONNECT.minMinutes + 5));
+  assert.ok(waitFactor(CONNECT.sweetMinutes) > waitFactor(CONNECT.maxMinutes - 10));
+
+  const { s, start } = setup(2);
+  const r1 = act.createRoute(s, "FRA", "LIS").route;
+  const r2 = act.createRoute(s, "FRA", "HEL").route;
+  // Jede neue Strecke hebt den Personalbedarf – zwischen den Zuweisungen muss neu eingestellt werden.
+  act.hireAllOpen(s, start);
+  assert.ok(act.assign(s, s.fleet[0].id, r1.id, start).ok);
+  act.hireAllOpen(s, start);
+  assert.ok(act.assign(s, s.fleet[1].id, r2.id, start).ok);
+  act.hireAllOpen(s, start);
+
+  const table = hubTimetable(s, "FRA", start, start + DAY);
+  assert.equal(table.length, 2, "beide Flugzeuge tauchen im Fahrplan auf");
+  for (const e of table) {
+    assert.ok(e.arrivals.length && e.departures.length, "Ankünfte und Abflüge über 24 Stunden");
+    assert.ok(e.cycle > 0);
+    // Streng aufsteigend und im Fenster
+    for (const t of [...e.arrivals, ...e.departures]) assert.ok(t >= start && t <= start + DAY);
+  }
+  assert.deepEqual(hubTimetable(s, "FRA", start, start + DAY), table, "zweimal fragen, gleiche Antwort");
+});
+
+test("Umsteiger füllen nur freie Sitze und nie doppelt", () => {
+  const { s, start } = setup(2);
+  const r1 = act.createRoute(s, "FRA", "LIS").route;
+  const r2 = act.createRoute(s, "FRA", "HEL").route;
+  act.hireAllOpen(s, start);
+  act.assign(s, s.fleet[0].id, r1.id, start);
+  act.hireAllOpen(s, start);
+  act.assign(s, s.fleet[1].id, r2.id, start);
+  act.hireAllOpen(s, start);
+  settle(s, start + 3 * DAY);
+
+  const args = { hub: "FRA", other: "HEL", ts: start + DAY, dir: "out", km: 1900, flightsPerDay: 2 };
+  const voll = connectingPax(s, { ...args, freeSeats: 0 });
+  assert.equal(voll, null, "ohne freien Sitz keine Umsteiger");
+  const etwas = connectingPax(s, { ...args, freeSeats: 50 });
+  if (etwas) {
+    assert.ok(etwas.paxTotal <= Math.ceil(50 * CONNECT.fillFree), `${etwas.paxTotal} von 50 freien Sitzen`);
+    assert.ok(etwas.revenue > 0);
+    assert.deepEqual(connectingPax(s, { ...args, freeSeats: 50 }), etwas, "deterministisch");
+  }
+  // Mehr eigene Abflüge am Tag teilen denselben Markt auf
+  const wenig = connectingPax(s, { ...args, freeSeats: 400, flightsPerDay: 1 });
+  const viel = connectingPax(s, { ...args, freeSeats: 400, flightsPerDay: 6 });
+  if (wenig && viel) assert.ok(viel.paxTotal < wenig.paxTotal, "sonst würde derselbe Markt mehrfach einsteigen");
+
+  // Kein Drehkreuz, keine Umsteiger
+  assert.equal(connectingPax(s, { ...args, hub: "LIS", freeSeats: 100 }), null);
+
+  const w = hubWaves(s, "FRA", start + DAY, 24);
+  assert.equal(w.buckets.length, 24);
+  assert.ok(w.deps > 0);
+  assert.ok(w.quality >= 0 && w.quality <= 1);
+  assert.ok(w.note.length > 20);
+});
+
+test("Ein Netz bringt mehr als einzelne Strecken", () => {
+  const run = (dests) => {
+    const s = newGame({ name: "Netz", iata: "NZ", hub: "FRA", player: { code: "AL-NET-001", secret: "x" }, now: T0 });
+    s.cash = 80e6;
+    s.airline.frameBonus = 3e6;
+    for (let i = 0; i < dests.length; i++) act.leaseNew(s, "a320neo", 12, T0);
+    settle(s, T0 + 2 * H);
+    s.fleet.forEach((ac, i) => { ac.id = `net-${i}`; });
+    const start = T0 + 2 * H;
+    for (const d of dests) {
+      const r = act.createRoute(s, "FRA", d).route;
+      act.hireAllOpen(s, start);
+      const free = s.fleet.find(a => a.status === "idle");
+      if (free && r) act.assign(s, free.id, r.id, start);
+      act.hireAllOpen(s, start);
+    }
+    for (let i = 0; i < 14; i++) { act.hireAllOpen(s, start + i * DAY); settle(s, start + (i + 1) * DAY); }
+    const sum = summary(s, 14, start + 14 * DAY);
+    return { transfer: sum.rev.transfer || 0, rev: sum.opRev, perAircraft: sum.opRev / dests.length };
+  };
+  const klein = run(["LIS", "HEL"]);
+  const gross = run(["LIS", "HEL", "ATH", "OSL", "IST", "MAD"]);
+  assert.ok(gross.transfer > klein.transfer * 2, `Umsteiger: ${Math.round(klein.transfer / 1e3)} k$ vs ${Math.round(gross.transfer / 1e3)} k$`);
+  assert.ok(gross.transfer / gross.rev > klein.transfer / klein.rev, "der Anteil wächst mit dem Netz");
+  assert.ok(gross.perAircraft > klein.perAircraft,
+    `Erlös je Flugzeug: ${Math.round(klein.perAircraft / 1e3)} k$ vs ${Math.round(gross.perAircraft / 1e3)} k$ – ein Netz muss mehr bringen als die Summe seiner Strecken`);
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

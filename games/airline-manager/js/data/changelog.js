@@ -6,6 +6,18 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.29", date: "17.11.2026", title: "Umsteiger am Drehkreuz",
+    intro: "Ein Drehkreuz war bisher die Summe seiner Strecken. Jetzt ist es mehr.",
+    items: [
+      ["neu", "Umsteiger: Wer aus Lissabon kommt und nach Helsinki weiterfliegt, zählt für beide Flüge. Dadurch wird ein Netz aus acht Strecken deutlich mehr wert als acht einzelne Strecken – gemessen steigt der Umsteigeranteil von 5 Prozent des Erlöses bei zwei Strecken auf 16 Prozent bei acht."],
+      ["neu", "Ob ein Umstieg zustande kommt, entscheiden drei Dinge: die Umsteigezeit (45 bis 330 Minuten, am besten gut anderthalb Stunden), der Umweg über das Drehkreuz (ab 70 Prozent länger als direkt steigt niemand mehr um) und ob überhaupt ein Zubringer im Fenster landet."],
+      ["neu", "Umsteiger füllen nur, was die örtliche Nachfrage frei gelassen hat, und auch davon höchstens zwei Drittel. Ein gut angebundenes Drehkreuz fliegt voller, aber nicht randvoll."],
+      ["neu", "Neuer Bereich Umsteiger im Drehkreuz-Fenster: Ankünfte und Abflüge als Wellen über 24 Stunden, der Anteil der Abflüge mit Zubringer und der Erlösanteil der Umsteiger."],
+      ["besser", "Die Flugabrechnung nennt jetzt, wie viele der Fluggäste Umsteiger waren."],
+      ["besser", "Zwei neue Szenarien im Balance-Werkzeug: Wachstum mit und ohne Personalplanung nebeneinander (95 gegen 0 Prozent Pünktlichkeit) und der Umsteigereffekt über zwei, vier und acht Strecken."]
+    ]
+  },
+  {
     v: "v0.28", date: "17.11.2026", title: "Geführter Einstieg und Benachrichtigungen",
     intro: "Drei Dinge, die das Spiel freundlicher machen, ohne es zu verändern.",
     items: [

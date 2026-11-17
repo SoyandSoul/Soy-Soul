@@ -4,15 +4,15 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.28**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.29**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
 > Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22, Paket 5 (Hub und
 > Ausstattung) als v0.23, Paket 6 (Finanzen) als v0.24, Paket 7 (Karte und Bodenbetrieb) als v0.25,
 > Paket 8 (Welt und Ereignisse) als v0.26, Paket 9 (Börse und Rangliste) als v0.27.
 > **Spielspaß-Paket (nicht aus der ursprünglichen Liste):** Ziele, Streckenbewertung und
-> Flottenvereinheitlichung sind als v0.19 fertig. Offen daraus: Umsteiger am Drehkreuz, IROPS,
-> wartende Entscheidungen, Benachrichtigungen, geführter Einstieg – siehe unten.
+> Flottenvereinheitlichung sind als v0.19 fertig. Umsteiger am Drehkreuz als v0.29, geführter
+> Einstieg, Benachrichtigungen und Balance-Werkzeug als v0.28. Offen daraus: IROPS – siehe unten.
 > **Zurückgestellt:** Paket 1 (Flugzeugformen) – auf Noahs Wunsch später, zusammen mit den Norebbo-Vorlagen.
 
 ---
@@ -207,9 +207,8 @@ Bewertungen haben. Ohne Server ist außerdem Schummeln per DevTools möglich.
 
 Aus der Empfehlungsliste, noch offen – nach Wirkung sortiert:
 
-- **Umsteiger am Drehkreuz**: Ankünfte und Abflüge in Wellen, Umsteigeverbindungen zählen.
-  Macht die Abflugzeit zur Entscheidung und ein Drehkreuz mehr wert als die Summe seiner Strecken.
-  Das aufwendigste Einzelstück im ganzen Fahrplan, aber das, was das Spiel von anderen unterscheiden würde.
+- ✅ **Umsteiger am Drehkreuz** (v0.29): Ankünfte und Abflüge im Anschlussfenster zählen für beide
+  Flüge. Umsteigeranteil wächst von 5 % des Erlöses bei zwei Strecken auf 16 % bei acht.
 - **Unregelmäßigkeiten (IROPS)**: Flugzeug fällt aus – verspäten, streichen, tauschen oder ferryen,
   mit Folgen für Reputation und Kosten. Passt eng zu Paket 8 (Diversions).
 - **Wartende Entscheidungen**: Charterangebote mit Frist, Kerosin-Tief zum Eindecken, Störungen, die

@@ -9,6 +9,7 @@ import { handlerOf } from "./handling.js";
 import { awarenessFactor } from "./marketing.js";
 import { loungeFactor, hangarEffect } from "./hub.js";
 import { ifeSpec, seatBudget } from "./fitting.js";
+import { connectingPax } from "./connections.js";
 import { CABIN, CARGO, FEES, STAFF, CATERING, ONBOARD, BAGS, FIXED, H } from "../core/config.js";
 import { AIRPORT_BY_IATA } from "../data/airports.js";
 import { typeOf, routeDistance, blockHours, cargoCapacityKg, totalSeats } from "./flight.js";
@@ -32,15 +33,30 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   const aware = {};
   for (const c of CABIN.classes) aware[c] = awarenessFactor(state, dep, c) * loungeFactor(state, c);
   const b = bookings({ route, dir, cfg: ac.cfg, ts: dep, rep: state.airline.rep, flightsPerDay, legKey, aware });
-  const paxTotal = CABIN.classes.reduce((s, c) => s + b.pax[c], 0);
+  const local = { ...b.pax };                      // örtliche Nachfrage, zahlt den Streckenpreis
   const seats = totalSeats(ac.cfg);
+  let paxTotal = CABIN.classes.reduce((s, c) => s + b.pax[c], 0);
+
+  // Umsteiger füllen auf, was die örtliche Nachfrage frei gelassen hat – wie bei echten Drehkreuzen.
+  // Sie zahlen einen Durchgangspreis, der anteilig auf Zubringer und Weiterflug verteilt wird.
+  const hubSide = state.airline.hubs.includes(from.iata) ? "out" : state.airline.hubs.includes(to.iata) ? "in" : null;
+  const connect = hubSide ? connectingPax(state, {
+    hub: hubSide === "out" ? from.iata : to.iata,
+    other: hubSide === "out" ? to.iata : from.iata,
+    ts: hubSide === "out" ? dep : dep + bh * H,
+    dir: hubSide, freeSeats: Math.max(0, seats - paxTotal), km, flightsPerDay
+  }) : null;
+  if (connect) {
+    for (const c of CABIN.classes) b.pax[c] += connect.pax[c];
+    paxTotal += connect.paxTotal;
+  }
   const lf = seats ? paxTotal / seats : 0;
   const cat = CATERING.modes[state.airline.catering];
   const range = ONBOARD.ranges[state.airline.onboard] || ONBOARD.ranges[ONBOARD.defaultRange];
 
   // --- Einnahmen
-  const rev = { tickets: 0, cargo: 0, onboard: 0, bags: 0 };
-  for (const c of CABIN.classes) rev.tickets += b.pax[c] * b.prices[c];
+  const rev = { tickets: 0, cargo: 0, transfer: connect ? connect.revenue : 0, onboard: 0, bags: 0 };
+  for (const c of CABIN.classes) rev.tickets += local[c] * b.prices[c];
   const cargoKg = cargoCapacityKg(ac, km, paxTotal) * CARGO.loadFactor[Math.max(from.tier, to.tier)] * (0.85 + 0.3 * rand01("cargo", legKey));
   rev.cargo = cargoKg * (CARGO.yieldBase + CARGO.yieldPerKm * km);
   for (const c of CABIN.classes) rev.onboard += b.pax[c] * cat.salesPerPax[c] * range.salesMul * ifeSpec(ac).onboard * (km > 1500 ? 1.4 : 1);
@@ -71,7 +87,7 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
   return {
     t: dep, arr: dep + bh * H, acId: ac.id, reg: ac.reg, type: t.name, routeId: route.id,
     from: from.iata, to: to.iata, km, blockH: bh, pax: b.pax, paxTotal, seats, lf, cargoKg: Math.round(cargoKg),
-    prices: b.prices, cfg: { ...ac.cfg }, seatsMax: seatBudget(ac), fuelKg: Math.round(fuelKg), pilots, cabin, rev, cost,
+    prices: b.prices, cfg: { ...ac.cfg }, seatsMax: seatBudget(ac), transferPax: connect?.paxTotal || 0, fuelKg: Math.round(fuelKg), pilots, cabin, rev, cost,
     profit: Object.values(rev).reduce((s, v) => s + v, 0) - Object.values(cost).reduce((s, v) => s + v, 0)
   };
 }

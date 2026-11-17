@@ -18,7 +18,9 @@ export function tally(legs) {
   }
   const revTotal = sum(Object.values(rev), v => v), costTotal = sum(Object.values(cost), v => v);
   const onTime = legs.filter(l => !l.delay || l.delay < 15).length;
+  const transferPax = legs.reduce((a, f) => a + (f.transferPax || 0), 0);
   return {
+    transferPax,
     legs: legs.length, rev, cost, revTotal, costTotal,
     profit: revTotal - costTotal,
     margin: revTotal ? (revTotal - costTotal) / revTotal : 0,

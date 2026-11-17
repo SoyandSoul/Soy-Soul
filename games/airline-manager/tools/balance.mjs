@@ -104,25 +104,46 @@ const SZENARIEN = {
     report("3 Strecken, 3 Flugzeuge", s, run(s, DAYS));
   },
 
-  /** Wachstum über Leasing: sobald Geld da ist, kommt eine Maschine dazu. */
+  /**
+   * Wachstum über Leasing. Zweimal: einmal mit täglicher Personalplanung, einmal ohne.
+   * Der Unterschied ist der Grund, warum schnelles Wachstum im Spiel weh tun soll.
+   */
   leasing() {
-    const s = build(fresh(), ["LHR"]);
-    const dests = ["CDG", "MAD", "BCN", "FCO", "VIE", "CPH", "DUB", "LIS", "ATH", "WAW", "OSL"];
-    let next = 0;
-    const now = run(s, DAYS, (st, t) => {
-      if (next >= dests.length) return;
-      const q = act.leaseQuoteFor?.(st, "a320neo", 12, t);
-      if (st.cash < 4e6) return;
-      const r = act.leaseNew(st, "a320neo", 12, t);
-      if (!r.ok) return;
-      stable(st);
-      const route = act.createRoute(st, "FRA", dests[next++]).route;
-      act.hireAllOpen(st, t);
-      const free = st.fleet.find(a => a.status === "idle");
-      if (free && route) act.assign(st, free.id, route.id, t);
-      act.hireAllOpen(st, t);
-    });
-    report("Wachstum über Leasing", s, now);
+    for (const [label, hireDaily] of [["Wachstum, Personal gepflegt", true], ["Wachstum ohne Personalplanung", false]]) {
+      const s = build(fresh(), ["LHR"]);
+      const dests = ["CDG", "MAD", "BCN", "FCO", "VIE", "CPH", "DUB", "LIS", "ATH", "WAW", "OSL"];
+      let next = 0;
+      const now = run(s, DAYS, (st, t) => {
+        if (hireDaily) act.hireAllOpen(st, t);
+        if (next >= dests.length || st.cash < 4e6) return;
+        if (!act.leaseNew(st, "a320neo", 12, t).ok) return;
+        stable(st);
+        const route = act.createRoute(st, "FRA", dests[next++]).route;
+        act.hireAllOpen(st, t);
+        const free = st.fleet.find(a => a.status === "idle");
+        if (free && route) act.assign(st, free.id, route.id, t);
+        act.hireAllOpen(st, t);
+      });
+      report(label, s, now);
+    }
+  },
+
+  /**
+   * Umsteiger: Was bringt ein Netz gegenüber wenigen einzelnen Strecken?
+   * Der Leasingrahmen wird hier künstlich gehoben, sonst misst man nur ihn.
+   */
+  umsteiger() {
+    const dests = ["LIS", "ATH", "OSL", "IST", "MAD", "HEL", "DUB", "WAW"];
+    for (const n of [2, 4, 8]) {
+      const s = fresh();
+      s.cash = 60e6;
+      s.airline.frameBonus = 3e6;                 // Rahmen für den Test öffnen
+      build(s, dests.slice(0, n));
+      const now = run(s, DAYS, (st, t) => act.hireAllOpen(st, t));
+      const sum = summary(s, DAYS, now);
+      const share = sum.opRev ? (sum.rev.transfer || 0) / sum.opRev : 0;
+      report(`${n} weite Strecken`, s, now, { note: `Umsteiger ${money(sum.rev.transfer || 0)} (${pct(share)} vom Erlös)` });
+    }
   },
 
   /** Werbung: lohnt sie sich, und ab wann nicht mehr? */

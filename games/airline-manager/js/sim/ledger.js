@@ -2,7 +2,7 @@
 
 import { dayKey } from "../core/util.js";
 
-export const REV = { credit: "Kreditauszahlung", tickets: "Tickets", cargo: "Fracht", onboard: "Bordverkauf", bags: "Gepäckgebühren", charter: "Charter", livery: "Sonderlackierung", insurance: "Versicherung", stocks: "Aktienverkauf" };
+export const REV = { credit: "Kreditauszahlung", tickets: "Tickets", cargo: "Fracht", transfer: "Umsteiger", onboard: "Bordverkauf", bags: "Gepäckgebühren", charter: "Charter", livery: "Sonderlackierung", insurance: "Versicherung", stocks: "Aktienverkauf" };
 export const COST = {
   fuel: "Kerosin", staff: "Gehälter", crew: "Crew-Spesen", fees: "Start-/Landegebühren", handling: "Turnaround & Handling", nav: "Flugsicherung", sales: "Vertrieb", catering: "Catering", marketing: "Werbung",
   lease: "Leasingraten", leaseReserve: "Wartungsrücklagen (Leasing)", leaseFee: "Leasing-Gebühren",

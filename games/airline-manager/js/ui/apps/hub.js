@@ -9,6 +9,9 @@ import { upgradeDepot } from "../../sim/fuel.js";
 import { AREAS, levelOf, stage, nextStage, upkeepPerDay, hangarEffect, upgradeNote } from "../../sim/hub.js";
 import { AIRPORT_BY_IATA } from "../../data/airports.js";
 import { depotCapKg } from "../../sim/fuel.js";
+import { hubWaves } from "../../sim/connections.js";
+import { summary } from "../../sim/ledger.js";
+import { CONNECT } from "../../core/config.js";
 
 export default {
   id: "hub", title: "Drehkreuz", icon: "gate", width: 620,
@@ -29,6 +32,8 @@ export default {
           <div class="small muted">Größe ${ap.tier} von 5 · längste Bahn ${fmt.int(ap.runwayM)} m · ${fmt.int(ap.pop * 10) / 10} Mio Einzugsgebiet</div></div>
         <div class="r"><div class="small muted">Unterhalt</div><b>${fmt.money(upkeepPerDay(s))}/Tag</b></div>
       </div>
+
+      ${waves(ctx, iata)}
 
       ${AREAS.map(area => block(ctx, iata, area))}
 
@@ -78,4 +83,38 @@ function block(ctx, iata, area) {
           ${s.cash < next.price ? "disabled" : ""}>${fmt.money(next.price)}</button></div>`
       : html`<p class="small good" style="margin-top:8px">Höchste Stufe erreicht.</p>`}
     </div>`;
+}
+
+/**
+ * Wellen am Drehkreuz: Ankünfte und Abflüge über 24 Stunden.
+ * Wer Zubringer und Weiterflüge zeitlich zusammenlegt, verdient an Umsteigern –
+ * wer alles gleichzeitig starten lässt, nicht.
+ */
+function waves(ctx, iata) {
+  const now = ctx.now();
+  const w = hubWaves(ctx.state, iata, now, 24);
+  const max = Math.max(1, ...w.buckets.map(b => Math.max(b.arr, b.dep)));
+  const transfer = transferShare(ctx.state, now);
+  return html`
+    <h3 class="rep-h">Umsteiger</h3>
+    <div class="card">
+      <div class="row"><div class="grow"><b>${Math.round(w.quality * 100)} % der Abflüge haben Zubringer</b>
+        <div class="small muted">${w.note}</div></div>
+        ${transfer != null ? html`<div class="r"><div class="small muted">Erlösanteil</div><b class="acc">${Math.round(transfer * 100)} %</b></div>` : ""}</div>
+      <div class="waves">${w.buckets.map(b => html`<div class="wv" title="${(new Date(now + b.h * 3600_000)).getHours()}:00 – ${b.arr} an, ${b.dep} ab">
+        <i class="arr" style="height:${b.arr / max * 100}%"></i><i class="dep" style="height:${b.dep / max * 100}%"></i></div>`)}</div>
+      <div class="row small muted" style="margin-top:6px;gap:12px">
+        <span><i class="dot arr"></i> Ankünfte</span><span><i class="dot dep"></i> Abflüge</span>
+        <span class="grow r">nächste 24 Stunden</span></div>
+      <p class="small muted" style="margin-top:8px">Ein Umstieg braucht ${CONNECT.minMinutes} bis ${CONNECT.maxMinutes} Minuten
+        und darf nicht mehr als ${Math.round((CONNECT.maxDetour - 1) * 100)} % Umweg bedeuten. Umsteiger füllen nur,
+        was die örtliche Nachfrage frei lässt.</p>
+    </div>`;
+}
+
+/** Anteil der Umsteigererlöse an den Erlösen der letzten sieben Tage. */
+function transferShare(state, now) {
+  const sum = summary(state, 7, now);
+  if (!sum.opRev) return null;
+  return (sum.rev.transfer || 0) / sum.opRev;
 }

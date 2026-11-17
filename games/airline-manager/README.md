@@ -274,6 +274,23 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.29 – Umsteiger am Drehkreuz** (aus Paket 10)
+- `sim/connections.js`: Jedes Flugzeug pendelt mit fester Umlaufzeit, daraus lassen sich seine
+  Ankünfte und Abflüge am Drehkreuz vorwärts und rückwärts projizieren (`hubTimetable`) – ohne
+  zusätzlichen Zustand und damit ohne Gefahr für die Nachrechen-Invariante.
+- `connectingPax` zählt für einen Abflug die Ankünfte im Anschlussfenster (und umgekehrt),
+  dämpft mit Umweg (`detourFactor`) und Umsteigezeit (`waitFactor`) und deckelt auf die freien Sitze.
+- **Der entscheidende Nenner:** Der Tagesmarkt eines Städtepaars verteilt sich auf *alle* eigenen
+  Abflüge dieser Strecke am Tag (`flightsPerDay`). Ohne ihn stieg dieselbe Nachfrage bei jedem
+  Abflug erneut ein – in der ersten Fassung lag die Auslastung dadurch bei 98 %.
+- Der Durchgangspreis liegt unter der Summe zweier Einzelflüge und wird nach Entfernung auf
+  Zubringer und Weiterflug verteilt, damit kein Erlös doppelt gezählt wird. Örtliche Nachfrage
+  behält Vorrang; `rev.tickets` kommt weiter nur von ihr, Umsteiger laufen unter `rev.transfer`.
+- `hubWaves` liefert Ankunfts- und Abflugwellen über 24 Stunden und eine Note, wie gut die Umläufe
+  zusammenpassen – im Drehkreuz-Fenster als Diagramm.
+- Gemessen über 28 Tage ab FRA: 2 Strecken 5 % Umsteigeranteil (LF 60 %), 4 Strecken 13 % (LF 70 %),
+  8 Strecken 16 % (LF 75 %).
+
 **v0.28 – Geführter Einstieg und Benachrichtigungen** (aus Paket 10)
 - `sim/firststeps.js`: sieben Schritte, abgeleitet aus dem Spielstand – nichts zusätzlich gespeichert
   außer dem Ausblenden-Flag in `prefs`. Panel-Abschnitte können sich jetzt über `hidden(ctx)`
