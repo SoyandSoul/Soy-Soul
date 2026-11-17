@@ -13,7 +13,7 @@ export const CHANGELOG = [
       ["neu", "Nachtschatten: die Erdhälfte, auf der gerade keine Sonne scheint, wird abgedunkelt. Aus Datum und Uhrzeit gerechnet, also für jeden Spieler dieselbe."],
       ["neu", "Bodenbetrieb ab Zoomstufe 11: Bahnen, Vorfeld und Rollwege werden gezeichnet. Für rund 60 große Flughäfen mit den echten Bahnrichtungen, für alle übrigen nach einem festen Schema."],
       ["neu", "Flugzeuge am Boden stehen nicht mehr alle auf dem Flughafenpunkt, sondern an ihrem Gate. Acht Minuten vor dem Abflug rollen sie los, zur Abflugzeit beschleunigen sie auf der Bahn."],
-      ["info", "Der Bodenbetrieb ist reine Darstellung – ein Flug kostet und bringt dasselbe, ob jemand zusieht oder nicht."]
+      ["besser", "Der Bodenbetrieb ist reine Darstellung – ein Flug kostet und bringt dasselbe, ob jemand zusieht oder nicht."]
     ]
   },
   {
