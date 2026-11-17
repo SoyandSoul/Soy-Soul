@@ -37,8 +37,9 @@ import { STOCKS, RATING } from "../js/core/config.js";
 import { steps } from "../js/sim/firststeps.js";
 import { pending } from "../js/ui/notify.js";
 import { hubTimetable, detourFactor, waitFactor, connectingPax, hubWaves } from "../js/sim/connections.js";
-import { CONNECT, IROPS } from "../js/core/config.js";
+import { CONNECT, IROPS, CATERING, HANDLERS, ONBOARD } from "../js/core/config.js";
 import { openCase, options as iropsOptions, replacements, compensation, repairHours, openCases } from "../js/sim/irops.js";
+import { migrate } from "../js/core/store.js";
 import { AIRPORT_BY_IATA } from "../js/data/airports.js";
 import { companyValue } from "../js/sim/stocks.js";
 import { sharePrice } from "../js/sim/stocks.js";
@@ -1100,6 +1101,38 @@ test("Störfall ohne Entscheidung: es wird gewartet und entschädigt", () => {
   const h = repairHours(ac, now);
   assert.ok(h >= lo && h <= hi);
   assert.equal(h, repairHours(ac, now), "deterministisch");
+});
+
+
+test("Alte Spielstände laden und laufen weiter", () => {
+  // Ein Stand, dem alles fehlt, was nach v0.16 dazugekommen ist
+  const { s, route, start } = setup(1);
+  act.assign(s, s.fleet[0].id, route.id, start);
+  settle(s, start + DAY);
+  const alt = JSON.parse(JSON.stringify(s));
+  for (const k of ["staff", "stats", "goals", "charter", "adlivery", "hub", "credit", "boost", "lastPublish", "irops"]) delete alt[k];
+  for (const k of ["frameBonus", "handler", "marketing", "onboard", "catering", "bagFee"]) delete alt.airline[k];
+  for (const ac of alt.fleet) { delete ac.fit; delete ac.charter; delete ac.adLivery; }
+
+  const neu = migrate(alt);
+  assert.ok(neu.staff && neu.goals && neu.credit && Array.isArray(neu.irops), "alles nachgetragen");
+  assert.ok(neu.hub.FRA, "das Drehkreuz bekommt einen Ausbaustand");
+  assert.equal(neu.hub.FRA.gates, 1, "Bestandsairlines stehen nicht plötzlich schlechter da");
+  assert.deepEqual(neu.fleet[0].fit, { seats: "standard", ife: "none" });
+  assert.ok(neu.airline.catering && neu.airline.handler && neu.airline.onboard);
+
+  // Und das Wichtigste: Es rechnet weiter, ohne zu stolpern
+  for (let d = 0; d < 5; d++) settle(neu, start + DAY + (d + 1) * DAY);
+  assert.ok(neu.flights.length > 0);
+  assert.ok(Number.isFinite(neu.cash));
+  // Auch die neuen Einstellungen greifen
+  assert.ok(act.setHandler(neu, "premium").ok);
+  assert.ok(act.setOnboard(neu, "premium").ok);
+  assert.ok(act.upgradeHub(neu, "FRA", "lounge", start + 6 * DAY).ok || neu.cash < 3e6);
+
+  // Unsinnige Werte werden auf die Vorgabe zurückgesetzt, statt das Spiel zu sprengen
+  const kaputt = migrate({ ...JSON.parse(JSON.stringify(alt)), airline: { ...alt.airline, catering: "gibtsnicht", handler: "quatsch", onboard: "blöd" } });
+  assert.ok(CATERING.modes[kaputt.airline.catering] && HANDLERS[kaputt.airline.handler] && ONBOARD.ranges[kaputt.airline.onboard]);
 });
 
 test("Änderungsverlauf passt zur Version", async () => {});

@@ -13,6 +13,7 @@ import { CHECKS, LEASE, DAY, H } from "../core/config.js";
 import { isLeased } from "../sim/lease.js";
 import { mostUrgent } from "../sim/maintenance.js";
 import { openLoans } from "../sim/credit.js";
+import { priceStanding, depotCapKg } from "../sim/fuel.js";
 
 const KEY = "notify-on", SEEN = "notify-seen";
 const QUIET_MS = 6 * 3600_000;    // dieselbe Sache höchstens alle sechs Stunden
@@ -60,6 +61,14 @@ export function pending(state, now) {
     if (state.cash >= l.payment) continue;
     out.push({ id: "loan-" + l.id, title: "Kreditrate nicht gedeckt",
       text: `${l.bank}: ${Math.round(l.payment / 1e3)} k$ fällig am ${new Date(l.nextDue).toLocaleDateString("de-DE")}, die Kasse reicht nicht.` });
+  }
+
+  // Kerosin-Tief: eine Gelegenheit, keine Störung – deshalb nur, wenn Lager und Kasse es hergeben.
+  const fp = priceStanding(now);
+  const cap = depotCapKg(state);
+  if (fp.cheap > 0.85 && state.fuel.stockKg < cap * 0.5 && state.cash > 2e6) {
+    out.push({ id: "fuel-low-" + Math.floor(now / (12 * 3600_000)), title: "Kerosin ist billig",
+      text: `${Math.round(fp.price * 1000)} $ je Tonne – nahe am Tief der letzten zwei Wochen. Das Lager ist zu ${Math.round(state.fuel.stockKg / cap * 100)} % voll.` });
   }
 
   if (state.cash < 0) out.push({ id: "cash", title: "Kasse im Minus",

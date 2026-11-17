@@ -51,7 +51,7 @@ export function computeLeg(state, ac, route, dir, dep, flightsPerDay) {
     paxTotal += connect.paxTotal;
   }
   const lf = seats ? paxTotal / seats : 0;
-  const cat = CATERING.modes[state.airline.catering];
+  const cat = CATERING.modes[state.airline.catering] || CATERING.modes[CATERING.defaultMode];
   const range = ONBOARD.ranges[state.airline.onboard] || ONBOARD.ranges[ONBOARD.defaultRange];
 
   // --- Einnahmen

@@ -29,10 +29,12 @@ export default {
         <div class="row"><div class="grow"><div class="small muted">Freier Kreditrahmen</div>
           <div class="big-price">${fmt.money(limit)}</div></div>
           <div class="r"><div class="small muted">Restschuld</div><b>${fmt.money(note.debt)}</b></div></div>
-        ${raw(gaugeBar([
-          { v: Math.max(note.debt, 1), color: "var(--bad)" },
-          { v: Math.max(limit, 1), color: "var(--raise2)" }
-        ]))}
+        ${raw(gaugeBar(note.debt
+          ? [{ v: note.debt, color: "var(--bad)" }, { v: Math.max(limit, 1), color: "var(--accent)" }]
+          : [{ v: 1, color: "var(--accent)" }]))}
+        <div class="row small muted" style="margin-top:4px">
+          ${note.debt ? html`<span><i class="dot wv-d" style="background:var(--bad)"></i> Restschuld</span>` : ""}
+          <span><i class="dot wv-d"></i> freier Rahmen</span></div>
         <div class="row wrap small muted" style="margin-top:6px">
           <span>${note.text}</span><span>·</span>
           <span>Kreditraten ${fmt.money(note.load)}/Monat</span><span>·</span>

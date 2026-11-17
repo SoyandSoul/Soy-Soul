@@ -4,7 +4,7 @@ Noahs Wunschliste (32 Punkte) in neun Pakete aufgeteilt. **Ein Paket pro Version
 bauen, testen und freigeben, bevor das nächste beginnt. Reihenfolge ist ein Vorschlag und kann getauscht
 werden – die Abhängigkeiten unten sagen, was nicht vorgezogen werden sollte.
 
-Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.30**
+Stand: 17.11.2026 · aktuelle Version im Spiel: **v0.31**
 
 > **Erledigt:** Paket 2 (Airline-Zentrale und Kostenstruktur) als v0.17, Paket 3 (Abflüge und
 > Flugabrechnung) als v0.21, Paket 4 (Erlöse und Reputation) als v0.22, Paket 5 (Hub und
@@ -209,10 +209,10 @@ Aus der Empfehlungsliste, noch offen – nach Wirkung sortiert:
 
 - ✅ **Umsteiger am Drehkreuz** (v0.29): Ankünfte und Abflüge im Anschlussfenster zählen für beide
   Flüge. Umsteigeranteil wächst von 5 % des Erlöses bei zwei Strecken auf 16 % bei acht.
-- **Unregelmäßigkeiten (IROPS)**: Flugzeug fällt aus – verspäten, streichen, tauschen oder ferryen,
-  mit Folgen für Reputation und Kosten. Passt eng zu Paket 8 (Diversions).
-- **Wartende Entscheidungen**: Charterangebote mit Frist, Kerosin-Tief zum Eindecken, Störungen, die
-  eine Antwort brauchen. Teils in Paket 4 und 8 enthalten – dort bewusst als Entscheidung bauen, nicht als Meldung.
+- ✅ **Unregelmäßigkeiten (IROPS)** (v0.30): Flugzeug fällt aus – warten, streichen, tauschen oder
+  leer überführen, mit Folgen für Reputation und Kosten. Zwei Stunden Frist, danach wird gewartet.
+- ✅ **Wartende Entscheidungen**: Charterangebote verfallen täglich (v0.22), Sonderlackierungen
+  wöchentlich (v0.22), Störfälle haben zwei Stunden Frist (v0.30), das Kerosin-Tief meldet sich (v0.31).
 - ✅ **Browser-Benachrichtigung** (v0.28), meldet nur, was eine Entscheidung verlangt
 - ✅ **Geführter Einstieg** (v0.28): sieben Schritte, die sich selbst abhaken
 - ✅ **Balance-Werkzeug fest im Repo** (v0.28): `tools/balance.mjs`, acht Szenarien

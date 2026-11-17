@@ -6,6 +6,16 @@
 
 export const CHANGELOG = [
   {
+    v: "v0.31", date: "17.11.2026", title: "Kleinkram und alte Spielstände",
+    intro: "Eine Runde Nacharbeit nach acht Versionen in Folge.",
+    items: [
+      ["fix", "Im Drehkreuz-Fenster waren die Ankünfte in den Umsteigerwellen unsichtbar: Die Balken hießen intern wie die Abflugliste im Panel und haben deren Abstände geerbt. Jetzt stehen Ankünfte und Abflüge gleich breit nebeneinander."],
+      ["fix", "Alte Spielstände werden beim Laden gründlicher ergänzt. Fehlten Felder aus früheren Versionen, blieb das Spiel beim Weiterrechnen stehen; unsinnige Werte setzen sich jetzt auf die Vorgabe zurück, statt alles zu sprengen."],
+      ["neu", "Benachrichtigung bei günstigem Kerosin: Steht der Preis nahe am Tief der letzten zwei Wochen und ist das Lager halb leer, lohnt sich Eindecken – eine Gelegenheit, keine Störung."],
+      ["besser", "Der Kreditbalken in der Bank zeigt jetzt den freien Rahmen in Farbe statt einer grauen Fläche."]
+    ]
+  },
+  {
     v: "v0.30", date: "17.11.2026", title: "Störfälle mit echten Entscheidungen",
     intro: "Ein Flugzeug fällt aus. Repariert werden muss es so oder so – die Frage ist, was mit den Fluggästen passiert.",
     items: [

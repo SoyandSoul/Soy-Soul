@@ -71,3 +71,19 @@ export function upgradeDepot(state) {
   state.fuel.depot++;
   return { ok: true, cost: next.price };
 }
+
+/**
+ * Wie günstig der Kerosinpreis gerade im Vergleich zu den letzten zwei Wochen steht. 0..1,
+ * wobei 1 das Tief dieser Zeit ist. Damit lässt sich sagen: „Jetzt lohnt sich Eindecken."
+ */
+export function priceStanding(ts, days = 14) {
+  const now = fuelPrice(ts);
+  let lo = Infinity, hi = -Infinity;
+  for (let h = 0; h <= days * 24; h += 6) {
+    const p = fuelPrice(ts - h * H);
+    if (p < lo) lo = p;
+    if (p > hi) hi = p;
+  }
+  const span = hi - lo;
+  return { price: now, lo, hi, cheap: span > 0 ? 1 - (now - lo) / span : 0.5 };
+}

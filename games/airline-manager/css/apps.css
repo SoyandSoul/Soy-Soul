@@ -210,8 +210,9 @@
 .waves { display: flex; gap: 2px; align-items: flex-end; height: 72px; margin-top: 10px; }
 .wv { flex: 1; display: flex; gap: 1px; align-items: flex-end; height: 100%; }
 .wv i { flex: 1; border-radius: 2px 2px 0 0; min-height: 1px; }
-.wv i.arr { background: var(--info); }
-.wv i.dep { background: var(--accent); }
-.dot.arr, .dot.dep { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
-.dot.arr { background: var(--info); }
-.dot.dep { background: var(--accent); }
+.wv i.wv-a { background: var(--info); }
+.wv i.wv-d { background: var(--accent); }
+/* eigene Namen, weil .dep schon der Abflugliste im Panel gehört */
+.dot.wv-a, .dot.wv-d { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; padding: 0; }
+.dot.wv-a { background: var(--info); }
+.dot.wv-d { background: var(--accent); }

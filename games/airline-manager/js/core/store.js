@@ -2,7 +2,7 @@
 // Gespeichert wird nur im Browser (localStorage). Kein Konto, keine E-Mail.
 // Für Gerätewechsel gibt es Export/Import als Text (ui/panels/airline.js) und optional Cloud-Save (net/backend.js).
 
-import { GAME, FUEL, REPUTATION, CATERING, BAGS, HANDLERS, ONBOARD } from "./config.js";
+import { GAME, FUEL, REPUTATION, CATERING, BAGS, HANDLERS, ONBOARD, STOCKS } from "./config.js";
 import { whiteLivery, normalizeLivery } from "../art/livery.js";
 import { AIRCRAFT_BY_ID, LEGACY_TYPES } from "../data/aircraft.js";
 import { staffNeed, GROUPS } from "../sim/staff.js";
@@ -98,11 +98,26 @@ export function migrate(s) {
     };
   }
   s.goals ??= { done: [], seen: [] };
+  // Felder aus früheren Versionen, die in alten Ständen fehlen können. Lieber einmal zu viel
+  // abgesichert – ein Spielstand, der nicht mehr lädt, ist der schlimmste Fehler in diesem Spiel.
+  s.airline.catering ??= CATERING.defaultMode;
+  if (!CATERING.modes[s.airline.catering]) s.airline.catering = CATERING.defaultMode;
+  s.airline.bagFee ??= BAGS.defaultFee;
+  s.airline.rep ??= REPUTATION.start;
+  s.airline.safety ??= { incidents: [], crashes: [] };
+  s.flights ??= [];
+  s.log ??= [];
+  s.routes ??= [];
+  s.fleet ??= [];
+  s.stocks ??= { holdings: {}, shares: STOCKS.defaultShares };
+  s.fin ??= { days: {} };
   s.airline.handler ??= HANDLERS.default;      // v0.21: Bodenabfertiger
+  if (!HANDLERS[s.airline.handler]) s.airline.handler = HANDLERS.default;
   // v0.22: Werbung, Charter, Sonderlackierungen, Bordverkauf
   s.airline.marketing ??= { campaigns: [] };
   s.airline.marketing.campaigns ??= [];
   s.airline.onboard ??= ONBOARD.defaultRange;
+  if (!ONBOARD.ranges[s.airline.onboard]) s.airline.onboard = ONBOARD.defaultRange;
   s.charter ??= { taken: [], declined: [] };
   s.adlivery ??= { taken: [], declined: [] };
   // v0.23: Drehkreuz-Ausbau und Kabinenausstattung. Bestandsairlines starten mit Fluggastbrücken,

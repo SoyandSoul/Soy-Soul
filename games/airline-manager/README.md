@@ -274,6 +274,16 @@ nächste beginnt: siehe **[ROADMAP.md](ROADMAP.md)**.
 
 ## Änderungen
 
+**v0.31 – Kleinkram und alte Spielstände**
+- Namenskollision in der Oberfläche: Die Wellenbalken im Drehkreuz hießen `.arr` / `.dep`, und
+  `.dep` gehört schon der Abflugliste im Panel (`display:flex; padding:7px 8px`). Die Ankunftsbalken
+  waren dadurch 2 px statt 10 px breit. Jetzt `.wv-a` / `.wv-d`.
+- `migrate()` ergänzt fehlende Felder aus früheren Versionen vollständig und setzt unbekannte
+  Werte (`catering`, `handler`, `onboard`) auf die Vorgabe zurück. Ein Stand ohne `airline.catering`
+  brach vorher beim ersten Flug ab. Ein eigener Test baut einen v0.16-Stand nach und rechnet weiter.
+- `priceStanding(ts)` in `sim/fuel.js`: wie günstig der Preis gegenüber den letzten zwei Wochen
+  steht. Die Benachrichtigung meldet ein Kerosin-Tief nur, wenn Lager und Kasse es hergeben.
+
 **v0.30 – Störfälle mit echten Entscheidungen** (aus Paket 10)
 - `sim/irops.js`: Ein schwerer Defekt (`IROPS.chancePerLeg`, rund jeder 250. Flug) legt einen Fall an.
   Die Reparaturdauer steht fest und ist deterministisch aus Flugzeug und Zeit; entschieden wird nur

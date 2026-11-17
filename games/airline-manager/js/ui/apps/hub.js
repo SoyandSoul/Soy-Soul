@@ -102,9 +102,9 @@ function waves(ctx, iata) {
         <div class="small muted">${w.note}</div></div>
         ${transfer != null ? html`<div class="r"><div class="small muted">Erlösanteil</div><b class="acc">${Math.round(transfer * 100)} %</b></div>` : ""}</div>
       <div class="waves">${w.buckets.map(b => html`<div class="wv" title="${(new Date(now + b.h * 3600_000)).getHours()}:00 – ${b.arr} an, ${b.dep} ab">
-        <i class="arr" style="height:${b.arr / max * 100}%"></i><i class="dep" style="height:${b.dep / max * 100}%"></i></div>`)}</div>
+        <i class="wv-a" style="height:${b.arr / max * 100}%"></i><i class="wv-d" style="height:${b.dep / max * 100}%"></i></div>`)}</div>
       <div class="row small muted" style="margin-top:6px;gap:12px">
-        <span><i class="dot arr"></i> Ankünfte</span><span><i class="dot dep"></i> Abflüge</span>
+        <span><i class="dot wv-a"></i> Ankünfte</span><span><i class="dot wv-d"></i> Abflüge</span>
         <span class="grow r">nächste 24 Stunden</span></div>
       <p class="small muted" style="margin-top:8px">Ein Umstieg braucht ${CONNECT.minMinutes} bis ${CONNECT.maxMinutes} Minuten
         und darf nicht mehr als ${Math.round((CONNECT.maxDetour - 1) * 100)} % Umweg bedeuten. Umsteiger füllen nur,
